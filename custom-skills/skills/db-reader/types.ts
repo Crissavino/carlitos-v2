@@ -1,7 +1,12 @@
 export type AllowedQueryId =
   | "active-subscriptions"
   | "trials-last-7-days"
-  | "daily-revenue-7d";
+  | "daily-revenue-7d"
+  | "first-rebills-7d"
+  | "second-rebills-7d"
+  | "first-rebills-cohorte-30d"
+  | "usage-before-rebill2-7d"
+  | "ad-spend-7d";
 
 export interface DBReaderRequest {
   query: AllowedQueryId;

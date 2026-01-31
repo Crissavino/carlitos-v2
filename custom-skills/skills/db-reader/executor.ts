@@ -116,16 +116,63 @@ function formatResults(queryId: AllowedQueryId, rows: unknown[]): unknown {
         })),
       };
     }
-    case "trials-last-7-days": {
+    case "trials-last-7-days":
+    case "first-rebills-7d":
+    case "second-rebills-7d": {
       const total = rows.reduce((sum: number, r: any) => sum + (r.count || 0), 0);
       return {
         total,
         byDay: rows.map((r: any) => {
-          const dateStr = r.date instanceof Date 
-            ? r.date.toISOString().split("T")[0] 
+          const dateStr = r.date instanceof Date
+            ? r.date.toISOString().split("T")[0]
             : String(r.date);
           return { date: dateStr, count: r.count };
         }),
+      };
+    }
+    case "usage-before-rebill2-7d": {
+      // Single row result with first_rebills and with_usage
+      const row = rows[0] as any || { first_rebills: 0, with_usage: 0 };
+      return {
+        totalFirstRebills: row.first_rebills || 0,
+        totalWithUsage: row.with_usage || 0,
+      };
+    }
+    case "first-rebills-cohorte-30d": {
+      // Single row result with count
+      const row = rows[0] as any || { count: 0 };
+      return {
+        total: row.count || 0,
+      };
+    }
+    case "ad-spend-7d": {
+      // Convert to EUR: currency_id 2 = EUR, currency_id 4 = RON (rate 4.97)
+      const RON_RATE = 4.97;
+      let totalEur = 0;
+      const byCurrency: any[] = [];
+
+      for (const r of rows as any[]) {
+        const currencyId = r.currency_id;
+        const cost = parseFloat(r.total_cost) || 0;
+        let costEur = cost;
+
+        if (currencyId === 4) {
+          // RON
+          costEur = cost / RON_RATE;
+        }
+        // currency_id 2 is already EUR
+
+        totalEur += costEur;
+        byCurrency.push({
+          currencyId,
+          original: Math.round(cost * 100) / 100,
+          eur: Math.round(costEur * 100) / 100,
+        });
+      }
+
+      return {
+        totalEur: Math.round(totalEur * 100) / 100,
+        byCurrency,
       };
     }
     case "daily-revenue-7d": {
