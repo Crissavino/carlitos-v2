@@ -1,3 +1,15 @@
 carlitos-bot.com {
-    reverse_proxy openclaw:18789
+    # Webhook para Google Ads Scripts (POST explícito)
+    @ingest {
+        path /ingest/google-ads*
+        method POST
+    }
+    handle @ingest {
+        reverse_proxy openclaw:18789
+    }
+
+    # Todo el resto del tráfico (UI, WebSocket, etc.)
+    handle {
+        reverse_proxy openclaw:18789
+    }
 }
