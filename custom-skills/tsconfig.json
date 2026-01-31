@@ -10,6 +10,6 @@
     "declaration": true,
     "skipLibCheck": true
   },
-  "include": ["core/**/*", "skills/**/*", "tests/**/*"],
+  "include": ["core/**/*", "skills/**/*", "tests/**/*", "webhook-server.ts"],
   "exclude": ["node_modules", "dist"]
 }
