@@ -1,0 +1,55 @@
+# DBReader Configuration
+# Motor: MySQL 5.7
+# Servidor con múltiples DBs
+
+connection:
+  host: "${DB_HOST}"
+  port: "${DB_PORT:-3306}"
+  user: "${DB_READONLY_USER}"
+  password: "${DB_READONLY_PASSWORD}"
+  charset: "utf8mb4"
+
+# Mapeo de bases de datos y sus tablas
+databases:
+  avocode:
+    description: "DB principal - billing, suscripciones, clientes"
+    tables:
+      - subscriptions
+      - invoices
+      - customers
+      - payments
+      - payment_status
+      - products
+      - currencies
+      - companies
+      - websites
+      - bo_periodicals
+      - bo_periodical_transactions
+      - bo_periodical_statuses
+      - bo_stripe_customers
+      - bo_payu_customers
+      - bo_revolut_customers
+      - bo_tap_customers
+
+  avocodebo:
+    description: "DB backoffice - ads, campañas, analytics"
+    tables:
+      - campaigns
+      - ads
+      - fixed_expenses
+      - zoho_customers
+      - zoho_invoices
+      - zoho_payments
+      - zoho_organizations
+
+# Alias para queries (tabla -> database.tabla)
+table_mapping:
+  # avocode
+  subscriptions: "avocode.subscriptions"
+  invoices: "avocode.invoices"
+  customers: "avocode.customers"
+  currencies: "avocode.currencies"
+  payments: "avocode.payments"
+  # avocodebo
+  campaigns: "avocodebo.campaigns"
+  ads: "avocodebo.ads"

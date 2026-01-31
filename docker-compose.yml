@@ -1,0 +1,31 @@
+services:
+  openclaw:
+    build: .
+    container_name: openclaw
+    stdin_open: true
+    tty: true
+    volumes:
+      # Solo persistir datos, workspace y config - NO las skills (están en la imagen)
+      - openclaw-data:/root/.openclaw/data
+      - openclaw-workspace:/root/.openclaw/workspace
+      - openclaw-config:/root/.openclaw/config
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # Database Server (read-only) - avocode + avocodebo
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_READONLY_USER=${DB_READONLY_USER}
+      - DB_READONLY_PASSWORD=${DB_READONLY_PASSWORD}
+      # OpenClaw Gateway
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-}
+      # Google Ads Webhook (para Fase 2)
+      - GOOGLE_ADS_WEBHOOK_TOKEN=${GOOGLE_ADS_WEBHOOK_TOKEN:-}
+    ports:
+      - "18789:18789"
+    restart: unless-stopped
+
+volumes:
+  openclaw-data:
+  openclaw-workspace:
+  openclaw-config:

@@ -1,0 +1,38 @@
+# GoogleAdsExpert Configuration
+# 
+# Cambiar datasource de 'ads-script' a 'google-api' cuando
+# tengamos el Basic Token de Google Ads API.
+
+google-ads-expert:
+  enabled: true
+  
+  # Datasource activo
+  # Opciones: 'ads-script' | 'google-api'
+  datasource: 'ads-script'
+  
+  # Configuración webhook (para ads-script)
+  webhook:
+    enabled: true
+    path: '/ingest/google-ads'
+    # Token en variable de entorno: GOOGLE_ADS_WEBHOOK_TOKEN
+    token_env: 'GOOGLE_ADS_WEBHOOK_TOKEN'
+  
+  # Persistencia
+  persistence:
+    path: 'data/google-ads'
+    format: 'jsonl'
+    retention_days: 90
+  
+  # Validación
+  validation:
+    require_campaigns: true
+    min_campaigns: 1
+    max_campaigns: 1000
+  
+  # Futuro: Google Ads API config
+  # google_api:
+  #   developer_token_env: 'GOOGLE_ADS_DEV_TOKEN'
+  #   client_id_env: 'GOOGLE_ADS_CLIENT_ID'
+  #   client_secret_env: 'GOOGLE_ADS_CLIENT_SECRET'
+  #   refresh_token_env: 'GOOGLE_ADS_REFRESH_TOKEN'
+  #   customer_id_env: 'GOOGLE_ADS_CUSTOMER_ID'

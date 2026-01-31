@@ -1,0 +1,75 @@
+version: "1.0"
+global:
+  destructive_actions: false
+  auto_execute: false
+  require_approval: true
+
+skills:
+  system:
+    enabled: true
+    permissions:
+      - route
+      - log
+      - check_permission
+    prohibited: []
+
+  db-reader:
+    enabled: true
+    permissions:
+      - SELECT
+    prohibited:
+      - INSERT
+      - UPDATE
+      - DELETE
+      - DROP
+      - ALTER
+      - TRUNCATE
+    connection:
+      mode: read-only
+      user: readonly_user
+
+  google-ads-expert:
+    enabled: true
+    mode: observer
+    permissions:
+      - read_metrics
+      - analyze
+      - suggest
+    prohibited:
+      - modify_campaigns
+      - modify_budgets
+      - web_automation
+      - ui_login
+    data_source: webhook
+
+  dev-expert:
+    enabled: true
+    permissions:
+      - read_repo
+      - analyze_code
+      - propose_pr
+    prohibited:
+      - push
+      - merge
+      - delete_branch
+      - delete_files
+
+  business-expert:
+    enabled: true
+    permissions:
+      - read_kpis
+      - analyze
+      - recommend
+    prohibited:
+      - execute_changes
+
+  admin-ops:
+    enabled: true
+    permissions:
+      - create_tasks
+      - draft_messages
+      - summarize
+    prohibited:
+      - send_email
+      - modify_calendar
+      - auto_execute

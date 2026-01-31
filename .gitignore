@@ -1,0 +1,26 @@
+# Environment
+.env
+
+# Logs
+*.log
+
+# Node
+node_modules/
+dist/
+package-lock.json
+
+# Custom skills (generated at runtime)
+custom-skills/node_modules/
+custom-skills/dist/
+custom-skills/data/
+custom-skills/package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
