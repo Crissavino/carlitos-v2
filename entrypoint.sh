@@ -70,9 +70,18 @@ openclaw skills list 2>/dev/null | grep -E "ready|db-reader|google-ads" || echo 
 # Show dashboard URL with token
 TOKEN=$(grep -o '"token": "[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
 echo ""
-echo "=== Starting Gateway ==="
+echo "=== Starting Services ==="
 echo "Dashboard: http://localhost:18789/?token=$TOKEN"
+echo "Webhook:   http://localhost:3001/ingest/google-ads"
 echo ""
 
+# Start webhook server in background
+echo "Starting webhook server..."
+cd /root/.openclaw/custom-skills
+node dist/webhook-server.js &
+WEBHOOK_PID=$!
+echo "Webhook server started (PID: $WEBHOOK_PID)"
+
 # Start gateway in foreground
+cd /app
 exec openclaw gateway --bind lan --port 18789

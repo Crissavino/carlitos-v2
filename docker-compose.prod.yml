@@ -22,6 +22,7 @@ services:
       - GOOGLE_ADS_WEBHOOK_TOKEN=${GOOGLE_ADS_WEBHOOK_TOKEN:-}
     expose:
       - "18789"
+      - "3001"
     restart: unless-stopped
 
   caddy:
