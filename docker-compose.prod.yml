@@ -1,0 +1,46 @@
+# Production config with Caddy SSL
+# Usage: docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  openclaw:
+    build: .
+    container_name: openclaw
+    stdin_open: true
+    tty: true
+    volumes:
+      - openclaw-data:/root/.openclaw/data
+      - openclaw-workspace:/root/.openclaw/workspace
+      - openclaw-config:/root/.openclaw/config
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_READONLY_USER=${DB_READONLY_USER}
+      - DB_READONLY_PASSWORD=${DB_READONLY_PASSWORD}
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-}
+      - GOOGLE_ADS_WEBHOOK_TOKEN=${GOOGLE_ADS_WEBHOOK_TOKEN:-}
+    expose:
+      - "18789"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:alpine
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - openclaw
+    restart: unless-stopped
+
+volumes:
+  openclaw-data:
+  openclaw-workspace:
+  openclaw-config:
+  caddy-data:
+  caddy-config:
