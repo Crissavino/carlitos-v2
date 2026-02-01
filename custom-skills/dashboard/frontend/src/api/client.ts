@@ -168,6 +168,62 @@ export interface TasksResponse {
 }
 
 // ============================================================================
+// Campaigns (Phase 7)
+// ============================================================================
+
+export interface CampaignMetrics {
+  campaignId: string;
+  campaignName: string;
+  status: string;
+
+  // From Google Ads Script
+  spend7d: number;
+  clicks: number;
+  impressions: number;
+  conversionsGoogle: number;
+  ctr: number;
+  cpc: number;
+  googleCpa: number;
+
+  // From DB Attribution
+  acquisitions: number;
+  firstRebills: number;
+  cohort21dSize: number;
+  cohort51dSize: number;
+  ltv21d: number;
+  ltv51d: number;
+
+  // Calculated
+  cpfr: number;
+  payback21d: number;
+  payback51d: number;
+  campaignAgeDays: number;
+
+  // Status
+  payback51dStatus: 'green' | 'yellow' | 'red';
+  recommendation: string;
+}
+
+export interface CampaignPerformanceResult {
+  fetchedAt: string;
+  dateRange: string;
+  currency: string;
+  totalCampaigns: number;
+  campaigns: CampaignMetrics[];
+}
+
+export interface CampaignActionGroup {
+  count: number;
+  campaigns: CampaignMetrics[];
+}
+
+export interface CampaignActions {
+  toPause: CampaignActionGroup;
+  toScale: CampaignActionGroup;
+  toMonitor: CampaignActionGroup;
+}
+
+// ============================================================================
 // API Methods
 // ============================================================================
 
@@ -211,4 +267,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ triggerType: 'manual' }),
     }),
+
+  // Campaigns (Phase 7)
+  getCampaigns: () => fetchAPI<CampaignPerformanceResult>('/campaigns'),
+  getCampaignActions: () => fetchAPI<CampaignActions>('/campaigns/actions'),
 };

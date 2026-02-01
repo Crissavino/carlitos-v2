@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { LayoutDashboard, Kanban as KanbanIcon } from 'lucide-react';
+import { LayoutDashboard, Kanban as KanbanIcon, BarChart3 } from 'lucide-react';
 import { Executive } from './pages/Executive';
 import { Kanban } from './pages/Kanban';
+import { Campaigns } from './pages/Campaigns';
 
-type Page = 'executive' | 'kanban';
+type Page = 'executive' | 'kanban' | 'campaigns';
 
 function App() {
   const [page, setPage] = useState<Page>('executive');
@@ -42,6 +43,17 @@ function App() {
                 <KanbanIcon className="w-4 h-4" />
                 Kanban
               </button>
+              <button
+                onClick={() => setPage('campaigns')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  page === 'campaigns'
+                    ? 'bg-gray-800 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4" />
+                Campaigns
+              </button>
             </div>
           </div>
         </div>
@@ -51,6 +63,7 @@ function App() {
       <main className="pt-14">
         {page === 'executive' && <Executive />}
         {page === 'kanban' && <Kanban />}
+        {page === 'campaigns' && <Campaigns />}
       </main>
     </div>
   );
