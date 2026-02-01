@@ -55,6 +55,7 @@ import {
   type Task,
   type TaskStatus,
 } from "./db.js";
+import { CurrencyConverter } from "../core/currency.js";
 
 const app = express();
 const PORT = parseInt(process.env.DASHBOARD_PORT || "3002", 10);
@@ -126,6 +127,43 @@ app.get("/api", (req: Request, res: Response) => {
 
 app.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// ============================================================================
+// CURRENCY RATES (for cron updates)
+// ============================================================================
+
+// GET /api/currency/rates - Get current exchange rates (public)
+app.get("/api/currency/rates", (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    data: {
+      rates: CurrencyConverter.getAllRates(),
+      lastUpdated: CurrencyConverter.getLastUpdated()?.toISOString() || null,
+      isStale: CurrencyConverter.isStale(),
+    },
+  });
+});
+
+// POST /api/currency/refresh - Refresh rates from external API (protected)
+app.post("/api/currency/refresh", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const success = await CurrencyConverter.refreshRates();
+    if (success) {
+      res.json({
+        success: true,
+        message: "Currency rates refreshed",
+        data: {
+          rates: CurrencyConverter.getAllRates(),
+          lastUpdated: CurrencyConverter.getLastUpdated()?.toISOString(),
+        },
+      });
+    } else {
+      res.status(500).json({ error: "Failed to refresh rates from API" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
 });
 
 // ============================================================================
@@ -908,10 +946,17 @@ app.use((req: Request, res: Response) => {
 // START
 // ============================================================================
 
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, "0.0.0.0", async () => {
   console.log(`Dashboard running on http://0.0.0.0:${PORT}`);
   console.log(`API: http://0.0.0.0:${PORT}/api`);
   console.log(`Auth token: ${DASHBOARD_TOKEN ? "configured" : "using default"}`);
+
+  // Refresh currency rates on startup
+  console.log("Refreshing currency exchange rates...");
+  const success = await CurrencyConverter.refreshRates();
+  if (!success) {
+    console.log("Using default currency rates (API refresh failed)");
+  }
 });
 
 export default app;

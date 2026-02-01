@@ -1,4 +1,5 @@
 import { QueryDefinition } from "../types.js";
+import { buildCurrencyRateCase } from "../../../core/currency.js";
 
 /**
  * LTV Queries - Lifetime Value real basado en diferentes ventanas de tiempo
@@ -11,8 +12,11 @@ import { QueryDefinition } from "../types.js";
  * - Solo customers con N+ días desde primer pago (datos completos)
  * - Suma trials (type 1) + subscriptions (type 2)
  * - Resta refunds (type 3)
- * - Convierte todo a EUR
+ * - Convierte todo a EUR usando CurrencyConverter centralizado
  */
+
+// SQL CASE for currency conversion (from centralized CurrencyConverter)
+const RATE_CASE = buildCurrencyRateCase('i.currency_code');
 
 const buildLtvQuery = (days: number, lookbackMonths: number = 3): string => `
   SELECT
@@ -27,32 +31,8 @@ const buildLtvQuery = (days: number, lookbackMonths: number = 3): string => `
       c.first_payment,
       SUM(
         CASE
-          WHEN i.invoice_type_id IN (1, 2) THEN i.amount /
-            CASE i.currency_code
-              WHEN 'EUR' THEN 1
-              WHEN 'USD' THEN 1.08
-              WHEN 'RON' THEN 4.97
-              WHEN 'BRL' THEN 6.35
-              WHEN 'CLP' THEN 1020
-              WHEN 'HUF' THEN 408
-              WHEN 'GBP' THEN 0.84
-              WHEN 'UAH' THEN 43.5
-              WHEN 'AED' THEN 3.97
-              ELSE 1
-            END
-          WHEN i.invoice_type_id = 3 THEN -i.amount /
-            CASE i.currency_code
-              WHEN 'EUR' THEN 1
-              WHEN 'USD' THEN 1.08
-              WHEN 'RON' THEN 4.97
-              WHEN 'BRL' THEN 6.35
-              WHEN 'CLP' THEN 1020
-              WHEN 'HUF' THEN 408
-              WHEN 'GBP' THEN 0.84
-              WHEN 'UAH' THEN 43.5
-              WHEN 'AED' THEN 3.97
-              ELSE 1
-            END
+          WHEN i.invoice_type_id IN (1, 2) THEN i.amount / ${RATE_CASE}
+          WHEN i.invoice_type_id = 3 THEN -i.amount / ${RATE_CASE}
           ELSE 0
         END
       ) as customer_revenue_eur

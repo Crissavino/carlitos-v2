@@ -1,17 +1,8 @@
 import { QueryDefinition } from "../types.js";
+import { EUR_RATES, CurrencyConverter } from "../../../core/currency.js";
 
-// Approximate EUR exchange rates
-const HARDCODED_RATES: Record<string, number> = {
-  EUR: 1,
-  USD: 1.08,
-  RON: 4.97,
-  BRL: 6.35,
-  CLP: 1020,
-  HUF: 408,
-  GBP: 0.84,
-  UAH: 43.5,
-  AED: 3.97,
-};
+// Re-export for backwards compatibility
+const HARDCODED_RATES = EUR_RATES;
 
 // This query combines:
 // 1. Invoices from avocode (trials, subscriptions, invoice refunds)
@@ -68,8 +59,7 @@ export const dailyRevenue7dQuery: QueryDefinition = {
 };
 
 export function convertToEur(amount: number, currency: string): number {
-  const rate = HARDCODED_RATES[currency] || 1;
-  return Math.round((amount / rate) * 100) / 100;
+  return CurrencyConverter.toEur(amount, currency);
 }
 
 export { HARDCODED_RATES };

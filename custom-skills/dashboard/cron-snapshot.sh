@@ -26,6 +26,26 @@ if [ -z "$DASHBOARD_TOKEN" ]; then
   exit 1
 fi
 
+# ============================================================================
+# 1. Refresh currency exchange rates
+# ============================================================================
+echo "[INFO] $(date -Iseconds) Refreshing currency rates..."
+
+CURRENCY_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+  -H "Authorization: Bearer $DASHBOARD_TOKEN" \
+  -H "Content-Type: application/json" \
+  "${DASHBOARD_URL}/api/currency/refresh")
+
+CURRENCY_CODE=$(echo "$CURRENCY_RESPONSE" | tail -n1)
+if [ "$CURRENCY_CODE" = "200" ]; then
+  echo "[OK] $(date -Iseconds) Currency rates refreshed"
+else
+  echo "[WARN] $(date -Iseconds) Currency refresh failed (HTTP $CURRENCY_CODE), using cached rates"
+fi
+
+# ============================================================================
+# 2. Save daily KPI snapshot
+# ============================================================================
 echo "[INFO] $(date -Iseconds) Starting daily snapshot..."
 
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \

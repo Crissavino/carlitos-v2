@@ -1,4 +1,5 @@
 import { QueryDefinition } from "../types.js";
+import { buildCurrencyRateCase } from "../../../core/currency.js";
 
 /**
  * LTV Queries - Ventanas correctas basadas en modelo de cobro real
@@ -27,6 +28,10 @@ import { QueryDefinition } from "../types.js";
 
 // Jackcode company_id
 const JACKCODE_COMPANY_ID = 3;
+
+// SQL CASE for currency conversion (from centralized CurrencyConverter)
+const RATE_CASE = buildCurrencyRateCase('i.currency_code');
+const RATE_CASE_INV = buildCurrencyRateCase('inv.currency_code');
 
 /**
  * Construye query LTV para una ventana específica
@@ -60,14 +65,7 @@ const buildLtvWindowQuery = (days: number, lookbackDays: number = 120): string =
 
       -- Gross revenue: invoices type 2 (subscriptions) within window
       COALESCE((
-        SELECT SUM(i.amount /
-          CASE i.currency_code
-            WHEN 'EUR' THEN 1 WHEN 'USD' THEN 1.08 WHEN 'RON' THEN 4.97
-            WHEN 'BRL' THEN 6.35 WHEN 'CLP' THEN 1020 WHEN 'HUF' THEN 408
-            WHEN 'GBP' THEN 0.84 WHEN 'UAH' THEN 43.5 WHEN 'AED' THEN 3.97
-            ELSE 1
-          END
-        )
+        SELECT SUM(i.amount / ${RATE_CASE})
         FROM avocode.invoices i
         WHERE i.customer_id = c.id
           AND i.invoice_status_id = 1
@@ -77,14 +75,7 @@ const buildLtvWindowQuery = (days: number, lookbackDays: number = 120): string =
 
       -- Refunds from invoices type 3 (Avocode/Kiwikode: company_id 1,2)
       COALESCE((
-        SELECT SUM(i.amount /
-          CASE i.currency_code
-            WHEN 'EUR' THEN 1 WHEN 'USD' THEN 1.08 WHEN 'RON' THEN 4.97
-            WHEN 'BRL' THEN 6.35 WHEN 'CLP' THEN 1020 WHEN 'HUF' THEN 408
-            WHEN 'GBP' THEN 0.84 WHEN 'UAH' THEN 43.5 WHEN 'AED' THEN 3.97
-            ELSE 1
-          END
-        )
+        SELECT SUM(i.amount / ${RATE_CASE})
         FROM avocode.invoices i
         WHERE i.customer_id = c.id
           AND i.invoice_status_id = 1
@@ -96,12 +87,7 @@ const buildLtvWindowQuery = (days: number, lookbackDays: number = 120): string =
       -- Refunds from Zoho (Jackcode: company_id 3)
       -- Chain: zoho_refunds → zoho_credit_notes → zoho_invoices → invoices
       COALESCE((
-        SELECT SUM(zr.amount /
-          CASE inv.currency_code
-            WHEN 'EUR' THEN 1 WHEN 'USD' THEN 1.08 WHEN 'AED' THEN 3.97
-            ELSE 1
-          END
-        )
+        SELECT SUM(zr.amount / ${RATE_CASE_INV})
         FROM avocodebo.zoho_refunds zr
         JOIN avocodebo.zoho_credit_notes zcn ON zcn.id = zr.zoho_credit_note_id
         JOIN avocodebo.zoho_invoices zi ON zi.id = zcn.zoho_invoice_id
@@ -155,14 +141,7 @@ const buildLtvWindowQueryCompat = (days: number, lookbackDays: number = 120): st
 
       -- Gross revenue (subscriptions type 2) within window
       COALESCE((
-        SELECT SUM(i.amount /
-          CASE i.currency_code
-            WHEN 'EUR' THEN 1 WHEN 'USD' THEN 1.08 WHEN 'RON' THEN 4.97
-            WHEN 'BRL' THEN 6.35 WHEN 'CLP' THEN 1020 WHEN 'HUF' THEN 408
-            WHEN 'GBP' THEN 0.84 WHEN 'UAH' THEN 43.5 WHEN 'AED' THEN 3.97
-            ELSE 1
-          END
-        )
+        SELECT SUM(i.amount / ${RATE_CASE})
         FROM avocode.invoices i
         WHERE i.customer_id = c.id
           AND i.invoice_status_id = 1
@@ -172,14 +151,7 @@ const buildLtvWindowQueryCompat = (days: number, lookbackDays: number = 120): st
 
       -- Refunds type 3 (Avocode/Kiwikode only, company_id != 3)
       COALESCE((
-        SELECT SUM(i.amount /
-          CASE i.currency_code
-            WHEN 'EUR' THEN 1 WHEN 'USD' THEN 1.08 WHEN 'RON' THEN 4.97
-            WHEN 'BRL' THEN 6.35 WHEN 'CLP' THEN 1020 WHEN 'HUF' THEN 408
-            WHEN 'GBP' THEN 0.84 WHEN 'UAH' THEN 43.5 WHEN 'AED' THEN 3.97
-            ELSE 1
-          END
-        )
+        SELECT SUM(i.amount / ${RATE_CASE})
         FROM avocode.invoices i
         WHERE i.customer_id = c.id
           AND i.invoice_status_id = 1
@@ -188,15 +160,10 @@ const buildLtvWindowQueryCompat = (days: number, lookbackDays: number = 120): st
           AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL ${days} DAY)
       ), 0) as invoice_refunds_eur,
 
-      -- Zoho refunds (Jackcode only)
+      -- Zoho refunds (Jackcode only, company_id = 3)
       -- Chain: zoho_refunds → zoho_credit_notes → zoho_invoices → invoices
       COALESCE((
-        SELECT SUM(zr.amount /
-          CASE inv.currency_code
-            WHEN 'EUR' THEN 1 WHEN 'USD' THEN 1.08 WHEN 'AED' THEN 3.97
-            ELSE 1
-          END
-        )
+        SELECT SUM(zr.amount / ${RATE_CASE_INV})
         FROM avocodebo.zoho_refunds zr
         JOIN avocodebo.zoho_credit_notes zcn ON zcn.id = zr.zoho_credit_note_id
         JOIN avocodebo.zoho_invoices zi ON zi.id = zcn.zoho_invoice_id

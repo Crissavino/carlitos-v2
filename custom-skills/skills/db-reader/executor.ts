@@ -1,7 +1,11 @@
 import { AllowedQueryId, DBReaderResponse } from "./types.js";
 import { getQuery } from "./queries/index.js";
-import { HARDCODED_RATES, convertToEur } from "./queries/daily-revenue.js";
+import { convertToEur } from "./queries/daily-revenue.js";
+import { CurrencyConverter, EUR_RATES } from "../../core/currency.js";
 import { audit } from "../../core/audit.js";
+
+// Re-export for backwards compatibility
+const HARDCODED_RATES = EUR_RATES;
 import mysql from "mysql2/promise";
 
 let pool: mysql.Pool | null = null;
@@ -150,27 +154,23 @@ function formatResults(queryId: AllowedQueryId, rows: unknown[]): unknown {
       };
     }
     case "ad-spend-7d": {
-      // Convert to EUR: currency_id 2 = EUR, currency_id 4 = RON (rate 4.97)
-      const RON_RATE = 4.97;
+      // Convert to EUR using CurrencyConverter
+      // currency_id 2 = EUR, currency_id 4 = RON
       let totalEur = 0;
       const byCurrency: any[] = [];
 
       for (const r of rows as any[]) {
         const currencyId = r.currency_id;
         const cost = parseFloat(r.total_cost) || 0;
-        let costEur = cost;
-
-        if (currencyId === 4) {
-          // RON
-          costEur = cost / RON_RATE;
-        }
-        // currency_id 2 is already EUR
+        // Map currency_id to code: 2=EUR, 4=RON
+        const currencyCode = currencyId === 4 ? 'RON' : 'EUR';
+        const costEur = CurrencyConverter.toEur(cost, currencyCode);
 
         totalEur += costEur;
         byCurrency.push({
           currencyId,
           original: Math.round(cost * 100) / 100,
-          eur: Math.round(costEur * 100) / 100,
+          eur: costEur,
         });
       }
 
