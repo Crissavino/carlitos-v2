@@ -7,6 +7,7 @@ import { secondRebills7dQuery, firstRebillsCohorte30dQuery } from "./second-rebi
 import { usageBeforeRebill27dQuery } from "./usage-before-rebill2-7d.js";
 import { adSpend7dQuery } from "./ad-spend-7d.js";
 import { ltv30dQuery, ltv45dQuery, ltv90dQuery } from "./ltv-30d.js";
+import { ltv21dQuery, ltv51dQuery, ltv81dQuery } from "./ltv-windows.js";
 
 export const ALLOWED_QUERIES: Record<AllowedQueryId, QueryDefinition> = {
   "active-subscriptions": activeSubscriptionsQuery,
@@ -20,6 +21,10 @@ export const ALLOWED_QUERIES: Record<AllowedQueryId, QueryDefinition> = {
   "ltv-30d": ltv30dQuery,
   "ltv-45d": ltv45dQuery,
   "ltv-90d": ltv90dQuery,
+  // LTV con ventanas correctas (basadas en modelo de cobro real)
+  "ltv-21d": ltv21dQuery,
+  "ltv-51d": ltv51dQuery,
+  "ltv-81d": ltv81dQuery,
 };
 
 export function getQuery(queryId: string): QueryDefinition | null {
@@ -42,4 +47,8 @@ export {
   ltv30dQuery,
   ltv45dQuery,
   ltv90dQuery,
+  // LTV ventanas correctas
+  ltv21dQuery,
+  ltv51dQuery,
+  ltv81dQuery,
 };

@@ -66,7 +66,14 @@ export interface DecisionRule {
   /**
    * KPIs que disparan esta regla (para explicabilidad)
    */
-  triggerKpis: Array<"frr" | "cpfr" | "srr" | "ur2" | "netRoas" | "ltv30d" | "paybackRatio">;
+  triggerKpis: Array<
+    | "frr" | "cpfr" | "srr" | "ur2" | "netRoas"
+    | "ltv30d" | "paybackRatio"
+    // Phase 6.1: Ventanas correctas
+    | "ltv21d" | "payback21d"
+    | "ltv51d" | "payback51d"
+    | "ltv81d" | "payback81d"
+  >;
 }
 
 // ============================================================================
@@ -115,6 +122,11 @@ export interface WeeklyDecisionReport {
     netRoas: { value: number; status: KpiStatus };
     ltv30d: { value: number; status: KpiStatus };
     paybackRatio: { value: number; status: KpiStatus };
+    // Phase 6.1: Ventanas correctas
+    ltv21d: { value: number; status: KpiStatus };
+    payback21d: { value: number; status: KpiStatus };
+    ltv51d: { value: number; status: KpiStatus };
+    payback51d: { value: number; status: KpiStatus };
   };
 
   /**

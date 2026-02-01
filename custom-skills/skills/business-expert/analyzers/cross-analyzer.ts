@@ -26,6 +26,9 @@ import {
   getSubscriptionsData,
   getAdSpendData,
   getLtv30dData,
+  getLtv21dData,
+  getLtv51dData,
+  getLtv81dData,
 } from "./revenue-analyzer.js";
 import {
   RawMetrics,
@@ -58,6 +61,9 @@ export async function fetchRawMetrics(): Promise<RawMetrics | null> {
     subscriptionsData,
     adSpendData,
     ltv30dData,
+    ltv21dData,
+    ltv51dData,
+    ltv81dData,
   ] = await Promise.all([
     getRevenueData(),
     getTrialsData(),
@@ -68,6 +74,9 @@ export async function fetchRawMetrics(): Promise<RawMetrics | null> {
     getSubscriptionsData(),
     getAdSpendData(),
     getLtv30dData(),
+    getLtv21dData(),
+    getLtv51dData(),
+    getLtv81dData(),
   ]);
 
   if (!revenueData || !trialsData) {
@@ -90,9 +99,17 @@ export async function fetchRawMetrics(): Promise<RawMetrics | null> {
 
     totalAdSpendEur: adSpendData?.totalEur ?? 0,
 
-    // LTV 30 días real
+    // LTV 30 días (proxy intermedio)
     ltv30d: ltv30dData?.ltv30d ?? 0,
     ltv30dSampleSize: ltv30dData?.sampleSize ?? 0,
+
+    // LTV ventanas correctas (Phase 6.1)
+    ltv21d: ltv21dData?.ltv ?? 0,
+    ltv21dCohortSize: ltv21dData?.cohortSize ?? 0,
+    ltv51d: ltv51dData?.ltv ?? 0,
+    ltv51dCohortSize: ltv51dData?.cohortSize ?? 0,
+    ltv81d: ltv81dData?.ltv ?? 0,
+    ltv81dCohortSize: ltv81dData?.cohortSize ?? 0,
   };
 }
 
@@ -265,9 +282,138 @@ function calculatePaybackRatio(ltv30d: number, cpfr: number): KpiResult {
   return { value: Math.round(payback * 100) / 100, status, shortReason };
 }
 
+// ============================================================================
+// LTV/PAYBACK VENTANAS CORRECTAS (Phase 6.1)
+// ============================================================================
+
+// Minimum cohort size for LTV windows to be considered reliable
+const LTV_WINDOW_MIN_COHORT = 50;
+
+function calculateLtv21d(ltv21d: number, cohortSize: number): KpiResult {
+  if (cohortSize < LTV_WINDOW_MIN_COHORT) {
+    return {
+      value: ltv21d,
+      status: "yellow",
+      shortReason: `€${ltv21d.toFixed(0)} (n=${cohortSize}, muestra pequeña)`,
+    };
+  }
+
+  // LTV 21d no tiene semáforos fuertes, es solo informativo
+  const status: KpiStatus = "yellow"; // Siempre amarillo porque es solo para warning
+  const shortReason = `€${ltv21d.toFixed(0)} (n=${cohortSize})`;
+
+  return { value: Math.round(ltv21d * 100) / 100, status, shortReason };
+}
+
+function calculatePayback21d(ltv21d: number, cpfr: number): KpiResult {
+  if (cpfr === 0 || cpfr === Infinity) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos de CPFR" };
+  }
+
+  if (ltv21d === 0) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos de LTV 21d" };
+  }
+
+  const payback = ltv21d / cpfr;
+  let status: KpiStatus;
+  let shortReason: string;
+
+  // Payback 21d: solo warning, nunca decisiones fuertes
+  if (payback >= THRESHOLDS.PAYBACK_21D_WARNING) {
+    status = "yellow"; // Amarillo = OK para 21d (es solo warning)
+    shortReason = `${payback.toFixed(2)}x (21d) - Monitorear`;
+  } else {
+    status = "yellow"; // Nunca rojo para 21d
+    shortReason = `${payback.toFixed(2)}x (21d) - Warning temprano`;
+  }
+
+  return { value: Math.round(payback * 100) / 100, status, shortReason };
+}
+
+function calculateLtv51d(ltv51d: number, cohortSize: number): KpiResult {
+  if (cohortSize < LTV_WINDOW_MIN_COHORT) {
+    return {
+      value: ltv51d,
+      status: "yellow",
+      shortReason: `€${ltv51d.toFixed(0)} (n=${cohortSize}, muestra pequeña)`,
+    };
+  }
+
+  // LTV 51d tiene semáforos basados en CPFR esperado
+  const expectedCpfr = 90; // EUR aproximado
+  const impliedPayback = ltv51d / expectedCpfr;
+
+  const status: KpiStatus = impliedPayback >= THRESHOLDS.PAYBACK_51D_SCALE ? "green" :
+                            impliedPayback >= THRESHOLDS.PAYBACK_51D_PAUSE ? "yellow" : "red";
+  const shortReason = `€${ltv51d.toFixed(0)} (n=${cohortSize})`;
+
+  return { value: Math.round(ltv51d * 100) / 100, status, shortReason };
+}
+
+function calculatePayback51d(ltv51d: number, cpfr: number): KpiResult {
+  if (cpfr === 0 || cpfr === Infinity) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos de CPFR" };
+  }
+
+  if (ltv51d === 0) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos de LTV 51d" };
+  }
+
+  const payback = ltv51d / cpfr;
+  let status: KpiStatus;
+  let shortReason: string;
+
+  // Payback 51d: decisiones fuertes
+  if (payback >= THRESHOLDS.PAYBACK_51D_SCALE) {
+    status = "green";
+    shortReason = `${payback.toFixed(2)}x (51d) - Scale ready`;
+  } else if (payback >= THRESHOLDS.PAYBACK_51D_PAUSE) {
+    status = "yellow";
+    shortReason = `${payback.toFixed(2)}x (51d) - Break-even`;
+  } else {
+    status = "red";
+    shortReason = `${payback.toFixed(2)}x (51d) - Pause ads`;
+  }
+
+  return { value: Math.round(payback * 100) / 100, status, shortReason };
+}
+
+function calculateLtv81d(ltv81d: number, cohortSize: number): KpiResult {
+  if (cohortSize < LTV_WINDOW_MIN_COHORT) {
+    return {
+      value: ltv81d,
+      status: "yellow",
+      shortReason: `€${ltv81d.toFixed(0)} (n=${cohortSize}, muestra pequeña)`,
+    };
+  }
+
+  const shortReason = `€${ltv81d.toFixed(0)} (n=${cohortSize})`;
+  return { value: Math.round(ltv81d * 100) / 100, status: "yellow", shortReason };
+}
+
+function calculatePayback81d(ltv81d: number, cpfr: number): KpiResult {
+  if (cpfr === 0 || cpfr === Infinity || ltv81d === 0) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos" };
+  }
+
+  const payback = ltv81d / cpfr;
+  return {
+    value: Math.round(payback * 100) / 100,
+    status: "yellow",
+    shortReason: `${payback.toFixed(2)}x (81d) - Análisis`,
+  };
+}
+
 export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
   const cpfr = calculateCPFR(raw.totalAdSpendEur, raw.firstRebills);
   const ltv30d = calculateLtv30d(raw.ltv30d, raw.ltv30dSampleSize);
+
+  // LTV ventanas correctas (Phase 6.1)
+  const ltv21d = calculateLtv21d(raw.ltv21d, raw.ltv21dCohortSize);
+  const ltv51d = calculateLtv51d(raw.ltv51d, raw.ltv51dCohortSize);
+  const ltv81d = raw.ltv81d !== undefined
+    ? calculateLtv81d(raw.ltv81d, raw.ltv81dCohortSize ?? 0)
+    : undefined;
 
   return {
     frr: calculateFRR(raw.firstRebills, raw.trials),
@@ -275,8 +421,20 @@ export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
     srr: calculateSRR(raw.secondRebills, raw.firstRebillsCohorte30d),
     ur2: calculateUR2(raw.usersWithUsageBeforeRebill2, raw.firstRebillsCohorte30d),
     netRoas: calculateNetRoas(raw.netRevenueEur, raw.totalAdSpendEur),
+
+    // LTV 30d (proxy intermedio)
     ltv30d,
     paybackRatio: calculatePaybackRatio(raw.ltv30d, cpfr.value),
+
+    // LTV/Payback ventanas correctas (Phase 6.1)
+    ltv21d,
+    payback21d: calculatePayback21d(raw.ltv21d, cpfr.value),
+    ltv51d,
+    payback51d: calculatePayback51d(raw.ltv51d, cpfr.value),
+    ltv81d,
+    payback81d: raw.ltv81d !== undefined
+      ? calculatePayback81d(raw.ltv81d, cpfr.value)
+      : undefined,
   };
 }
 

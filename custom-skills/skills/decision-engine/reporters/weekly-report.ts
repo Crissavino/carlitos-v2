@@ -67,6 +67,11 @@ export async function generateWeeklyReport(): Promise<WeeklyDecisionReport | nul
         netRoas: { value: kpis.netRoas.value, status: kpis.netRoas.status },
         ltv30d: { value: kpis.ltv30d.value, status: kpis.ltv30d.status },
         paybackRatio: { value: kpis.paybackRatio.value, status: kpis.paybackRatio.status },
+        // Phase 6.1: Ventanas correctas
+        ltv21d: { value: kpis.ltv21d.value, status: kpis.ltv21d.status },
+        payback21d: { value: kpis.payback21d.value, status: kpis.payback21d.status },
+        ltv51d: { value: kpis.ltv51d.value, status: kpis.ltv51d.status },
+        payback51d: { value: kpis.payback51d.value, status: kpis.payback51d.status },
       },
       decisions: topDecisions,
       actions: topDecisions.map((d) => d.action),
@@ -131,8 +136,12 @@ export function formatReportAsText(report: WeeklyDecisionReport): string {
   lines.push(formatKpiLine("CPFR", report.kpiSummary.cpfr, (v) => `€${v.toFixed(0)}`));
   lines.push(formatKpiLine("SRR", report.kpiSummary.srr, (v) => `${(v * 100).toFixed(1)}%`));
   lines.push(formatKpiLine("Net ROAS", report.kpiSummary.netRoas, (v) => `${v.toFixed(2)}x`));
-  lines.push(formatKpiLine("LTV 30d", report.kpiSummary.ltv30d, (v) => `€${v.toFixed(0)}`));
-  lines.push(formatKpiLine("Payback", report.kpiSummary.paybackRatio, (v) => `${v.toFixed(2)}x`));
+  lines.push("");
+  lines.push("LTV / Payback (ventanas correctas):");
+  lines.push(formatKpiLine("LTV 21d", report.kpiSummary.ltv21d, (v) => `€${v.toFixed(0)}`));
+  lines.push(formatKpiLine("Payback 21d", report.kpiSummary.payback21d, (v) => `${v.toFixed(2)}x (warning only)`));
+  lines.push(formatKpiLine("LTV 51d", report.kpiSummary.ltv51d, (v) => `€${v.toFixed(0)}`));
+  lines.push(formatKpiLine("Payback 51d", report.kpiSummary.payback51d, (v) => `${v.toFixed(2)}x (decisor)`));
   lines.push("");
 
   // Decisiones
@@ -218,7 +227,7 @@ function formatTriggerKpis(decision: TriggeredDecision): string {
       let formatted: string;
       if (kpiName === "frr" || kpiName === "srr" || kpiName === "ur2") {
         formatted = `${(kpi.value * 100).toFixed(1)}%`;
-      } else if (kpiName === "cpfr" || kpiName === "ltv30d") {
+      } else if (kpiName === "cpfr" || kpiName === "ltv30d" || kpiName === "ltv21d" || kpiName === "ltv51d" || kpiName === "ltv81d") {
         formatted = `€${kpi.value.toFixed(0)}`;
       } else {
         formatted = `${kpi.value.toFixed(2)}x`;

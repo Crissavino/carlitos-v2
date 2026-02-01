@@ -61,19 +61,62 @@ export interface CoreKpis {
   netRoas: KpiResult;
 
   /**
-   * P6 - LTV 30 días (real)
-   * LTV_30d = Promedio de ingresos por customer en primeros 30 días
-   * Usado para validar CPFR y calcular Payback Ratio.
+   * P6 - LTV 30 días (proxy intermedio)
+   * LTV_30d = (SUM(revenue) - SUM(refunds)) / COUNT(customers)
+   * NOTA: Solo proxy, no usar para decisiones fuertes.
    */
   ltv30d: KpiResult;
 
   /**
-   * P7 - Payback Ratio
+   * P7 - Payback Ratio 30d (proxy)
    * PaybackRatio = LTV_30d / CPFR
-   * > 1.0 = rentable, < 1.0 = pérdida en adquisición
-   * Métrica clave para decisiones de ads.
+   * NOTA: Solo proxy, no usar para decisiones fuertes.
    */
   paybackRatio: KpiResult;
+
+  // ============================================================================
+  // LTV/PAYBACK CON VENTANAS CORRECTAS (Phase 6.1)
+  // Basadas en modelo de cobro real:
+  // - R1 ventana completa: D21
+  // - R2 ventana completa: D51
+  // - R3 ventana completa: D81
+  // ============================================================================
+
+  /**
+   * LTV 21 días (R1 completo)
+   * Para warning temprano. NUNCA decisiones fuertes.
+   */
+  ltv21d: KpiResult;
+
+  /**
+   * Payback 21d = LTV_21d / CPFR
+   * Solo para warning/monitor. NUNCA freeze/pause/stop.
+   */
+  payback21d: KpiResult;
+
+  /**
+   * LTV 51 días (R2 completo)
+   * Para decisiones fuertes (pause/scale).
+   */
+  ltv51d: KpiResult;
+
+  /**
+   * Payback 51d = LTV_51d / CPFR
+   * Base para decisiones de ads.
+   * < 1.0 → pause, >= 1.5 → scale
+   */
+  payback51d: KpiResult;
+
+  /**
+   * LTV 81 días (R3 completo) - opcional
+   * Para análisis estratégico.
+   */
+  ltv81d?: KpiResult;
+
+  /**
+   * Payback 81d = LTV_81d / CPFR - opcional
+   */
+  payback81d?: KpiResult;
 }
 
 // ============================================================================
@@ -110,10 +153,25 @@ export const THRESHOLDS = {
   ROAS_YELLOW: 1.3, // 1.3–1.99x
   // < 1.3x = red
 
-  // Payback Ratio (LTV / CPFR)
+  // Payback Ratio (LTV / CPFR) - proxy 30d
   PAYBACK_GREEN: 1.5, // ≥ 1.5x (rentable)
   PAYBACK_YELLOW: 1.0, // 1.0–1.49x (break-even)
   // < 1.0x = red (pérdida)
+
+  // ============================================================================
+  // PAYBACK VENTANAS CORRECTAS (Phase 6.1)
+  // ============================================================================
+
+  // Payback 21d (solo warning, nunca decisiones fuertes)
+  PAYBACK_21D_WARNING: 0.5, // < 0.5 → warning temprano
+
+  // Payback 51d (decisiones fuertes)
+  PAYBACK_51D_PAUSE: 1.0,   // < 1.0 → pause ads
+  PAYBACK_51D_SCALE: 1.5,   // >= 1.5 → scale ready
+
+  // Minimum cohort age for decisions
+  MIN_AGE_WARNING: 21,      // Días mínimos para warning
+  MIN_AGE_DECISION: 51,     // Días mínimos para decisiones fuertes
 } as const;
 
 // Derived thresholds for CPFR
@@ -142,9 +200,17 @@ export interface RawMetrics {
   // From DBReader (avocodebo.ads)
   totalAdSpendEur: number;
 
-  // LTV real desde DBReader
-  ltv30d: number;           // Lifetime Value 30 días en EUR
-  ltv30dSampleSize: number; // Cantidad de customers usados para calcular
+  // LTV 30d (proxy intermedio)
+  ltv30d: number;
+  ltv30dSampleSize: number;
+
+  // LTV ventanas correctas (Phase 6.1)
+  ltv21d: number;           // Ventana R1 completa
+  ltv21dCohortSize: number;
+  ltv51d: number;           // Ventana R2 completa
+  ltv51dCohortSize: number;
+  ltv81d?: number;          // Ventana R3 completa (opcional)
+  ltv81dCohortSize?: number;
 }
 
 // ============================================================================

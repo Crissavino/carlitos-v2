@@ -9,7 +9,11 @@ export type AllowedQueryId =
   | "ad-spend-7d"
   | "ltv-30d"
   | "ltv-45d"
-  | "ltv-90d";
+  | "ltv-90d"
+  // LTV ventanas correctas (basadas en modelo de cobro real)
+  | "ltv-21d"   // R1 completo
+  | "ltv-51d"   // R2 completo
+  | "ltv-81d";  // R3 completo
 
 export interface DBReaderRequest {
   query: AllowedQueryId;

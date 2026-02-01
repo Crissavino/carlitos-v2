@@ -67,33 +67,74 @@ export const DECISION_RULES: DecisionRule[] = [
     triggerKpis: ["cpfr"],
   },
 
+  // ============================================================================
+  // PAYBACK VENTANAS CORRECTAS (Phase 6.1)
+  // IMPORTANTE: Payback 21d es SOLO warning. Payback 51d es para decisiones.
+  // ============================================================================
+
   {
-    id: "payback-red-block",
-    name: "Payback Rojo - No Escalar",
-    description: "Payback Ratio menor a 1.0 indica pérdida en adquisición",
-    condition: (kpis) => kpis.paybackRatio.status === "red",
+    id: "payback-21d-warning",
+    name: "Payback 21d - Warning Temprano",
+    description: "Payback 21d bajo indica riesgo temprano (solo warning, nunca pause)",
+    condition: (kpis) => kpis.payback21d.value < 0.5 && kpis.payback21d.value > 0,
     decision: {
-      type: "block",
-      priority: "critical",
+      type: "monitor",
+      priority: "medium",
       area: "ads",
-      action: "STOP ADS: Payback < 1.0. Cada nuevo cliente genera pérdida neta.",
-      rationale: "LTV 30d es menor que CPFR. Cada adquisición destruye valor. Pausar ads hasta mejorar LTV o reducir CPFR.",
+      action: "WARNING TEMPRANO: Payback 21d < 0.5. Monitorear, no pausar todavía.",
+      rationale: "Payback 21d es métrica temprana (R1 completo). Solo sirve para warning. Esperar a datos de 51d para decisiones.",
       reversible: true,
     },
-    triggerKpis: ["paybackRatio"],
+    triggerKpis: ["payback21d"],
   },
 
   {
-    id: "payback-yellow-alert",
-    name: "Payback Amarillo - Break-Even",
-    description: "Payback Ratio entre 1.0-1.49 indica margen ajustado",
-    condition: (kpis) => kpis.paybackRatio.status === "yellow",
+    id: "payback-51d-pause",
+    name: "Payback 51d - Pause Ads",
+    description: "Payback 51d < 1.0 indica pérdida confirmada en cohorte madura",
+    condition: (kpis) => kpis.payback51d.status === "red",
+    decision: {
+      type: "freeze",
+      priority: "critical",
+      area: "ads",
+      action: "PAUSE ADS: Payback 51d < 1.0. Cohorte madura con pérdida confirmada.",
+      rationale: "Con 51 días de datos (R2 completo), el LTV real es menor que CPFR. Cada adquisición destruye valor. Pausar hasta optimizar.",
+      reversible: true,
+    },
+    triggerKpis: ["payback51d"],
+  },
+
+  {
+    id: "payback-51d-scale",
+    name: "Payback 51d - Scale Ready",
+    description: "Payback 51d >= 1.5 indica rentabilidad confirmada",
+    condition: (kpis) =>
+      kpis.payback51d.status === "green" &&
+      kpis.frr.status !== "red" &&
+      kpis.cpfr.status !== "red",
+    decision: {
+      type: "ready",
+      priority: "medium",
+      area: "ads",
+      action: "SCALE READY: Payback 51d >= 1.5. Rentabilidad confirmada con datos maduros.",
+      rationale: "Con 51 días de datos, el LTV supera significativamente al CPFR. OK para incrementar spend en campañas rentables.",
+      reversible: true,
+    },
+    triggerKpis: ["payback51d", "frr", "cpfr"],
+  },
+
+  // Payback 30d (proxy) - solo informativo, prioridad baja
+  {
+    id: "payback-30d-info",
+    name: "Payback 30d - Proxy Intermedio",
+    description: "Payback 30d es solo proxy, no usar para decisiones fuertes",
+    condition: (kpis) => kpis.paybackRatio.status === "red" && kpis.payback51d.value === 0,
     decision: {
       type: "monitor",
-      priority: "high",
+      priority: "low",
       area: "ads",
-      action: "ALERTA PAYBACK: Break-even en adquisición. No escalar hasta mejorar ratio.",
-      rationale: "Payback entre 1.0-1.5x indica que apenas se recupera el costo de adquisición. Optimizar antes de escalar.",
+      action: "INFO: Payback 30d bajo. Esperar datos de 51d para decisión.",
+      rationale: "Payback 30d es proxy intermedio. Sin datos de 51d, no tomar decisiones fuertes.",
       reversible: true,
     },
     triggerKpis: ["paybackRatio"],
@@ -110,17 +151,17 @@ export const DECISION_RULES: DecisionRule[] = [
     condition: (kpis) =>
       kpis.frr.status === "green" &&
       kpis.cpfr.status === "green" &&
-      kpis.paybackRatio.status === "green" &&
+      kpis.payback51d.status === "green" &&
       kpis.netRoas.status !== "red",
     decision: {
       type: "ready",
       priority: "medium",
       area: "ads",
       action: "ESCALAR READY: OK para incrementar spend +10-20% en campañas rentables",
-      rationale: "FRR, CPFR y Payback verdes indican adquisición rentable. ROAS no crítico permite expansión controlada.",
+      rationale: "FRR, CPFR y Payback 51d verdes indican adquisición rentable. ROAS no crítico permite expansión controlada.",
       reversible: true,
     },
-    triggerKpis: ["frr", "cpfr", "paybackRatio", "netRoas"],
+    triggerKpis: ["frr", "cpfr", "payback51d", "netRoas"],
   },
 
   // ============================================================================
@@ -247,17 +288,17 @@ export const DECISION_RULES: DecisionRule[] = [
     condition: (kpis) =>
       kpis.frr.status === "green" &&
       kpis.cpfr.status === "green" &&
-      kpis.paybackRatio.status === "green" &&
+      kpis.payback51d.status === "green" &&
       kpis.netRoas.status === "green",
     decision: {
       type: "ready",
       priority: "low",
       area: "ads",
       action: "OPERACIÓN NORMAL: Métricas saludables, continuar estrategia actual",
-      rationale: "FRR, CPFR, Payback y ROAS en verde. El negocio está funcionando bien. Mantener y considerar expansión gradual.",
+      rationale: "FRR, CPFR, Payback 51d y ROAS en verde. El negocio está funcionando bien. Mantener y considerar expansión gradual.",
       reversible: true,
     },
-    triggerKpis: ["frr", "cpfr", "paybackRatio", "netRoas"],
+    triggerKpis: ["frr", "cpfr", "payback51d", "netRoas"],
   },
 ];
 
