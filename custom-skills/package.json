@@ -4,13 +4,20 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "dashboard": "node dist/dashboard/server.js",
+    "dashboard:migrate": "echo 'Run: mysql -u $DB_DASHBOARD_USER -p $DB_DATABASE < dashboard/migrations/001_init.sql'",
+    "dashboard:snapshot": "curl -X POST -H 'Authorization: Bearer $DASHBOARD_TOKEN' http://localhost:3002/api/snapshots",
     "test:phase0": "node --loader ts-node/esm tests/phase-0/run-tests.ts"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
     "mysql2": "^3.16.2",
     "yaml": "^2.3.4"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.14",
+    "@types/express": "^4.17.18",
     "@types/node": "^20.10.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.0"

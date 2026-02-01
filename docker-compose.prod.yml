@@ -2,11 +2,40 @@
 # Usage: docker compose -f docker-compose.prod.yml up -d --build
 
 services:
+  # ==========================================================================
+  # OpenClaw Internal MySQL
+  # ==========================================================================
+  mysql:
+    image: mysql:8.0
+    container_name: openclaw-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: openclaw_internal
+      MYSQL_USER: openclaw_admin
+      MYSQL_PASSWORD: ${DB_OPENCLAW_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./custom-skills/dashboard/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    expose:
+      - "3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ==========================================================================
+  # OpenClaw Core
+  # ==========================================================================
   openclaw:
     build: .
     container_name: openclaw
     stdin_open: true
     tty: true
+    depends_on:
+      mysql:
+        condition: service_healthy
     volumes:
       - openclaw-data:/root/.openclaw/data
       - openclaw-workspace:/root/.openclaw/workspace
@@ -14,17 +43,33 @@ services:
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT:-3306}
-      - DB_READONLY_USER=${DB_READONLY_USER}
-      - DB_READONLY_PASSWORD=${DB_READONLY_PASSWORD}
+      # Core Database (Avocode - read-only)
+      - DB_CORE_HOST=${DB_CORE_HOST}
+      - DB_CORE_PORT=${DB_CORE_PORT:-3306}
+      - DB_CORE_DATABASE=${DB_CORE_DATABASE:-avocode}
+      - DB_CORE_USER=${DB_CORE_USER}
+      - DB_CORE_PASSWORD=${DB_CORE_PASSWORD}
+      # OpenClaw Internal Database
+      - DB_OPENCLAW_HOST=mysql
+      - DB_OPENCLAW_PORT=3306
+      - DB_OPENCLAW_DATABASE=openclaw_internal
+      - DB_OPENCLAW_USER=openclaw_admin
+      - DB_OPENCLAW_PASSWORD=${DB_OPENCLAW_PASSWORD}
+      # Gateway & Webhooks
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-}
       - GOOGLE_ADS_WEBHOOK_TOKEN=${GOOGLE_ADS_WEBHOOK_TOKEN:-}
+      # Dashboard
+      - DASHBOARD_PORT=3002
+      - DASHBOARD_TOKEN=${DASHBOARD_TOKEN}
     expose:
       - "18789"
       - "3001"
+      - "3002"
     restart: unless-stopped
 
+  # ==========================================================================
+  # Caddy (SSL Reverse Proxy)
+  # ==========================================================================
   caddy:
     image: caddy:alpine
     container_name: caddy
@@ -40,6 +85,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  mysql-data:
   openclaw-data:
   openclaw-workspace:
   openclaw-config:

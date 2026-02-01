@@ -8,13 +8,16 @@ let pool: mysql.Pool | null = null;
 
 function getPool(): mysql.Pool {
   if (!pool) {
-    const host = process.env.DB_HOST;
-    const port = parseInt(process.env.DB_PORT || "3306", 10);
-    const user = process.env.DB_READONLY_USER;
-    const password = process.env.DB_READONLY_PASSWORD;
+    // Core DB (Avocode) - read-only access to business data
+    // Supports both new DB_CORE_* and legacy DB_* variables
+    const host = process.env.DB_CORE_HOST || process.env.DB_HOST;
+    const port = parseInt(process.env.DB_CORE_PORT || process.env.DB_PORT || "3306", 10);
+    const user = process.env.DB_CORE_USER || process.env.DB_READONLY_USER;
+    const password = process.env.DB_CORE_PASSWORD || process.env.DB_READONLY_PASSWORD;
+    const database = process.env.DB_CORE_DATABASE;
 
     if (!host || !user || !password) {
-      throw new Error("Database credentials not configured");
+      throw new Error("Core database credentials not configured (DB_CORE_*)");
     }
 
     pool = mysql.createPool({
@@ -22,6 +25,7 @@ function getPool(): mysql.Pool {
       port,
       user,
       password,
+      database,
       waitForConnections: true,
       connectionLimit: 5,
       queueLimit: 0,

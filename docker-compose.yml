@@ -1,31 +1,71 @@
 services:
+  # ==========================================================================
+  # OpenClaw Internal MySQL (dashboard, tasks, learning)
+  # ==========================================================================
+  mysql:
+    image: mysql:8.0
+    container_name: openclaw-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-openclaw-root-dev}
+      MYSQL_DATABASE: openclaw_internal
+      MYSQL_USER: openclaw_admin
+      MYSQL_PASSWORD: ${DB_OPENCLAW_PASSWORD:-openclaw-dev-password}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./custom-skills/dashboard/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ==========================================================================
+  # OpenClaw Core
+  # ==========================================================================
   openclaw:
     build: .
     container_name: openclaw
     stdin_open: true
     tty: true
+    depends_on:
+      mysql:
+        condition: service_healthy
     volumes:
-      # Solo persistir datos, workspace y config - NO las skills (están en la imagen)
       - openclaw-data:/root/.openclaw/data
       - openclaw-workspace:/root/.openclaw/workspace
       - openclaw-config:/root/.openclaw/config
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      # Database Server (read-only) - avocode + avocodebo
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT:-3306}
-      - DB_READONLY_USER=${DB_READONLY_USER}
-      - DB_READONLY_PASSWORD=${DB_READONLY_PASSWORD}
+      # Core Database (Avocode - read-only)
+      - DB_CORE_HOST=${DB_CORE_HOST}
+      - DB_CORE_PORT=${DB_CORE_PORT:-3306}
+      - DB_CORE_DATABASE=${DB_CORE_DATABASE:-avocode}
+      - DB_CORE_USER=${DB_CORE_USER}
+      - DB_CORE_PASSWORD=${DB_CORE_PASSWORD}
+      # OpenClaw Internal Database (local MySQL)
+      - DB_OPENCLAW_HOST=mysql
+      - DB_OPENCLAW_PORT=3306
+      - DB_OPENCLAW_DATABASE=openclaw_internal
+      - DB_OPENCLAW_USER=openclaw_admin
+      - DB_OPENCLAW_PASSWORD=${DB_OPENCLAW_PASSWORD:-openclaw-dev-password}
       # OpenClaw Gateway
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-}
-      # Google Ads Webhook (para Fase 2)
+      # Google Ads Webhook
       - GOOGLE_ADS_WEBHOOK_TOKEN=${GOOGLE_ADS_WEBHOOK_TOKEN:-}
+      # Dashboard
+      - DASHBOARD_PORT=3002
+      - DASHBOARD_TOKEN=${DASHBOARD_TOKEN:-dev-token}
     ports:
       - "18789:18789"
+      - "3002:3002"
     restart: unless-stopped
 
 volumes:
+  mysql-data:
   openclaw-data:
   openclaw-workspace:
   openclaw-config:
