@@ -25,6 +25,7 @@ import {
   getUsageBeforeRebill2Data,
   getSubscriptionsData,
   getAdSpendData,
+  getLtv30dData,
 } from "./revenue-analyzer.js";
 import {
   RawMetrics,
@@ -38,6 +39,9 @@ import {
   CPFR_GREEN,
   CPFR_YELLOW,
 } from "../types.js";
+
+// Minimum sample size for LTV to be considered reliable
+const LTV_MIN_SAMPLE_SIZE = 30;
 
 // ============================================================================
 // DATA FETCHING
@@ -53,6 +57,7 @@ export async function fetchRawMetrics(): Promise<RawMetrics | null> {
     usageData,
     subscriptionsData,
     adSpendData,
+    ltv30dData,
   ] = await Promise.all([
     getRevenueData(),
     getTrialsData(),
@@ -62,6 +67,7 @@ export async function fetchRawMetrics(): Promise<RawMetrics | null> {
     getUsageBeforeRebill2Data(),
     getSubscriptionsData(),
     getAdSpendData(),
+    getLtv30dData(),
   ]);
 
   if (!revenueData || !trialsData) {
@@ -83,6 +89,10 @@ export async function fetchRawMetrics(): Promise<RawMetrics | null> {
     activeSubscriptions: subscriptionsData?.total ?? 0,
 
     totalAdSpendEur: adSpendData?.totalEur ?? 0,
+
+    // LTV 30 días real
+    ltv30d: ltv30dData?.ltv30d ?? 0,
+    ltv30dSampleSize: ltv30dData?.sampleSize ?? 0,
   };
 }
 
@@ -211,13 +221,62 @@ function calculateNetRoas(netRevenue: number, totalAdSpend: number): KpiResult {
   return { value: Math.round(roas * 100) / 100, status, shortReason };
 }
 
+function calculateLtv30d(ltv30d: number, sampleSize: number): KpiResult {
+  if (sampleSize < LTV_MIN_SAMPLE_SIZE) {
+    return {
+      value: ltv30d,
+      status: "yellow",
+      shortReason: `€${ltv30d.toFixed(0)} (n=${sampleSize}, muestra pequeña)`,
+    };
+  }
+
+  // LTV no tiene semáforos per se, pero indicamos si es bajo vs esperado
+  const status: KpiStatus = ltv30d >= THRESHOLDS.TARGET_LTV ? "green" :
+                            ltv30d >= THRESHOLDS.TARGET_LTV * 0.7 ? "yellow" : "red";
+  const shortReason = `€${ltv30d.toFixed(0)} (n=${sampleSize})`;
+
+  return { value: Math.round(ltv30d * 100) / 100, status, shortReason };
+}
+
+function calculatePaybackRatio(ltv30d: number, cpfr: number): KpiResult {
+  if (cpfr === 0 || cpfr === Infinity) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos de CPFR" };
+  }
+
+  if (ltv30d === 0) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos de LTV" };
+  }
+
+  const payback = ltv30d / cpfr;
+  let status: KpiStatus;
+  let shortReason: string;
+
+  if (payback >= THRESHOLDS.PAYBACK_GREEN) {
+    status = "green";
+    shortReason = `${payback.toFixed(2)}x - Adquisición rentable`;
+  } else if (payback >= THRESHOLDS.PAYBACK_YELLOW) {
+    status = "yellow";
+    shortReason = `${payback.toFixed(2)}x - Break-even`;
+  } else {
+    status = "red";
+    shortReason = `${payback.toFixed(2)}x - Pérdida en adquisición`;
+  }
+
+  return { value: Math.round(payback * 100) / 100, status, shortReason };
+}
+
 export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
+  const cpfr = calculateCPFR(raw.totalAdSpendEur, raw.firstRebills);
+  const ltv30d = calculateLtv30d(raw.ltv30d, raw.ltv30dSampleSize);
+
   return {
     frr: calculateFRR(raw.firstRebills, raw.trials),
-    cpfr: calculateCPFR(raw.totalAdSpendEur, raw.firstRebills),
+    cpfr,
     srr: calculateSRR(raw.secondRebills, raw.firstRebillsCohorte30d),
     ur2: calculateUR2(raw.usersWithUsageBeforeRebill2, raw.firstRebillsCohorte30d),
     netRoas: calculateNetRoas(raw.netRevenueEur, raw.totalAdSpendEur),
+    ltv30d,
+    paybackRatio: calculatePaybackRatio(raw.ltv30d, cpfr.value),
   };
 }
 
@@ -236,6 +295,11 @@ export function determineBusinessStatus(kpis: CoreKpis): BusinessStatus {
     return "CRÍTICO";
   }
 
+  // Payback < 1.0 es crítico (perdiendo dinero en adquisición)
+  if (kpis.paybackRatio.status === "red") {
+    return "CRÍTICO";
+  }
+
   // P3: SRR red puts in risk
   if (kpis.srr.status === "red") {
     return "EN RIESGO";
@@ -243,6 +307,11 @@ export function determineBusinessStatus(kpis: CoreKpis): BusinessStatus {
 
   // P1-P2 yellow also means risk
   if (kpis.frr.status === "yellow" || kpis.cpfr.status === "yellow") {
+    return "EN RIESGO";
+  }
+
+  // Payback yellow (break-even) is also risk
+  if (kpis.paybackRatio.status === "yellow") {
     return "EN RIESGO";
   }
 
@@ -277,6 +346,15 @@ export function generateAlerts(kpis: CoreKpis): Alert[] {
       type: "cpfr_red",
       severity: "critical",
       message: "CPFR en rojo: Costo de adquisición insostenible. No escalar.",
+    });
+  }
+
+  // ALERTA 3: Payback Ratio en rojo (LTV < CPFR)
+  if (kpis.paybackRatio.status === "red") {
+    alerts.push({
+      type: "payback_red",
+      severity: "critical",
+      message: `Payback ${kpis.paybackRatio.value.toFixed(2)}x: LTV < CPFR. Cada adquisición genera pérdida.`,
     });
   }
 

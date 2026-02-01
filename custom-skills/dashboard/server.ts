@@ -357,6 +357,7 @@ app.post("/api/snapshots", async (req: Request, res: Response) => {
       srr: kpis.srr.value,
       ur2: kpis.ur2.value,
       net_roas: kpis.netRoas.value,
+      ltv_30d: kpis.ltv30d.value,
       trials: raw.trials,
       first_rebills: raw.firstRebills,
       first_rebills_cohorte_30d: raw.firstRebillsCohorte30d,

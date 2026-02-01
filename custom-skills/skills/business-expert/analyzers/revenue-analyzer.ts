@@ -128,3 +128,26 @@ export async function getAdSpendData(): Promise<AdSpendData | null> {
     totalEur: data.totalEur,
   };
 }
+
+export interface Ltv30dData {
+  ltv30d: number;
+  sampleSize: number;
+}
+
+export async function getLtv30dData(): Promise<Ltv30dData | null> {
+  const result = await executeQuery("ltv-30d");
+
+  if (result.status !== "success" || !result.results) {
+    return null;
+  }
+
+  const data = result.results as any;
+
+  // La query retorna un array con un solo row
+  const row = Array.isArray(data) ? data[0] : data;
+
+  return {
+    ltv30d: parseFloat(row.ltv_30d) || 0,
+    sampleSize: parseInt(row.sample_size) || 0,
+  };
+}

@@ -60,6 +60,7 @@ export interface KpiSnapshot {
   srr: number;
   ur2: number;
   net_roas: number;
+  ltv_30d: number;        // LTV 30 días en EUR
   trials: number;
   first_rebills: number;
   first_rebills_cohorte_30d: number;
@@ -74,10 +75,10 @@ export async function saveSnapshot(snapshot: Omit<KpiSnapshot, "id" | "created_a
   const db = getPool();
   const [result] = await db.execute<ResultSetHeader>(
     `INSERT INTO kpi_snapshots
-      (snapshot_date, business_status, frr, cpfr, srr, ur2, net_roas,
+      (snapshot_date, business_status, frr, cpfr, srr, ur2, net_roas, ltv_30d,
        trials, first_rebills, first_rebills_cohorte_30d, second_rebills,
        active_subscriptions, ad_spend_eur, net_revenue_eur)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        business_status = VALUES(business_status),
        frr = VALUES(frr),
@@ -85,6 +86,7 @@ export async function saveSnapshot(snapshot: Omit<KpiSnapshot, "id" | "created_a
        srr = VALUES(srr),
        ur2 = VALUES(ur2),
        net_roas = VALUES(net_roas),
+       ltv_30d = VALUES(ltv_30d),
        trials = VALUES(trials),
        first_rebills = VALUES(first_rebills),
        first_rebills_cohorte_30d = VALUES(first_rebills_cohorte_30d),
@@ -100,6 +102,7 @@ export async function saveSnapshot(snapshot: Omit<KpiSnapshot, "id" | "created_a
       snapshot.srr,
       snapshot.ur2,
       snapshot.net_roas,
+      snapshot.ltv_30d,
       snapshot.trials,
       snapshot.first_rebills,
       snapshot.first_rebills_cohorte_30d,
@@ -130,6 +133,7 @@ export async function getSnapshots(days: number = 30): Promise<KpiSnapshot[]> {
     srr: parseFloat(row.srr) || 0,
     ur2: parseFloat(row.ur2) || 0,
     net_roas: parseFloat(row.net_roas) || 0,
+    ltv_30d: parseFloat(row.ltv_30d) || 0,
     ad_spend_eur: parseFloat(row.ad_spend_eur) || 0,
     net_revenue_eur: parseFloat(row.net_revenue_eur) || 0,
   })) as KpiSnapshot[];

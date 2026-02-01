@@ -6,7 +6,10 @@ export type AllowedQueryId =
   | "second-rebills-7d"
   | "first-rebills-cohorte-30d"
   | "usage-before-rebill2-7d"
-  | "ad-spend-7d";
+  | "ad-spend-7d"
+  | "ltv-30d"
+  | "ltv-45d"
+  | "ltv-90d";
 
 export interface DBReaderRequest {
   query: AllowedQueryId;

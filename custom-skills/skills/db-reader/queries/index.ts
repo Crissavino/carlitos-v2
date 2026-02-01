@@ -6,6 +6,7 @@ import { firstRebills7dQuery } from "./first-rebills-7d.js";
 import { secondRebills7dQuery, firstRebillsCohorte30dQuery } from "./second-rebills-7d.js";
 import { usageBeforeRebill27dQuery } from "./usage-before-rebill2-7d.js";
 import { adSpend7dQuery } from "./ad-spend-7d.js";
+import { ltv30dQuery, ltv45dQuery, ltv90dQuery } from "./ltv-30d.js";
 
 export const ALLOWED_QUERIES: Record<AllowedQueryId, QueryDefinition> = {
   "active-subscriptions": activeSubscriptionsQuery,
@@ -16,6 +17,9 @@ export const ALLOWED_QUERIES: Record<AllowedQueryId, QueryDefinition> = {
   "first-rebills-cohorte-30d": firstRebillsCohorte30dQuery,
   "usage-before-rebill2-7d": usageBeforeRebill27dQuery,
   "ad-spend-7d": adSpend7dQuery,
+  "ltv-30d": ltv30dQuery,
+  "ltv-45d": ltv45dQuery,
+  "ltv-90d": ltv90dQuery,
 };
 
 export function getQuery(queryId: string): QueryDefinition | null {
@@ -35,4 +39,7 @@ export {
   firstRebillsCohorte30dQuery,
   usageBeforeRebill27dQuery,
   adSpend7dQuery,
+  ltv30dQuery,
+  ltv45dQuery,
+  ltv90dQuery,
 };

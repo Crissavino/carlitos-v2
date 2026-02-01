@@ -59,6 +59,21 @@ export interface CoreKpis {
    * Revenue real desde DB (refunds incluidos).
    */
   netRoas: KpiResult;
+
+  /**
+   * P6 - LTV 30 días (real)
+   * LTV_30d = Promedio de ingresos por customer en primeros 30 días
+   * Usado para validar CPFR y calcular Payback Ratio.
+   */
+  ltv30d: KpiResult;
+
+  /**
+   * P7 - Payback Ratio
+   * PaybackRatio = LTV_30d / CPFR
+   * > 1.0 = rentable, < 1.0 = pérdida en adquisición
+   * Métrica clave para decisiones de ads.
+   */
+  paybackRatio: KpiResult;
 }
 
 // ============================================================================
@@ -71,11 +86,12 @@ export const THRESHOLDS = {
   FRR_YELLOW: 0.25, // 25%–34%
   // < 25% = red
 
-  // CPFR: Cost per First Rebill (requires target LTV)
-  // Verde ≤ target_LTV * 0.6
-  // Amarillo ≤ target_LTV * 0.8
-  // Rojo > target_LTV * 0.8
-  TARGET_LTV: 150, // EUR - configurable
+  // CPFR: Cost per First Rebill
+  // Ahora se valida contra LTV real, no TARGET_LTV
+  // Verde: CPFR < LTV * 0.6 (Payback > 1.67)
+  // Amarillo: CPFR < LTV * 0.8 (Payback > 1.25)
+  // Rojo: CPFR >= LTV * 0.8 (Payback <= 1.25)
+  TARGET_LTV: 150, // EUR - fallback si no hay LTV real
   CPFR_GREEN_FACTOR: 0.6,
   CPFR_YELLOW_FACTOR: 0.8,
 
@@ -93,6 +109,11 @@ export const THRESHOLDS = {
   ROAS_GREEN: 2.0, // ≥ 2.0x
   ROAS_YELLOW: 1.3, // 1.3–1.99x
   // < 1.3x = red
+
+  // Payback Ratio (LTV / CPFR)
+  PAYBACK_GREEN: 1.5, // ≥ 1.5x (rentable)
+  PAYBACK_YELLOW: 1.0, // 1.0–1.49x (break-even)
+  // < 1.0x = red (pérdida)
 } as const;
 
 // Derived thresholds for CPFR
@@ -120,13 +141,17 @@ export interface RawMetrics {
 
   // From DBReader (avocodebo.ads)
   totalAdSpendEur: number;
+
+  // LTV real desde DBReader
+  ltv30d: number;           // Lifetime Value 30 días en EUR
+  ltv30dSampleSize: number; // Cantidad de customers usados para calcular
 }
 
 // ============================================================================
 // ALERTS (SOLO 2 - U-R2 es diagnóstica)
 // ============================================================================
 
-export type AlertType = "frr_red" | "cpfr_red";
+export type AlertType = "frr_red" | "cpfr_red" | "payback_red";
 
 export interface Alert {
   type: AlertType;
