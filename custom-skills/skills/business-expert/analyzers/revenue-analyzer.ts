@@ -2,9 +2,45 @@
  * Revenue Analyzer
  *
  * Obtiene datos de revenue, trials, rebills, usage y ad spend desde DBReader.
+ *
+ * LTV queries are cached for 1 hour to improve performance.
+ * Cache is invalidated on server restart or when TTL expires.
  */
 
 import { executeQuery } from "../../db-reader/executor.js";
+
+// ============================================================================
+// LTV CACHE (1 hour TTL for expensive queries)
+// ============================================================================
+
+interface CacheEntry<T> {
+  data: T;
+  cachedAt: number;
+}
+
+const LTV_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const ltvCache: Map<string, CacheEntry<any>> = new Map();
+
+function getCachedLtv<T>(key: string): T | null {
+  const entry = ltvCache.get(key);
+  if (!entry) return null;
+
+  if (Date.now() - entry.cachedAt > LTV_CACHE_TTL_MS) {
+    ltvCache.delete(key);
+    return null;
+  }
+
+  return entry.data as T;
+}
+
+function setCachedLtv<T>(key: string, data: T): void {
+  ltvCache.set(key, { data, cachedAt: Date.now() });
+}
+
+export function clearLtvCache(): void {
+  ltvCache.clear();
+  console.log("[LtvCache] Cache cleared");
+}
 
 export interface RevenueData {
   netRevenueEur: number;
@@ -135,6 +171,14 @@ export interface Ltv30dData {
 }
 
 export async function getLtv30dData(): Promise<Ltv30dData | null> {
+  // Check cache first
+  const cached = getCachedLtv<Ltv30dData>("ltv-30d");
+  if (cached) {
+    console.log("[LtvCache] Hit: ltv-30d");
+    return cached;
+  }
+
+  console.log("[LtvCache] Miss: ltv-30d, executing query...");
   const result = await executeQuery("ltv-30d");
 
   if (result.status !== "success" || !result.results) {
@@ -146,10 +190,13 @@ export async function getLtv30dData(): Promise<Ltv30dData | null> {
   // La query retorna un array con un solo row
   const row = Array.isArray(data) ? data[0] : data;
 
-  return {
+  const ltvData: Ltv30dData = {
     ltv30d: parseFloat(row.ltv_30d) || 0,
     sampleSize: parseInt(row.sample_size) || 0,
   };
+
+  setCachedLtv("ltv-30d", ltvData);
+  return ltvData;
 }
 
 // ============================================================================
@@ -165,6 +212,14 @@ export interface LtvWindowData {
 }
 
 export async function getLtv21dData(): Promise<LtvWindowData | null> {
+  // Check cache first
+  const cached = getCachedLtv<LtvWindowData>("ltv-21d");
+  if (cached) {
+    console.log("[LtvCache] Hit: ltv-21d");
+    return cached;
+  }
+
+  console.log("[LtvCache] Miss: ltv-21d, executing query...");
   const result = await executeQuery("ltv-21d");
 
   if (result.status !== "success" || !result.results) {
@@ -174,16 +229,27 @@ export async function getLtv21dData(): Promise<LtvWindowData | null> {
   const data = result.results as any;
   const row = Array.isArray(data) ? data[0] : data;
 
-  return {
+  const ltvData: LtvWindowData = {
     ltv: parseFloat(row.ltv_21d) || 0,
     cohortSize: parseInt(row.cohort_size) || 0,
     customersWithRevenue: parseInt(row.customers_with_revenue) || 0,
     conversionRate: parseFloat(row.conversion_rate_pct) || 0,
     totalNetRevenueEur: parseFloat(row.total_net_revenue_eur) || 0,
   };
+
+  setCachedLtv("ltv-21d", ltvData);
+  return ltvData;
 }
 
 export async function getLtv51dData(): Promise<LtvWindowData | null> {
+  // Check cache first
+  const cached = getCachedLtv<LtvWindowData>("ltv-51d");
+  if (cached) {
+    console.log("[LtvCache] Hit: ltv-51d");
+    return cached;
+  }
+
+  console.log("[LtvCache] Miss: ltv-51d, executing query...");
   const result = await executeQuery("ltv-51d");
 
   if (result.status !== "success" || !result.results) {
@@ -193,16 +259,27 @@ export async function getLtv51dData(): Promise<LtvWindowData | null> {
   const data = result.results as any;
   const row = Array.isArray(data) ? data[0] : data;
 
-  return {
+  const ltvData: LtvWindowData = {
     ltv: parseFloat(row.ltv_51d) || 0,
     cohortSize: parseInt(row.cohort_size) || 0,
     customersWithRevenue: parseInt(row.customers_with_revenue) || 0,
     conversionRate: parseFloat(row.conversion_rate_pct) || 0,
     totalNetRevenueEur: parseFloat(row.total_net_revenue_eur) || 0,
   };
+
+  setCachedLtv("ltv-51d", ltvData);
+  return ltvData;
 }
 
 export async function getLtv81dData(): Promise<LtvWindowData | null> {
+  // Check cache first
+  const cached = getCachedLtv<LtvWindowData>("ltv-81d");
+  if (cached) {
+    console.log("[LtvCache] Hit: ltv-81d");
+    return cached;
+  }
+
+  console.log("[LtvCache] Miss: ltv-81d, executing query...");
   const result = await executeQuery("ltv-81d");
 
   if (result.status !== "success" || !result.results) {
@@ -212,11 +289,14 @@ export async function getLtv81dData(): Promise<LtvWindowData | null> {
   const data = result.results as any;
   const row = Array.isArray(data) ? data[0] : data;
 
-  return {
+  const ltvData: LtvWindowData = {
     ltv: parseFloat(row.ltv_81d) || 0,
     cohortSize: parseInt(row.cohort_size) || 0,
     customersWithRevenue: parseInt(row.customers_with_revenue) || 0,
     conversionRate: parseFloat(row.conversion_rate_pct) || 0,
     totalNetRevenueEur: parseFloat(row.total_net_revenue_eur) || 0,
   };
+
+  setCachedLtv("ltv-81d", ltvData);
+  return ltvData;
 }
