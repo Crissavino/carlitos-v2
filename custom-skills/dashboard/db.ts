@@ -578,3 +578,228 @@ export function getISOWeek(date: Date = new Date()): { week: number; year: numbe
   const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   return { week, year: d.getUTCFullYear() };
 }
+
+// ============================================================================
+// DISCREPANCY LOG (Phase 8C)
+// ============================================================================
+
+export type DiscrepancyType = 'false_positive' | 'false_negative' | 'late_signal' | 'data_issue' | 'other';
+export type DiscrepancySeverity = 'low' | 'medium' | 'high' | 'critical';
+export type DiscrepancyEntityType = 'campaign' | 'keyword' | 'search_term' | 'kpi' | 'decision' | 'recommendation';
+export type DiscrepancyStatus = 'open' | 'investigating' | 'resolved' | 'wont_fix';
+
+export interface Discrepancy {
+  id?: number;
+  discrepancy_type: DiscrepancyType;
+  severity: DiscrepancySeverity;
+  entity_type: DiscrepancyEntityType;
+  entity_id?: string;
+  entity_name?: string;
+  system_recommendation?: string;
+  actual_outcome?: string;
+  description: string;
+  spend_involved?: number;
+  days_delayed?: number;
+  status: DiscrepancyStatus;
+  resolution_notes?: string;
+  resolved_at?: string;
+  reported_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DiscrepancySummary {
+  discrepancy_type: DiscrepancyType;
+  status: DiscrepancyStatus;
+  count: number;
+  total_spend_involved: number;
+  avg_days_delayed: number;
+}
+
+export async function createDiscrepancy(discrepancy: Omit<Discrepancy, 'id' | 'created_at' | 'updated_at'>): Promise<number> {
+  const db = getPool();
+  const [result] = await db.execute<ResultSetHeader>(
+    `INSERT INTO discrepancy_log
+     (discrepancy_type, severity, entity_type, entity_id, entity_name,
+      system_recommendation, actual_outcome, description,
+      spend_involved, days_delayed, status, reported_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      discrepancy.discrepancy_type,
+      discrepancy.severity,
+      discrepancy.entity_type,
+      discrepancy.entity_id || null,
+      discrepancy.entity_name || null,
+      discrepancy.system_recommendation || null,
+      discrepancy.actual_outcome || null,
+      discrepancy.description,
+      discrepancy.spend_involved || 0,
+      discrepancy.days_delayed || 0,
+      discrepancy.status || 'open',
+      discrepancy.reported_by || 'user',
+    ]
+  );
+  return result.insertId;
+}
+
+export async function getDiscrepancies(filters?: {
+  status?: DiscrepancyStatus | DiscrepancyStatus[];
+  type?: DiscrepancyType;
+  entity_type?: DiscrepancyEntityType;
+  limit?: number;
+}): Promise<Discrepancy[]> {
+  const db = getPool();
+  let query = "SELECT * FROM discrepancy_log WHERE 1=1";
+  const params: unknown[] = [];
+
+  if (filters?.status) {
+    if (Array.isArray(filters.status)) {
+      query += ` AND status IN (${filters.status.map(() => '?').join(',')})`;
+      params.push(...filters.status);
+    } else {
+      query += " AND status = ?";
+      params.push(filters.status);
+    }
+  }
+
+  if (filters?.type) {
+    query += " AND discrepancy_type = ?";
+    params.push(filters.type);
+  }
+
+  if (filters?.entity_type) {
+    query += " AND entity_type = ?";
+    params.push(filters.entity_type);
+  }
+
+  query += " ORDER BY created_at DESC";
+
+  if (filters?.limit) {
+    query += " LIMIT ?";
+    params.push(filters.limit);
+  }
+
+  const [rows] = await db.execute<RowDataPacket[]>(query, params);
+  return rows.map(row => ({
+    id: row.id,
+    discrepancy_type: row.discrepancy_type,
+    severity: row.severity,
+    entity_type: row.entity_type,
+    entity_id: row.entity_id,
+    entity_name: row.entity_name,
+    system_recommendation: row.system_recommendation,
+    actual_outcome: row.actual_outcome,
+    description: row.description,
+    spend_involved: parseFloat(row.spend_involved) || 0,
+    days_delayed: row.days_delayed,
+    status: row.status,
+    resolution_notes: row.resolution_notes,
+    resolved_at: row.resolved_at?.toISOString?.() || row.resolved_at,
+    reported_by: row.reported_by,
+    created_at: row.created_at?.toISOString?.() || row.created_at,
+    updated_at: row.updated_at?.toISOString?.() || row.updated_at,
+  }));
+}
+
+export async function getDiscrepancyById(id: number): Promise<Discrepancy | null> {
+  const db = getPool();
+  const [rows] = await db.execute<RowDataPacket[]>(
+    "SELECT * FROM discrepancy_log WHERE id = ?",
+    [id]
+  );
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  return {
+    id: row.id,
+    discrepancy_type: row.discrepancy_type,
+    severity: row.severity,
+    entity_type: row.entity_type,
+    entity_id: row.entity_id,
+    entity_name: row.entity_name,
+    system_recommendation: row.system_recommendation,
+    actual_outcome: row.actual_outcome,
+    description: row.description,
+    spend_involved: parseFloat(row.spend_involved) || 0,
+    days_delayed: row.days_delayed,
+    status: row.status,
+    resolution_notes: row.resolution_notes,
+    resolved_at: row.resolved_at?.toISOString?.() || row.resolved_at,
+    reported_by: row.reported_by,
+    created_at: row.created_at?.toISOString?.() || row.created_at,
+    updated_at: row.updated_at?.toISOString?.() || row.updated_at,
+  };
+}
+
+export async function updateDiscrepancy(id: number, updates: Partial<Discrepancy>): Promise<void> {
+  const db = getPool();
+  const fields: string[] = [];
+  const values: unknown[] = [];
+
+  if (updates.status !== undefined) {
+    fields.push("status = ?");
+    values.push(updates.status);
+    if (updates.status === 'resolved') {
+      fields.push("resolved_at = NOW()");
+    }
+  }
+  if (updates.severity !== undefined) {
+    fields.push("severity = ?");
+    values.push(updates.severity);
+  }
+  if (updates.resolution_notes !== undefined) {
+    fields.push("resolution_notes = ?");
+    values.push(updates.resolution_notes);
+  }
+  if (updates.actual_outcome !== undefined) {
+    fields.push("actual_outcome = ?");
+    values.push(updates.actual_outcome);
+  }
+
+  if (fields.length === 0) return;
+
+  values.push(id);
+  await db.execute(
+    `UPDATE discrepancy_log SET ${fields.join(", ")} WHERE id = ?`,
+    values
+  );
+}
+
+export async function getDiscrepancySummary(): Promise<{
+  total: number;
+  open: number;
+  by_type: Record<DiscrepancyType, number>;
+  by_severity: Record<DiscrepancySeverity, number>;
+  total_spend_involved: number;
+}> {
+  const db = getPool();
+
+  const [countRows] = await db.execute<RowDataPacket[]>(
+    "SELECT COUNT(*) as total, SUM(status = 'open') as open_count, SUM(spend_involved) as total_spend FROM discrepancy_log"
+  );
+
+  const [typeRows] = await db.execute<RowDataPacket[]>(
+    "SELECT discrepancy_type, COUNT(*) as count FROM discrepancy_log GROUP BY discrepancy_type"
+  );
+
+  const [sevRows] = await db.execute<RowDataPacket[]>(
+    "SELECT severity, COUNT(*) as count FROM discrepancy_log GROUP BY severity"
+  );
+
+  const byType: Record<string, number> = {};
+  for (const row of typeRows) {
+    byType[row.discrepancy_type] = row.count;
+  }
+
+  const bySeverity: Record<string, number> = {};
+  for (const row of sevRows) {
+    bySeverity[row.severity] = row.count;
+  }
+
+  return {
+    total: countRows[0]?.total || 0,
+    open: countRows[0]?.open_count || 0,
+    by_type: byType as Record<DiscrepancyType, number>,
+    by_severity: bySeverity as Record<DiscrepancySeverity, number>,
+    total_spend_involved: parseFloat(countRows[0]?.total_spend) || 0,
+  };
+}

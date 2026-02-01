@@ -51,9 +51,19 @@ import {
   getGenerationLogs,
   generateDedupeKey,
   getISOWeek,
+  createDiscrepancy,
+  getDiscrepancies,
+  getDiscrepancyById,
+  updateDiscrepancy,
+  getDiscrepancySummary,
   type KpiSnapshot,
   type Task,
   type TaskStatus,
+  type Discrepancy,
+  type DiscrepancyType,
+  type DiscrepancySeverity,
+  type DiscrepancyEntityType,
+  type DiscrepancyStatus,
 } from "./db.js";
 import { CurrencyConverter } from "../core/currency.js";
 
@@ -139,6 +149,12 @@ app.get("/api", (req: Request, res: Response) => {
       taskUpdate: "PATCH /api/tasks/:id",
       taskDelete: "DELETE /api/tasks/:id",
       taskGenerate: "POST /api/tasks/generate",
+      // Discrepancy Log (Phase 8C)
+      discrepancyList: "GET /api/discrepancies",
+      discrepancySummary: "GET /api/discrepancies/summary",
+      discrepancyGet: "GET /api/discrepancies/:id",
+      discrepancyCreate: "POST /api/discrepancies",
+      discrepancyUpdate: "PATCH /api/discrepancies/:id",
       // Health
       health: "GET /health",
     },
@@ -1510,6 +1526,157 @@ app.post("/api/tasks/:id/artifacts", async (req: Request, res: Response) => {
       success: true,
       data: { id, taskId, artifactType, name },
     });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// ============================================================================
+// DISCREPANCY LOG (Phase 8C)
+// ============================================================================
+
+// GET /api/discrepancies - List discrepancies with filters
+app.get("/api/discrepancies", async (req: Request, res: Response) => {
+  try {
+    const { status, type, entity_type, limit } = req.query;
+
+    const filters: {
+      status?: DiscrepancyStatus | DiscrepancyStatus[];
+      type?: DiscrepancyType;
+      entity_type?: DiscrepancyEntityType;
+      limit?: number;
+    } = {};
+
+    if (status) {
+      const statuses = (status as string).split(",") as DiscrepancyStatus[];
+      filters.status = statuses.length === 1 ? statuses[0] : statuses;
+    }
+    if (type) filters.type = type as DiscrepancyType;
+    if (entity_type) filters.entity_type = entity_type as DiscrepancyEntityType;
+    if (limit) filters.limit = parseInt(limit as string, 10);
+
+    const discrepancies = await getDiscrepancies(filters);
+    const summary = await getDiscrepancySummary();
+
+    res.json({
+      success: true,
+      data: {
+        count: discrepancies.length,
+        summary,
+        discrepancies,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/discrepancies/summary - Get summary stats
+app.get("/api/discrepancies/summary", async (req: Request, res: Response) => {
+  try {
+    const summary = await getDiscrepancySummary();
+    res.json({ success: true, data: summary });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/discrepancies/:id - Get single discrepancy
+app.get("/api/discrepancies/:id", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid discrepancy ID" });
+      return;
+    }
+
+    const discrepancy = await getDiscrepancyById(id);
+    if (!discrepancy) {
+      res.status(404).json({ error: "Discrepancy not found" });
+      return;
+    }
+
+    res.json({ success: true, data: discrepancy });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// POST /api/discrepancies - Create discrepancy
+app.post("/api/discrepancies", async (req: Request, res: Response) => {
+  try {
+    const {
+      discrepancy_type,
+      severity,
+      entity_type,
+      entity_id,
+      entity_name,
+      system_recommendation,
+      actual_outcome,
+      description,
+      spend_involved,
+      days_delayed,
+    } = req.body;
+
+    if (!discrepancy_type || !entity_type || !description) {
+      res.status(400).json({ error: "discrepancy_type, entity_type, and description are required" });
+      return;
+    }
+
+    const newDiscrepancy: Omit<Discrepancy, 'id' | 'created_at' | 'updated_at'> = {
+      discrepancy_type,
+      severity: severity || 'medium',
+      entity_type,
+      entity_id,
+      entity_name,
+      system_recommendation,
+      actual_outcome,
+      description,
+      spend_involved: spend_involved || 0,
+      days_delayed: days_delayed || 0,
+      status: 'open',
+      reported_by: 'user',
+    };
+
+    const id = await createDiscrepancy(newDiscrepancy);
+    const created = await getDiscrepancyById(id);
+
+    res.status(201).json({
+      success: true,
+      data: created,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// PATCH /api/discrepancies/:id - Update discrepancy
+app.patch("/api/discrepancies/:id", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid discrepancy ID" });
+      return;
+    }
+
+    const existing = await getDiscrepancyById(id);
+    if (!existing) {
+      res.status(404).json({ error: "Discrepancy not found" });
+      return;
+    }
+
+    const { status, severity, resolution_notes, actual_outcome } = req.body;
+    const updates: Partial<Discrepancy> = {};
+
+    if (status !== undefined) updates.status = status;
+    if (severity !== undefined) updates.severity = severity;
+    if (resolution_notes !== undefined) updates.resolution_notes = resolution_notes;
+    if (actual_outcome !== undefined) updates.actual_outcome = actual_outcome;
+
+    await updateDiscrepancy(id, updates);
+    const updated = await getDiscrepancyById(id);
+
+    res.json({ success: true, data: updated });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
   }
