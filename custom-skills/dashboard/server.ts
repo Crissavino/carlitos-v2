@@ -537,7 +537,14 @@ app.get("/api/campaigns/decisions/urgent", async (req: Request, res: Response) =
 // KEYWORDS (Phase 8A)
 // ============================================================================
 
-// GET /api/keywords - Get all keywords with metrics
+// GET /api/keywords - Get keywords with pagination and filtering
+// Query params:
+//   page: number (default 1)
+//   limit: number (default 50, max 200)
+//   minSpend: number (default 0) - minimum spend in EUR
+//   hasSpend: boolean (default true) - only show keywords with spend > 0
+//   campaign: string - filter by campaign ID
+//   matchType: string - filter by match type (EXACT, PHRASE, BROAD)
 app.get("/api/keywords", async (req: Request, res: Response) => {
   try {
     const data = await getKeywordPerformance();
@@ -546,9 +553,62 @@ app.get("/api/keywords", async (req: Request, res: Response) => {
       return;
     }
 
+    // Parse query params
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const minSpend = parseFloat(req.query.minSpend as string) || 0;
+    const hasSpend = req.query.hasSpend !== 'false'; // default true
+    const campaignFilter = req.query.campaign as string || '';
+    const matchTypeFilter = req.query.matchType as string || '';
+
+    // Filter keywords
+    let filtered = data.keywords;
+
+    // Filter by spend
+    if (hasSpend) {
+      filtered = filtered.filter(k => k.spend7d > 0);
+    }
+    if (minSpend > 0) {
+      filtered = filtered.filter(k => k.spend7d >= minSpend);
+    }
+
+    // Filter by campaign
+    if (campaignFilter) {
+      filtered = filtered.filter(k => k.campaignId === campaignFilter);
+    }
+
+    // Filter by match type
+    if (matchTypeFilter) {
+      filtered = filtered.filter(k => k.matchType === matchTypeFilter.toUpperCase());
+    }
+
+    // Paginate
+    const totalFiltered = filtered.length;
+    const totalPages = Math.ceil(totalFiltered / limit);
+    const offset = (page - 1) * limit;
+    const paginatedKeywords = filtered.slice(offset, offset + limit);
+
     res.json({
       success: true,
-      data,
+      data: {
+        ...data,
+        keywords: paginatedKeywords,
+        totalKeywords: data.totalKeywords,
+        filteredCount: totalFiltered,
+        pagination: {
+          page,
+          limit,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+        filters: {
+          hasSpend,
+          minSpend,
+          campaign: campaignFilter || null,
+          matchType: matchTypeFilter || null,
+        },
+      },
     });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });

@@ -331,7 +331,17 @@ export const api = {
   getBusinessRecommendations: () => fetchAPI<MacroRecommendationsResult>('/business/recommendations'),
 
   // Keywords (Phase 8A)
-  getKeywords: () => fetchAPI<KeywordPerformanceResult>('/keywords'),
+  getKeywords: (params?: KeywordsQueryParams) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', params.page.toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    if (params?.minSpend) query.set('minSpend', params.minSpend.toString());
+    if (params?.hasSpend !== undefined) query.set('hasSpend', params.hasSpend.toString());
+    if (params?.campaign) query.set('campaign', params.campaign);
+    if (params?.matchType) query.set('matchType', params.matchType);
+    const queryString = query.toString();
+    return fetchAPI<KeywordPerformanceResult>(`/keywords${queryString ? '?' + queryString : ''}`);
+  },
   getKeywordsSummary: () => fetchAPI<KeywordsSummary>('/keywords/summary'),
   getTopKeywords: (limit = 20) => fetchAPI<{ count: number; keywords: KeywordPerformance[] }>(`/keywords/top?limit=${limit}`),
   getUnderperformingKeywords: () => fetchAPI<{ count: number; keywords: KeywordPerformance[] }>('/keywords/underperforming'),
@@ -541,6 +551,30 @@ export interface KeywordPerformanceResult {
   totalKeywords: number;
   totalSpend: number;
   keywords: KeywordPerformance[];
+  // Pagination (new)
+  filteredCount?: number;
+  pagination?: {
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  filters?: {
+    hasSpend: boolean;
+    minSpend: number;
+    campaign: string | null;
+    matchType: string | null;
+  };
+}
+
+export interface KeywordsQueryParams {
+  page?: number;
+  limit?: number;
+  minSpend?: number;
+  hasSpend?: boolean;
+  campaign?: string;
+  matchType?: string;
 }
 
 export interface KeywordWasteAnalysis {
