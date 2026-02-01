@@ -16,7 +16,12 @@ export type AllowedQueryId =
   | "ltv-81d"   // R3 completo
   // Phase 7: Campaign-level metrics
   | "campaign-performance"  // Full metrics per campaign
-  | "campaign-summary";     // Lightweight summary
+  | "campaign-summary"      // Lightweight summary
+  // Phase 7.5: Business aggregations
+  | "business-by-website"   // Aggregation by website
+  | "business-by-company"   // Aggregation by company
+  | "business-by-country"   // Aggregation by country
+  | "campaigns-for-service-classification";  // Campaign list for service pattern matching
 
 export interface DBReaderRequest {
   query: AllowedQueryId;

@@ -327,6 +327,13 @@ export async function getCampaignSpend(dateRange: '7d' | '30d' = '7d'): Promise<
     const [rows] = await pool.execute(sql, [dateRange]) as any;
     return rows.map((row: any) => ({
       ...row,
+      // Ensure cost is a number (MySQL returns decimals as strings)
+      cost: parseFloat(row.cost) || 0,
+      impressions: parseInt(row.impressions) || 0,
+      clicks: parseInt(row.clicks) || 0,
+      conversions: parseFloat(row.conversions) || 0,
+      ctr: parseFloat(row.ctr) || 0,
+      cpc: parseFloat(row.cpc) || 0,
       metricsStartDate: row.metricsStartDate instanceof Date
         ? row.metricsStartDate.toISOString().split('T')[0]
         : row.metricsStartDate,

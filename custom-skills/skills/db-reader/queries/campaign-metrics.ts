@@ -4,10 +4,11 @@ import { buildCurrencyRateCase } from "../../../core/currency.js";
 /**
  * Campaign Metrics - Phase 7
  *
- * Métricas a nivel campaña para decisiones de ads.
+ * ATTRIBUTION data a nivel campaña para decisiones de ads.
+ * SPEND viene de google_ads_campaign_metrics (Google Ads Script = source of truth)
  *
  * JOIN CHAIN:
- * - avocodebo.campaigns (google_campaign_id, website_id, country_id, company_id)
+ * - avocodebo.campaigns (google_campaign_id)
  *     ↓ JOIN on google_campaign_id = utm_campaign
  * - avocode.google_ads_details (utm_campaign, customer_id)
  *     ↓ JOIN on customer_id
@@ -15,27 +16,18 @@ import { buildCurrencyRateCase } from "../../../core/currency.js";
  *     ↓ JOIN on customer_id
  * - avocode.invoices (customer_id, invoice_type_id, amount)
  *
- * SPEND:
- * - avocodebo.ads (campaign_id, cost, date)
- *     ↓ JOIN on campaigns.id
- *
- * MÉTRICAS:
- * - Spend (7d, 30d)
+ * MÉTRICAS ATTRIBUTION:
  * - Acquisitions (customers atribuidos)
  * - First Rebills (invoice_type_id = 2)
  * - LTV_21d, LTV_51d
- * - CPFR = Spend / First Rebills
- * - Payback_21d, Payback_51d
  * - campaignAgeDays = DATEDIFF(NOW(), started_at)
  */
 
 // Jackcode company_id for Zoho refunds
 const JACKCODE_COMPANY_ID = 3;
 
-// Currency conversion
+// Currency conversion for invoice amounts
 const RATE_CASE = buildCurrencyRateCase('i.currency_code');
-const RATE_CASE_INV = buildCurrencyRateCase('inv.currency_code');
-const RATE_CASE_ADS = buildCurrencyRateCase('cur.normalized');
 
 /**
  * Campaign Performance Summary
@@ -44,7 +36,7 @@ const RATE_CASE_ADS = buildCurrencyRateCase('cur.normalized');
 export const campaignPerformanceQuery: QueryDefinition = {
   id: "campaign-performance" as any,
   name: "Campaign Performance",
-  description: "Métricas de rendimiento por campaña con LTV y Payback",
+  description: "Attribution data por campaña (acquisitions, LTV, rebills). SPEND viene de Google Ads Script.",
   sql: `
     SELECT
       camp.id as campaign_id,
@@ -57,23 +49,8 @@ export const campaignPerformanceQuery: QueryDefinition = {
       camp.started_at,
       DATEDIFF(CURDATE(), camp.started_at) as campaign_age_days,
 
-      -- Spend (últimos 7 días)
-      COALESCE((
-        SELECT ROUND(SUM(a.cost / ${RATE_CASE_ADS}), 2)
-        FROM avocodebo.ads a
-        JOIN avocodebo.currencies cur ON cur.id = camp.currency_id
-        WHERE a.campaign_id = camp.id
-          AND a.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-      ), 0) as spend_7d_eur,
-
-      -- Spend (últimos 30 días)
-      COALESCE((
-        SELECT ROUND(SUM(a.cost / ${RATE_CASE_ADS}), 2)
-        FROM avocodebo.ads a
-        JOIN avocodebo.currencies cur ON cur.id = camp.currency_id
-        WHERE a.campaign_id = camp.id
-          AND a.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-      ), 0) as spend_30d_eur,
+      -- NOTE: Spend viene de google_ads_campaign_metrics (Google Ads Script)
+      -- Esta query solo retorna ATTRIBUTION data
 
       -- Acquisitions (customers atribuidos a esta campaña)
       (
@@ -185,7 +162,7 @@ export const campaignPerformanceQuery: QueryDefinition = {
     FROM avocodebo.campaigns camp
     WHERE camp.google_campaign_id IS NOT NULL
       AND camp.google_campaign_id != ''
-    ORDER BY spend_7d_eur DESC
+    ORDER BY total_acquisitions DESC
   `,
   params: [],
   permissions: ["SELECT"],

@@ -322,4 +322,167 @@ export const api = {
   getCampaignActions: () => fetchAPI<CampaignActions>('/campaigns/actions'),
   // Campaign Decisions (Phase 7.5)
   getCampaignDecisions: () => fetchAPI<CampaignDecisionSummary>('/campaigns/decisions'),
+
+  // Business Views (Phase 7.5)
+  getBusinessWebsites: () => fetchAPI<WebsiteViewResult>('/business/websites'),
+  getBusinessCompanies: () => fetchAPI<CompanyViewResult>('/business/companies'),
+  getBusinessCountries: () => fetchAPI<CountryViewResult>('/business/countries'),
+  getBusinessServices: () => fetchAPI<ServiceViewResult>('/business/services'),
+  getBusinessRecommendations: () => fetchAPI<MacroRecommendationsResult>('/business/recommendations'),
 };
+
+// ============================================================================
+// Business Views (Phase 7.5)
+// ============================================================================
+
+export type BusinessRecommendation = 'SCALE_FOCUS' | 'MAINTAIN' | 'REDUCE_EXPOSURE' | 'REBALANCE' | 'MONITOR' | 'INSUFFICIENT_DATA';
+
+export interface RecommendationDetails {
+  recommendation: BusinessRecommendation;
+  confidence: 'high' | 'medium' | 'low';
+  rationale: string;
+  dataQuality: {
+    hasMatureCohort: boolean;
+    attributionCoverage: number;
+    sampleSize: number;
+  };
+}
+
+export interface AttributionCoverage {
+  spendWithAttribution: number;
+  spendTotal: number;
+  percentage: number;
+}
+
+export interface AggregatedMetrics {
+  spend7d: number;
+  spend30d: number;
+  totalAcquisitions: number;
+  totalFirstRebills: number;
+  totalRevenue51d: number;
+  ltv51dAgg: number;
+  payback51dAgg: number;
+  minCampaignAgeDays: number;
+  activeCampaigns: number;
+  totalCampaigns: number;
+  attributionCoverage: AttributionCoverage;
+}
+
+export interface TopCampaign {
+  campaignId: string;
+  campaignName: string;
+  spend7d: number;
+  payback51d: number;
+}
+
+export interface WebsiteMetrics extends AggregatedMetrics {
+  websiteId: number;
+  websiteName: string;
+  topCampaigns: TopCampaign[];
+  recommendation: RecommendationDetails;
+}
+
+export interface WebsiteViewResult {
+  generatedAt: string;
+  totalWebsites: number;
+  websites: WebsiteMetrics[];
+  aggregatedTotal: AggregatedMetrics;
+}
+
+export interface CompanyWebsite {
+  websiteId: number;
+  websiteName: string;
+  spend7d: number;
+  payback51dAgg: number;
+}
+
+export interface CompanyMetrics extends AggregatedMetrics {
+  companyId: number;
+  companyName: string;
+  websites: CompanyWebsite[];
+  spendConcentration: {
+    topWebsiteSpendPct: number;
+    isConcentrated: boolean;
+  };
+  recommendation: RecommendationDetails;
+}
+
+export interface CompanyViewResult {
+  generatedAt: string;
+  companies: CompanyMetrics[];
+  aggregatedTotal: AggregatedMetrics;
+}
+
+export interface CountryMetrics extends AggregatedMetrics {
+  countryId: number;
+  countryCode: string;
+  countryName: string;
+  topCampaigns: TopCampaign[];
+  recommendation: RecommendationDetails;
+}
+
+export interface CountryViewResult {
+  generatedAt: string;
+  totalCountries: number;
+  countries: CountryMetrics[];
+  aggregatedTotal: AggregatedMetrics;
+}
+
+export interface ServiceMetrics extends AggregatedMetrics {
+  serviceCategory: string;
+  serviceName: string;
+  campaigns: TopCampaign[];
+  classification: {
+    method: string;
+    confidence: string;
+    matchedPatterns: string[];
+  };
+  recommendation: RecommendationDetails;
+}
+
+export interface ServiceViewResult {
+  generatedAt: string;
+  totalServices: number;
+  services: ServiceMetrics[];
+  aggregatedTotal: AggregatedMetrics;
+  disclaimer: string;
+}
+
+export interface MacroRecommendation {
+  id: string;
+  entityType: 'website' | 'company' | 'country' | 'service';
+  entityId: number | string;
+  entityName: string;
+  recommendation: BusinessRecommendation;
+  priority: 'high' | 'medium' | 'low';
+  metrics: {
+    spend7d: number;
+    payback51dAgg: number;
+    attributionCoverage: number;
+  };
+  rationale: string;
+  suggestedAction: string;
+  isActionable: boolean;
+  blockers?: string[];
+}
+
+export interface MacroRecommendationsResult {
+  generatedAt: string;
+  summary: {
+    totalRecommendations: number;
+    byType: {
+      SCALE_FOCUS: number;
+      MAINTAIN: number;
+      REDUCE_EXPOSURE: number;
+      REBALANCE: number;
+      MONITOR: number;
+    };
+    potentialImpact: {
+      spendToScale: number;
+      spendToReduce: number;
+      spendToRebalance: number;
+    };
+  };
+  recommendations: MacroRecommendation[];
+  disclaimer: string;
+}

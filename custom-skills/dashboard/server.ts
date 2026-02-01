@@ -519,6 +519,90 @@ app.get("/api/campaigns/decisions/urgent", async (req: Request, res: Response) =
 });
 
 // ============================================================================
+// BUSINESS VIEWS (Phase 7.5)
+// ============================================================================
+
+import {
+  getWebsiteView,
+  getCompanyView,
+  getCountryView,
+  getServiceView,
+} from "../skills/business-expert/analyzers/business-aggregator.js";
+import {
+  getMacroRecommendations,
+} from "../skills/decision-engine/business-rules/macro-engine.js";
+
+// GET /api/business/websites - Aggregated metrics by website
+app.get("/api/business/websites", async (req: Request, res: Response) => {
+  try {
+    const data = await getWebsiteView();
+    if (!data) {
+      res.status(500).json({ error: "Failed to get website data" });
+      return;
+    }
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/business/companies - Aggregated metrics by company
+app.get("/api/business/companies", async (req: Request, res: Response) => {
+  try {
+    const data = await getCompanyView();
+    if (!data) {
+      res.status(500).json({ error: "Failed to get company data" });
+      return;
+    }
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/business/countries - Aggregated metrics by country
+app.get("/api/business/countries", async (req: Request, res: Response) => {
+  try {
+    const data = await getCountryView();
+    if (!data) {
+      res.status(500).json({ error: "Failed to get country data" });
+      return;
+    }
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/business/services - Aggregated metrics by service (heuristic)
+app.get("/api/business/services", async (req: Request, res: Response) => {
+  try {
+    const data = await getServiceView();
+    if (!data) {
+      res.status(500).json({ error: "Failed to get service data" });
+      return;
+    }
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/business/recommendations - Macro-level strategic recommendations
+app.get("/api/business/recommendations", async (req: Request, res: Response) => {
+  try {
+    const data = await getMacroRecommendations();
+    if (!data) {
+      res.status(500).json({ error: "Failed to get recommendations" });
+      return;
+    }
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// ============================================================================
 // SNAPSHOTS (Historical KPIs)
 // ============================================================================
 

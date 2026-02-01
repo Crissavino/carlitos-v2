@@ -9,6 +9,12 @@ import { adSpend7dQuery } from "./ad-spend-7d.js";
 import { ltv30dQuery, ltv45dQuery, ltv90dQuery } from "./ltv-30d.js";
 import { ltv21dQuery, ltv51dQuery, ltv81dQuery } from "./ltv-windows.js";
 import { campaignPerformanceQuery, campaignSummaryQuery } from "./campaign-metrics.js";
+import {
+  websiteAggregationQuery,
+  companyAggregationQuery,
+  countryAggregationQuery,
+  campaignListForServiceQuery,
+} from "./business-aggregations.js";
 
 export const ALLOWED_QUERIES: Record<AllowedQueryId, QueryDefinition> = {
   "active-subscriptions": activeSubscriptionsQuery,
@@ -29,6 +35,11 @@ export const ALLOWED_QUERIES: Record<AllowedQueryId, QueryDefinition> = {
   // Phase 7: Campaign-level metrics
   "campaign-performance": campaignPerformanceQuery,
   "campaign-summary": campaignSummaryQuery,
+  // Phase 7.5: Business aggregations
+  "business-by-website": websiteAggregationQuery,
+  "business-by-company": companyAggregationQuery,
+  "business-by-country": countryAggregationQuery,
+  "campaigns-for-service-classification": campaignListForServiceQuery,
 };
 
 export function getQuery(queryId: string): QueryDefinition | null {
@@ -58,4 +69,9 @@ export {
   // Phase 7: Campaign metrics
   campaignPerformanceQuery,
   campaignSummaryQuery,
+  // Phase 7.5: Business aggregations
+  websiteAggregationQuery,
+  companyAggregationQuery,
+  countryAggregationQuery,
+  campaignListForServiceQuery,
 };
