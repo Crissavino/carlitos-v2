@@ -684,3 +684,314 @@ export async function hasKeywordData(): Promise<boolean> {
     return false;
   }
 }
+
+// ============================================================================
+// SEARCH TERMS INGEST (Phase 8B)
+// ============================================================================
+
+import { getSearchTermsDataSource } from "./datasources/index.js";
+import { SearchTermsIngestPayload, SearchTermMetrics } from "./types.js";
+
+/**
+ * Calculate metrics date window from dateRange code (7d/30d)
+ */
+function calculateDateWindowFromCode(dateRange: '7d' | '30d'): { startDate: string; endDate: string } {
+  const now = new Date();
+  const endDate = new Date(now);
+  endDate.setDate(endDate.getDate() - 1); // Yesterday
+
+  const days = dateRange === '30d' ? 29 : 6;
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - days);
+
+  return {
+    startDate: startDate.toISOString().split('T')[0],
+    endDate: endDate.toISOString().split('T')[0],
+  };
+}
+
+/**
+ * Persist search terms to database
+ */
+async function persistSearchTermsToDatabase(
+  payload: SearchTermsIngestPayload,
+  recordId: string
+): Promise<{ inserted: number; updated: number }> {
+  const pool = getPool();
+  const { startDate, endDate } = calculateDateWindowFromCode(payload.dateRange);
+
+  let inserted = 0;
+  let updated = 0;
+
+  for (const st of payload.searchTerms) {
+    const sql = `
+      INSERT INTO google_ads_search_terms (
+        search_term, keyword_text, match_type,
+        campaign_id, campaign_name, ad_group_id, ad_group_name,
+        date_range, metrics_start_date, metrics_end_date,
+        cost, currency, impressions, clicks, conversions, conversion_value, ctr, conversion_rate,
+        account_id, account_name,
+        record_id, source
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        keyword_text = VALUES(keyword_text),
+        match_type = VALUES(match_type),
+        campaign_name = VALUES(campaign_name),
+        ad_group_name = VALUES(ad_group_name),
+        cost = VALUES(cost),
+        impressions = VALUES(impressions),
+        clicks = VALUES(clicks),
+        conversions = VALUES(conversions),
+        conversion_value = VALUES(conversion_value),
+        ctr = VALUES(ctr),
+        conversion_rate = VALUES(conversion_rate),
+        account_id = VALUES(account_id),
+        account_name = VALUES(account_name),
+        record_id = VALUES(record_id),
+        ingested_at = CURRENT_TIMESTAMP
+    `;
+
+    const params = [
+      st.searchTerm,
+      st.keywordText,
+      st.matchType,
+      st.campaignId,
+      st.campaignName,
+      st.adGroupId,
+      st.adGroupName,
+      payload.dateRange,
+      startDate,
+      endDate,
+      st.cost,
+      payload.currency,
+      st.impressions,
+      st.clicks,
+      st.conversions,
+      st.conversionValue,
+      st.ctr,
+      st.conversionRate,
+      payload.accountId,
+      payload.accountName,
+      recordId,
+      'ads-script',
+    ];
+
+    try {
+      const [result] = await pool.execute(sql, params) as any;
+      if (result.affectedRows === 1) {
+        inserted++;
+      } else if (result.affectedRows === 2) {
+        updated++;
+      }
+    } catch (err) {
+      console.error(`[Ingest] Failed to persist search term:`, err);
+      throw err;
+    }
+  }
+
+  return { inserted, updated };
+}
+
+/**
+ * Process search terms ingest from Google Ads Scripts
+ * Responds immediately after validation, persists in background
+ */
+export async function handleSearchTermsIngest(
+  authHeader: string | undefined,
+  rawPayload: unknown
+): Promise<IngestResponse> {
+  const recordId = randomUUID();
+
+  // 1. Verify authentication
+  const authResult = verifyToken(authHeader);
+  if (!authResult.valid) {
+    audit.log({
+      skill: 'google-ads-expert',
+      action: 'search_terms_ingest_blocked',
+      input: { reason: authResult.error },
+      output: { blocked: true },
+      queries: [],
+    }).catch(() => {});
+
+    return {
+      success: false,
+      error: authResult.error,
+    };
+  }
+
+  // 2. Get search terms datasource
+  const dataSource = getSearchTermsDataSource();
+
+  // 3. Validate payload
+  const validation = dataSource.validate(rawPayload);
+
+  if (!validation.valid) {
+    audit.log({
+      skill: 'google-ads-expert',
+      action: 'search_terms_ingest_validation_failed',
+      input: { errors: validation.errors },
+      output: { valid: false },
+      queries: [],
+    }).catch(() => {});
+
+    return {
+      success: false,
+      error: 'Validation failed',
+      validation,
+    };
+  }
+
+  // 4. Transform to unified schema
+  const payload = dataSource.transform(rawPayload);
+
+  // 5. Persist to database IN BACKGROUND (no await)
+  const searchTermCount = payload.searchTerms.length;
+  const chunkInfo = payload.chunk ? ` (chunk ${payload.chunk}/${payload.totalChunks})` : '';
+  console.log(`[Ingest] Accepted ${searchTermCount} search terms${chunkInfo}, persisting in background...`);
+
+  persistSearchTermsToDatabase(payload, recordId)
+    .then(({ inserted, updated }) => {
+      console.log(`[Ingest] Persisted ${inserted} new, ${updated} updated search terms to database`);
+      return audit.log({
+        skill: 'google-ads-expert',
+        action: 'search_terms_ingest_success',
+        input: {
+          recordId,
+          accountId: payload.accountId,
+          accountName: payload.accountName,
+          dateRange: payload.dateRange,
+          searchTermCount,
+          chunk: payload.chunk,
+          totalChunks: payload.totalChunks,
+        },
+        output: {
+          persisted: true,
+          inserted,
+          updated,
+          warnings: validation.warnings,
+        },
+        queries: [],
+      });
+    })
+    .catch((err) => {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[Ingest] Background persist failed:`, errorMsg);
+      audit.log({
+        skill: 'google-ads-expert',
+        action: 'search_terms_ingest_persist_error',
+        input: { recordId },
+        output: { error: errorMsg },
+        queries: [],
+      }).catch(() => {});
+    });
+
+  // Respond immediately
+  return {
+    success: true,
+    recordId,
+    validation,
+  };
+}
+
+// ============================================================================
+// SEARCH TERMS READ FUNCTIONS (for search-terms-analyzer)
+// ============================================================================
+
+export interface SearchTermSpendData {
+  searchTerm: string;
+  keywordText: string;
+  matchType: string;
+  campaignId: string;
+  campaignName: string;
+  adGroupId: string;
+  adGroupName: string;
+  dateRange: string;
+  metricsStartDate: string;
+  metricsEndDate: string;
+  cost: number;
+  currency: string;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  conversionValue: number;
+  ctr: number;
+  conversionRate: number;
+  ingestedAt: string;
+}
+
+/**
+ * Get search terms for a specific date range (7d or 30d)
+ */
+export async function getSearchTermSpend(dateRange: '7d' | '30d' = '7d'): Promise<SearchTermSpendData[]> {
+  const pool = getPool();
+
+  const sql = `
+    SELECT
+      search_term as searchTerm,
+      keyword_text as keywordText,
+      match_type as matchType,
+      campaign_id as campaignId,
+      campaign_name as campaignName,
+      ad_group_id as adGroupId,
+      ad_group_name as adGroupName,
+      date_range as dateRange,
+      metrics_start_date as metricsStartDate,
+      metrics_end_date as metricsEndDate,
+      cost,
+      currency,
+      impressions,
+      clicks,
+      conversions,
+      conversion_value as conversionValue,
+      ctr,
+      conversion_rate as conversionRate,
+      ingested_at as ingestedAt
+    FROM google_ads_search_terms
+    WHERE date_range = ?
+    ORDER BY cost DESC
+  `;
+
+  try {
+    const [rows] = await pool.execute(sql, [dateRange]) as any;
+    return rows.map((row: any) => ({
+      ...row,
+      cost: parseFloat(row.cost) || 0,
+      impressions: parseInt(row.impressions) || 0,
+      clicks: parseInt(row.clicks) || 0,
+      conversions: parseFloat(row.conversions) || 0,
+      conversionValue: parseFloat(row.conversionValue) || 0,
+      ctr: parseFloat(row.ctr) || 0,
+      conversionRate: parseFloat(row.conversionRate) || 0,
+      metricsStartDate: row.metricsStartDate instanceof Date
+        ? row.metricsStartDate.toISOString().split('T')[0]
+        : row.metricsStartDate,
+      metricsEndDate: row.metricsEndDate instanceof Date
+        ? row.metricsEndDate.toISOString().split('T')[0]
+        : row.metricsEndDate,
+      ingestedAt: row.ingestedAt instanceof Date
+        ? row.ingestedAt.toISOString()
+        : row.ingestedAt,
+    }));
+  } catch (err) {
+    console.error('[Ingest] Failed to get search term spend:', err);
+    return [];
+  }
+}
+
+/**
+ * Check if there's any search term data in the database
+ */
+export async function hasSearchTermData(): Promise<boolean> {
+  const pool = getPool();
+
+  try {
+    const [rows] = await pool.execute(
+      'SELECT COUNT(*) as count FROM google_ads_search_terms WHERE date_range = ?',
+      ['7d']
+    ) as any;
+    return rows[0]?.count > 0;
+  } catch (err) {
+    console.error('[Ingest] Failed to check search term data:', err);
+    return false;
+  }
+}

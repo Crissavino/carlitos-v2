@@ -180,3 +180,58 @@ export interface KeywordsIngestPayload {
   fetchedAt: string;         // ISO timestamp from origin
   keywords: KeywordMetrics[];
 }
+
+// ============================================================================
+// Search Terms (Phase 8B)
+// ============================================================================
+
+/**
+ * Search term metrics from Google Ads.
+ * Represents actual user queries that triggered ads.
+ */
+export interface SearchTermMetrics {
+  // Search term (what user actually searched)
+  searchTerm: string;
+
+  // Matched keyword
+  keywordText: string;
+  matchType: KeywordMatchType | 'UNKNOWN';
+
+  // Hierarchy
+  campaignId: string;
+  campaignName: string;
+  adGroupId: string;
+  adGroupName: string;
+
+  // Primary metrics (source of truth)
+  cost: number;              // In currency real (NOT micros)
+  clicks: number;
+  impressions: number;
+  conversions: number;       // Google-reported conversions
+  conversionValue: number;   // Google-reported conversion value
+
+  /**
+   * Derived metrics (calculated).
+   *
+   * Formulas:
+   * - ctr = clicks / impressions (0 if impressions = 0)
+   * - conversionRate = conversions / clicks (0 if clicks = 0)
+   */
+  ctr: number;
+  conversionRate: number;
+}
+
+/**
+ * Payload for search terms ingest from Google Ads Scripts.
+ */
+export interface SearchTermsIngestPayload {
+  source: 'ads-script-search-terms';
+  accountId: string;
+  accountName: string;
+  currency: string;
+  dateRange: '7d' | '30d';   // Already converted from LAST_X_DAYS
+  fetchedAt: string;         // ISO timestamp from origin
+  chunk?: number;            // Chunk number (if chunked)
+  totalChunks?: number;      // Total chunks (if chunked)
+  searchTerms: SearchTermMetrics[];
+}

@@ -8,6 +8,7 @@ import { AdsDataSource } from "./interface.js";
 import { AdsScriptSource } from "./ads-script-source.js";
 import { GoogleApiSource } from "./google-api-source.js";
 import { AdsScriptKeywordsSource, keywordsDataSource } from "./ads-script-keywords-source.js";
+import { AdsScriptSearchTermsSource, searchTermsDataSource } from "./ads-script-search-terms-source.js";
 import { DataSourceType } from "../types.js";
 
 const sources: Record<DataSourceType, AdsDataSource> = {
@@ -34,4 +35,8 @@ export function getKeywordsDataSource(): AdsScriptKeywordsSource {
   return keywordsDataSource;
 }
 
-export { AdsDataSource, AdsScriptSource, GoogleApiSource, AdsScriptKeywordsSource, keywordsDataSource };
+export function getSearchTermsDataSource(): AdsScriptSearchTermsSource {
+  return searchTermsDataSource;
+}
+
+export { AdsDataSource, AdsScriptSource, GoogleApiSource, AdsScriptKeywordsSource, keywordsDataSource, AdsScriptSearchTermsSource, searchTermsDataSource };

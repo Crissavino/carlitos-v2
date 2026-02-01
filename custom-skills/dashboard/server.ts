@@ -122,6 +122,13 @@ app.get("/api", (req: Request, res: Response) => {
       keywordsUnderperforming: "GET /api/keywords/underperforming",
       keywordsWaste: "GET /api/keywords/waste",
       keywordsByCampaign: "GET /api/keywords/by-campaign/:id",
+      // Search Terms (Phase 8B)
+      searchTermsList: "GET /api/search-terms",
+      searchTermsSummary: "GET /api/search-terms/summary",
+      searchTermsTop: "GET /api/search-terms/top?limit=20",
+      searchTermsWaste: "GET /api/search-terms/waste",
+      searchTermsByCampaign: "GET /api/search-terms/by-campaign/:id",
+      searchTermsByKeyword: "GET /api/search-terms/by-keyword?keyword=...",
       // Snapshots (Historical)
       snapshotCreate: "POST /api/snapshots",
       snapshotList: "GET /api/snapshots?days=30",
@@ -448,6 +455,14 @@ import {
   getWasteKeywords,
   getKeywordsSummary,
 } from "../skills/google-ads-expert/keywords-analyzer.js";
+import {
+  getSearchTermPerformance,
+  getTopSearchTerms,
+  getSearchTermsByCampaign,
+  getSearchTermsByKeyword,
+  getWasteSearchTerms,
+  getSearchTermsSummary,
+} from "../skills/google-ads-expert/search-terms-analyzer.js";
 
 // GET /api/campaigns - Get all campaigns with metrics
 app.get("/api/campaigns", async (req: Request, res: Response) => {
@@ -709,6 +724,201 @@ app.get("/api/keywords/by-campaign/:id", async (req: Request, res: Response) => 
         campaignId,
         count: keywords.length,
         keywords,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// ============================================================================
+// SEARCH TERMS (Phase 8B)
+// ============================================================================
+
+// GET /api/search-terms - Get search terms with pagination and filtering
+// Query params:
+//   page: number (default 1)
+//   limit: number (default 50, max 200)
+//   minSpend: number (default 0) - minimum spend in EUR
+//   hasSpend: boolean (default true) - only show search terms with spend > 0
+//   campaign: string - filter by campaign ID
+//   status: string - filter by performance status (good, warning, poor)
+app.get("/api/search-terms", async (req: Request, res: Response) => {
+  try {
+    const data = await getSearchTermPerformance();
+    if (!data) {
+      res.status(500).json({ error: "No search term data available" });
+      return;
+    }
+
+    // Parse query params
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const minSpend = parseFloat(req.query.minSpend as string) || 0;
+    const hasSpend = req.query.hasSpend !== 'false'; // default true
+    const campaignFilter = req.query.campaign as string || '';
+    const statusFilter = req.query.status as string || '';
+
+    // Filter search terms
+    let filtered = data.searchTerms;
+
+    // Filter by spend
+    if (hasSpend) {
+      filtered = filtered.filter(st => st.spend > 0);
+    }
+    if (minSpend > 0) {
+      filtered = filtered.filter(st => st.spend >= minSpend);
+    }
+
+    // Filter by campaign
+    if (campaignFilter) {
+      filtered = filtered.filter(st => st.campaignId === campaignFilter);
+    }
+
+    // Filter by status
+    if (statusFilter) {
+      filtered = filtered.filter(st => st.performanceStatus === statusFilter.toLowerCase());
+    }
+
+    // Paginate
+    const totalFiltered = filtered.length;
+    const totalPages = Math.ceil(totalFiltered / limit);
+    const offset = (page - 1) * limit;
+    const paginatedSearchTerms = filtered.slice(offset, offset + limit);
+
+    res.json({
+      success: true,
+      data: {
+        fetchedAt: data.fetchedAt,
+        dateRange: data.dateRange,
+        currency: data.currency,
+        totalSearchTerms: data.totalSearchTerms,
+        totalSpend: data.totalSpend,
+        searchTerms: paginatedSearchTerms,
+        filteredCount: totalFiltered,
+        pagination: {
+          page,
+          limit,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+        filters: {
+          hasSpend,
+          minSpend,
+          campaign: campaignFilter || null,
+          status: statusFilter || null,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/search-terms/summary - Get search term summary statistics
+app.get("/api/search-terms/summary", async (req: Request, res: Response) => {
+  try {
+    const summary = await getSearchTermsSummary();
+    if (!summary) {
+      res.status(500).json({ error: "No search term data available" });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: summary,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/search-terms/top - Get top search terms by spend
+app.get("/api/search-terms/top", async (req: Request, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 20;
+    const searchTerms = await getTopSearchTerms(Math.min(limit, 100));
+
+    res.json({
+      success: true,
+      data: {
+        count: searchTerms.length,
+        searchTerms,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/search-terms/waste - Get waste analysis (WASTE detection)
+app.get("/api/search-terms/waste", async (req: Request, res: Response) => {
+  try {
+    const wasteAnalysis = await getWasteSearchTerms();
+    const totalWaste = wasteAnalysis.reduce((sum, w) => sum + w.wastedSpend, 0);
+
+    res.json({
+      success: true,
+      data: {
+        count: wasteAnalysis.length,
+        totalEstimatedWaste: Math.round(totalWaste * 100) / 100,
+        byFlag: {
+          HIGH_SPEND_ZERO_CONV: wasteAnalysis.filter(w => w.wasteFlags.includes('HIGH_SPEND_ZERO_CONV')).length,
+          HIGH_SPEND_LOW_CONV: wasteAnalysis.filter(w => w.wasteFlags.includes('HIGH_SPEND_LOW_CONV')).length,
+          SPEND_CONCENTRATION: wasteAnalysis.filter(w => w.wasteFlags.includes('SPEND_CONCENTRATION')).length,
+          REPEAT_WASTE: wasteAnalysis.filter(w => w.wasteFlags.includes('REPEAT_WASTE')).length,
+        },
+        searchTerms: wasteAnalysis,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/search-terms/by-campaign/:id - Get search terms for a specific campaign
+app.get("/api/search-terms/by-campaign/:id", async (req: Request, res: Response) => {
+  try {
+    const campaignId = req.params.id;
+    if (!campaignId) {
+      res.status(400).json({ error: "Campaign ID required" });
+      return;
+    }
+
+    const searchTerms = await getSearchTermsByCampaign(campaignId);
+
+    res.json({
+      success: true,
+      data: {
+        campaignId,
+        count: searchTerms.length,
+        searchTerms,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/search-terms/by-keyword - Get search terms that matched a specific keyword
+// Query params: keyword (required)
+app.get("/api/search-terms/by-keyword", async (req: Request, res: Response) => {
+  try {
+    const keywordText = req.query.keyword as string;
+    if (!keywordText) {
+      res.status(400).json({ error: "keyword query param is required" });
+      return;
+    }
+
+    const searchTerms = await getSearchTermsByKeyword(keywordText);
+
+    res.json({
+      success: true,
+      data: {
+        keywordText,
+        count: searchTerms.length,
+        searchTerms,
       },
     });
   } catch (error) {
