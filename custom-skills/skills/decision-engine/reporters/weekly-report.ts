@@ -65,6 +65,8 @@ export async function generateWeeklyReport(): Promise<WeeklyDecisionReport | nul
         srr: { value: kpis.srr.value, status: kpis.srr.status },
         ur2: { value: kpis.ur2.value, status: kpis.ur2.status },
         netRoas: { value: kpis.netRoas.value, status: kpis.netRoas.status },
+        ltv30d: { value: kpis.ltv30d.value, status: kpis.ltv30d.status },
+        paybackRatio: { value: kpis.paybackRatio.value, status: kpis.paybackRatio.status },
       },
       decisions: topDecisions,
       actions: topDecisions.map((d) => d.action),
@@ -129,6 +131,8 @@ export function formatReportAsText(report: WeeklyDecisionReport): string {
   lines.push(formatKpiLine("CPFR", report.kpiSummary.cpfr, (v) => `€${v.toFixed(0)}`));
   lines.push(formatKpiLine("SRR", report.kpiSummary.srr, (v) => `${(v * 100).toFixed(1)}%`));
   lines.push(formatKpiLine("Net ROAS", report.kpiSummary.netRoas, (v) => `${v.toFixed(2)}x`));
+  lines.push(formatKpiLine("LTV 30d", report.kpiSummary.ltv30d, (v) => `€${v.toFixed(0)}`));
+  lines.push(formatKpiLine("Payback", report.kpiSummary.paybackRatio, (v) => `${v.toFixed(2)}x`));
   lines.push("");
 
   // Decisiones
@@ -214,7 +218,7 @@ function formatTriggerKpis(decision: TriggeredDecision): string {
       let formatted: string;
       if (kpiName === "frr" || kpiName === "srr" || kpiName === "ur2") {
         formatted = `${(kpi.value * 100).toFixed(1)}%`;
-      } else if (kpiName === "cpfr") {
+      } else if (kpiName === "cpfr" || kpiName === "ltv30d") {
         formatted = `€${kpi.value.toFixed(0)}`;
       } else {
         formatted = `${kpi.value.toFixed(2)}x`;

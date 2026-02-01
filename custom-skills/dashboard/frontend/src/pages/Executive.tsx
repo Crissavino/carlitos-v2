@@ -117,8 +117,8 @@ export function Executive() {
           </div>
         </div>
 
-        {/* KPIs Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        {/* KPIs Grid - Core Metrics */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
           <KpiCard
             title="FRR"
             value={`${summary.kpis.frr.percentage}%`}
@@ -156,6 +156,24 @@ export function Executive() {
           />
         </div>
 
+        {/* KPIs Grid - Ads Profitability */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <KpiCard
+            title="LTV 30d"
+            value={`€${summary.kpis.ltv30d.value.toFixed(0)}`}
+            subtitle="Lifetime Value (30 días)"
+            status={summary.kpis.ltv30d.status}
+            reason={summary.kpis.ltv30d.reason}
+          />
+          <KpiCard
+            title="Payback"
+            value={`${summary.kpis.paybackRatio.value.toFixed(2)}x`}
+            subtitle="LTV / CPFR"
+            status={summary.kpis.paybackRatio.status}
+            reason={summary.kpis.paybackRatio.reason}
+          />
+        </div>
+
         {/* Charts + Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Charts */}
@@ -166,6 +184,7 @@ export function Executive() {
                 <TrendChart snapshots={snapshots} metric="srr" title="SRR Trend" />
                 <TrendChart snapshots={snapshots} metric="net_roas" title="Net ROAS Trend" />
                 <TrendChart snapshots={snapshots} metric="cpfr" title="CPFR Trend" />
+                <TrendChart snapshots={snapshots} metric="ltv_30d" title="LTV 30d Trend" />
               </>
             ) : (
               <div className="md:col-span-2 bg-gray-900 rounded-lg p-8 text-center text-gray-500">

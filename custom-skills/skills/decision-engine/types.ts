@@ -66,7 +66,7 @@ export interface DecisionRule {
   /**
    * KPIs que disparan esta regla (para explicabilidad)
    */
-  triggerKpis: Array<"frr" | "cpfr" | "srr" | "ur2" | "netRoas">;
+  triggerKpis: Array<"frr" | "cpfr" | "srr" | "ur2" | "netRoas" | "ltv30d" | "paybackRatio">;
 }
 
 // ============================================================================
@@ -113,6 +113,8 @@ export interface WeeklyDecisionReport {
     srr: { value: number; status: KpiStatus };
     ur2: { value: number; status: KpiStatus };
     netRoas: { value: number; status: KpiStatus };
+    ltv30d: { value: number; status: KpiStatus };
+    paybackRatio: { value: number; status: KpiStatus };
   };
 
   /**

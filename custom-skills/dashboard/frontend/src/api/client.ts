@@ -44,6 +44,8 @@ export interface BusinessSummary {
     srr: KpiValue;
     ur2: KpiValue & { isDiagnostic: boolean };
     netRoas: KpiValue;
+    ltv30d: KpiValue;
+    paybackRatio: KpiValue;
   };
   alerts: Array<{ type: string; message: string }>;
   summaryText: string;
@@ -58,6 +60,7 @@ export interface Snapshot {
   srr: number;
   ur2: number;
   net_roas: number;
+  ltv_30d: number | null;
   trials: number;
   first_rebills: number;
   ad_spend_eur: number;

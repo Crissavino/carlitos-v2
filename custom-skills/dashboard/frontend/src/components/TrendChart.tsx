@@ -3,7 +3,7 @@ import type { Snapshot } from '../api/client';
 
 interface Props {
   snapshots: Snapshot[];
-  metric: 'frr' | 'srr' | 'net_roas' | 'cpfr';
+  metric: 'frr' | 'srr' | 'net_roas' | 'cpfr' | 'ltv_30d';
   title: string;
   threshold?: number;
   format?: (v: number) => string;
@@ -14,6 +14,7 @@ const metricConfig = {
   srr: { color: '#8b5cf6', threshold: 0.70, format: (v: number) => `${(v * 100).toFixed(1)}%` },
   net_roas: { color: '#22c55e', threshold: 1.0, format: (v: number) => `${v.toFixed(2)}x` },
   cpfr: { color: '#f59e0b', threshold: 50, format: (v: number) => `€${v.toFixed(0)}` },
+  ltv_30d: { color: '#10b981', threshold: 100, format: (v: number) => `€${v?.toFixed(0) || '0'}` },
 };
 
 export function TrendChart({ snapshots, metric, title, threshold, format }: Props) {

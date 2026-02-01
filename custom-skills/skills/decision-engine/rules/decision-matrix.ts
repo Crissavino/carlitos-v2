@@ -67,6 +67,38 @@ export const DECISION_RULES: DecisionRule[] = [
     triggerKpis: ["cpfr"],
   },
 
+  {
+    id: "payback-red-block",
+    name: "Payback Rojo - No Escalar",
+    description: "Payback Ratio menor a 1.0 indica pérdida en adquisición",
+    condition: (kpis) => kpis.paybackRatio.status === "red",
+    decision: {
+      type: "block",
+      priority: "critical",
+      area: "ads",
+      action: "STOP ADS: Payback < 1.0. Cada nuevo cliente genera pérdida neta.",
+      rationale: "LTV 30d es menor que CPFR. Cada adquisición destruye valor. Pausar ads hasta mejorar LTV o reducir CPFR.",
+      reversible: true,
+    },
+    triggerKpis: ["paybackRatio"],
+  },
+
+  {
+    id: "payback-yellow-alert",
+    name: "Payback Amarillo - Break-Even",
+    description: "Payback Ratio entre 1.0-1.49 indica margen ajustado",
+    condition: (kpis) => kpis.paybackRatio.status === "yellow",
+    decision: {
+      type: "monitor",
+      priority: "high",
+      area: "ads",
+      action: "ALERTA PAYBACK: Break-even en adquisición. No escalar hasta mejorar ratio.",
+      rationale: "Payback entre 1.0-1.5x indica que apenas se recupera el costo de adquisición. Optimizar antes de escalar.",
+      reversible: true,
+    },
+    triggerKpis: ["paybackRatio"],
+  },
+
   // ============================================================================
   // REGLAS DE HABILITACIÓN (luz verde para acciones)
   // ============================================================================
@@ -78,16 +110,17 @@ export const DECISION_RULES: DecisionRule[] = [
     condition: (kpis) =>
       kpis.frr.status === "green" &&
       kpis.cpfr.status === "green" &&
+      kpis.paybackRatio.status === "green" &&
       kpis.netRoas.status !== "red",
     decision: {
       type: "ready",
       priority: "medium",
       area: "ads",
       action: "ESCALAR READY: OK para incrementar spend +10-20% en campañas rentables",
-      rationale: "FRR y CPFR verdes indican adquisición eficiente. ROAS no crítico permite expansión controlada.",
+      rationale: "FRR, CPFR y Payback verdes indican adquisición rentable. ROAS no crítico permite expansión controlada.",
       reversible: true,
     },
-    triggerKpis: ["frr", "cpfr", "netRoas"],
+    triggerKpis: ["frr", "cpfr", "paybackRatio", "netRoas"],
   },
 
   // ============================================================================
@@ -214,16 +247,17 @@ export const DECISION_RULES: DecisionRule[] = [
     condition: (kpis) =>
       kpis.frr.status === "green" &&
       kpis.cpfr.status === "green" &&
+      kpis.paybackRatio.status === "green" &&
       kpis.netRoas.status === "green",
     decision: {
       type: "ready",
       priority: "low",
       area: "ads",
       action: "OPERACIÓN NORMAL: Métricas saludables, continuar estrategia actual",
-      rationale: "FRR, CPFR y ROAS en verde. El negocio está funcionando bien. Mantener y considerar expansión gradual.",
+      rationale: "FRR, CPFR, Payback y ROAS en verde. El negocio está funcionando bien. Mantener y considerar expansión gradual.",
       reversible: true,
     },
-    triggerKpis: ["frr", "cpfr", "netRoas"],
+    triggerKpis: ["frr", "cpfr", "paybackRatio", "netRoas"],
   },
 ];
 
