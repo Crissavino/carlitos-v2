@@ -162,6 +162,7 @@ async function persistToDatabase(
 
 /**
  * Procesar ingest de datos de Google Ads
+ * Responde inmediatamente después de validar, persiste en background
  */
 export async function handleIngest(
   authHeader: string | undefined,
@@ -169,12 +170,11 @@ export async function handleIngest(
   sourceType: DataSourceType = 'ads-script'
 ): Promise<IngestResponse> {
   const recordId = randomUUID();
-  const ingestedAt = new Date().toISOString();
 
   // 1. Verificar autenticación
   const authResult = verifyToken(authHeader);
   if (!authResult.valid) {
-    await audit.log({
+    audit.log({
       skill: 'google-ads-expert',
       action: 'ingest_blocked',
       input: {
@@ -183,7 +183,7 @@ export async function handleIngest(
       },
       output: { blocked: true },
       queries: []
-    });
+    }).catch(() => {}); // Fire and forget
 
     return {
       success: false,
@@ -198,7 +198,7 @@ export async function handleIngest(
   const validation = dataSource.validate(rawPayload);
 
   if (!validation.valid) {
-    await audit.log({
+    audit.log({
       skill: 'google-ads-expert',
       action: 'ingest_validation_failed',
       input: {
@@ -207,7 +207,7 @@ export async function handleIngest(
       },
       output: { valid: false },
       queries: []
-    });
+    }).catch(() => {}); // Fire and forget
 
     return {
       success: false,
@@ -219,53 +219,52 @@ export async function handleIngest(
   // 4. Transformar a schema unificado
   const payload = dataSource.transform(rawPayload);
 
-  // 5. Persistir a base de datos
-  try {
-    const { inserted, updated } = await persistToDatabase(payload, recordId);
+  // 5. Persistir a base de datos EN BACKGROUND (no await)
+  // Respondemos inmediatamente para evitar timeout de Google Ads Scripts
+  const campaignCount = payload.campaigns.length;
+  console.log(`[Ingest] Accepted ${campaignCount} campaigns, persisting in background...`);
 
-    console.log(`[Ingest] Persisted ${inserted} new, ${updated} updated campaigns to database`);
-
-    await audit.log({
-      skill: 'google-ads-expert',
-      action: 'ingest_success',
-      input: {
-        recordId,
-        sourceType,
-        accountId: payload.accountId,
-        accountName: payload.accountName,
-        dateRange: payload.dateRange,
-        campaignCount: payload.campaigns.length
-      },
-      output: {
-        persisted: true,
-        inserted,
-        updated,
-        warnings: validation.warnings
-      },
-      queries: []
+  persistToDatabase(payload, recordId)
+    .then(({ inserted, updated }) => {
+      console.log(`[Ingest] Persisted ${inserted} new, ${updated} updated campaigns to database`);
+      return audit.log({
+        skill: 'google-ads-expert',
+        action: 'ingest_success',
+        input: {
+          recordId,
+          sourceType,
+          accountId: payload.accountId,
+          accountName: payload.accountName,
+          dateRange: payload.dateRange,
+          campaignCount
+        },
+        output: {
+          persisted: true,
+          inserted,
+          updated,
+          warnings: validation.warnings
+        },
+        queries: []
+      });
+    })
+    .catch((err) => {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[Ingest] Background persist failed:`, errorMsg);
+      audit.log({
+        skill: 'google-ads-expert',
+        action: 'ingest_persist_error',
+        input: { recordId },
+        output: { error: errorMsg },
+        queries: []
+      }).catch(() => {});
     });
 
-    return {
-      success: true,
-      recordId,
-      validation
-    };
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-
-    await audit.log({
-      skill: 'google-ads-expert',
-      action: 'ingest_persist_error',
-      input: { recordId },
-      output: { error: errorMsg },
-      queries: []
-    });
-
-    return {
-      success: false,
-      error: 'Failed to persist data: ' + errorMsg
-    };
-  }
+  // Responder inmediatamente
+  return {
+    success: true,
+    recordId,
+    validation
+  };
 }
 
 // ============================================================================
@@ -468,6 +467,7 @@ async function persistKeywordsToDatabase(
 
 /**
  * Process keywords ingest from Google Ads Scripts
+ * Responde inmediatamente después de validar, persiste en background
  */
 export async function handleKeywordsIngest(
   authHeader: string | undefined,
@@ -478,7 +478,7 @@ export async function handleKeywordsIngest(
   // 1. Verify authentication
   const authResult = verifyToken(authHeader);
   if (!authResult.valid) {
-    await audit.log({
+    audit.log({
       skill: 'google-ads-expert',
       action: 'keywords_ingest_blocked',
       input: {
@@ -486,7 +486,7 @@ export async function handleKeywordsIngest(
       },
       output: { blocked: true },
       queries: [],
-    });
+    }).catch(() => {}); // Fire and forget
 
     return {
       success: false,
@@ -501,7 +501,7 @@ export async function handleKeywordsIngest(
   const validation = dataSource.validate(rawPayload);
 
   if (!validation.valid) {
-    await audit.log({
+    audit.log({
       skill: 'google-ads-expert',
       action: 'keywords_ingest_validation_failed',
       input: {
@@ -509,7 +509,7 @@ export async function handleKeywordsIngest(
       },
       output: { valid: false },
       queries: [],
-    });
+    }).catch(() => {}); // Fire and forget
 
     return {
       success: false,
@@ -521,52 +521,51 @@ export async function handleKeywordsIngest(
   // 4. Transform to unified schema
   const payload = dataSource.transform(rawPayload);
 
-  // 5. Persist to database
-  try {
-    const { inserted, updated } = await persistKeywordsToDatabase(payload, recordId);
+  // 5. Persist to database EN BACKGROUND (no await)
+  // Respondemos inmediatamente para evitar timeout de Google Ads Scripts
+  const keywordCount = payload.keywords.length;
+  console.log(`[Ingest] Accepted ${keywordCount} keywords, persisting in background...`);
 
-    console.log(`[Ingest] Persisted ${inserted} new, ${updated} updated keywords to database`);
-
-    await audit.log({
-      skill: 'google-ads-expert',
-      action: 'keywords_ingest_success',
-      input: {
-        recordId,
-        accountId: payload.accountId,
-        accountName: payload.accountName,
-        dateRange: payload.dateRange,
-        keywordCount: payload.keywords.length,
-      },
-      output: {
-        persisted: true,
-        inserted,
-        updated,
-        warnings: validation.warnings,
-      },
-      queries: [],
+  persistKeywordsToDatabase(payload, recordId)
+    .then(({ inserted, updated }) => {
+      console.log(`[Ingest] Persisted ${inserted} new, ${updated} updated keywords to database`);
+      return audit.log({
+        skill: 'google-ads-expert',
+        action: 'keywords_ingest_success',
+        input: {
+          recordId,
+          accountId: payload.accountId,
+          accountName: payload.accountName,
+          dateRange: payload.dateRange,
+          keywordCount,
+        },
+        output: {
+          persisted: true,
+          inserted,
+          updated,
+          warnings: validation.warnings,
+        },
+        queries: [],
+      });
+    })
+    .catch((err) => {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[Ingest] Background persist failed:`, errorMsg);
+      audit.log({
+        skill: 'google-ads-expert',
+        action: 'keywords_ingest_persist_error',
+        input: { recordId },
+        output: { error: errorMsg },
+        queries: [],
+      }).catch(() => {});
     });
 
-    return {
-      success: true,
-      recordId,
-      validation,
-    };
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-
-    await audit.log({
-      skill: 'google-ads-expert',
-      action: 'keywords_ingest_persist_error',
-      input: { recordId },
-      output: { error: errorMsg },
-      queries: [],
-    });
-
-    return {
-      success: false,
-      error: 'Failed to persist data: ' + errorMsg,
-    };
-  }
+  // Responder inmediatamente
+  return {
+    success: true,
+    recordId,
+    validation,
+  };
 }
 
 // ============================================================================
