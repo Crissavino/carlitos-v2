@@ -47,10 +47,34 @@ import {
 const LTV_MIN_SAMPLE_SIZE = 30;
 
 // ============================================================================
+// METRICS CACHE (5 min TTL for fast dashboard loads)
+// ============================================================================
+
+interface MetricsCacheEntry {
+  data: RawMetrics;
+  cachedAt: number;
+}
+
+const METRICS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+let metricsCache: MetricsCacheEntry | null = null;
+
+export function clearMetricsCache(): void {
+  metricsCache = null;
+  console.log("[MetricsCache] Cache cleared");
+}
+
+// ============================================================================
 // DATA FETCHING
 // ============================================================================
 
 export async function fetchRawMetrics(): Promise<RawMetrics | null> {
+  // Check cache first
+  if (metricsCache && Date.now() - metricsCache.cachedAt < METRICS_CACHE_TTL_MS) {
+    console.log("[MetricsCache] Hit - returning cached metrics");
+    return metricsCache.data;
+  }
+
+  console.log("[MetricsCache] Miss - fetching fresh metrics...");
   const [
     revenueData,
     trialsData,
@@ -83,7 +107,7 @@ export async function fetchRawMetrics(): Promise<RawMetrics | null> {
     return null;
   }
 
-  return {
+  const metrics: RawMetrics = {
     period: "LAST_7_DAYS",
     generatedAt: new Date().toISOString(),
 
@@ -111,6 +135,12 @@ export async function fetchRawMetrics(): Promise<RawMetrics | null> {
     ltv81d: ltv81dData?.ltv ?? 0,
     ltv81dCohortSize: ltv81dData?.cohortSize ?? 0,
   };
+
+  // Cache the result
+  metricsCache = { data: metrics, cachedAt: Date.now() };
+  console.log("[MetricsCache] Cached fresh metrics");
+
+  return metrics;
 }
 
 // ============================================================================
