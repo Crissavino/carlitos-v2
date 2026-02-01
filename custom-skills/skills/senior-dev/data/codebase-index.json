@@ -1,0 +1,3524 @@
+{
+  "repoPath": "/Users/crissavino/projects/openclaw/custom-skills",
+  "indexedAt": "2026-02-01T21:57:40.785Z",
+  "gitBranch": "master",
+  "gitCommit": "7f1c444",
+  "modules": [
+    {
+      "name": "config",
+      "path": "config",
+      "type": "config",
+      "description": "Configuration files",
+      "exports": [],
+      "dependencies": [],
+      "linesOfCode": 190
+    },
+    {
+      "name": "core",
+      "path": "core",
+      "type": "core",
+      "description": "Core framework components (router, audit, permissions)",
+      "exports": [
+        "AuditLog",
+        "audit",
+        "EUR_RATES",
+        "buildCurrencyRateCase",
+        "getCurrencyCaseSql",
+        "CurrencyConverter",
+        "PermissionChecker",
+        "permissions",
+        "SkillRouter",
+        "router",
+        "SkillRequest",
+        "SkillResponse",
+        "SuggestedAction",
+        "AuditEntry",
+        "SkillId",
+        "SystemComponent"
+      ],
+      "dependencies": [],
+      "linesOfCode": 561
+    },
+    {
+      "name": "dashboard",
+      "path": "dashboard",
+      "type": "dashboard",
+      "description": "dashboard module",
+      "exports": [
+        "getPool",
+        "closePool",
+        "KpiSnapshot",
+        "saveSnapshot",
+        "getSnapshots",
+        "TaskStatus",
+        "TaskPriority",
+        "TaskSource",
+        "Task",
+        "createTask",
+        "createTaskWithDedupe",
+        "getTasks",
+        "getTaskById",
+        "updateTask",
+        "deleteTask",
+        "getKanbanSummary",
+        "TaskComment",
+        "addComment",
+        "getComments",
+        "RunStatus",
+        "TaskRun",
+        "startRun",
+        "completeRun",
+        "getRuns",
+        "getLatestRun",
+        "ArtifactType",
+        "TaskArtifact",
+        "createArtifact",
+        "getArtifacts",
+        "GenerationLog",
+        "logGeneration",
+        "getGenerationLogs",
+        "generateDedupeKey",
+        "getISOWeek",
+        "DiscrepancyType",
+        "DiscrepancySeverity",
+        "DiscrepancyEntityType",
+        "DiscrepancyStatus",
+        "Discrepancy",
+        "DiscrepancySummary",
+        "createDiscrepancy",
+        "getDiscrepancies",
+        "getDiscrepancyById",
+        "updateDiscrepancy",
+        "getDiscrepancySummary",
+        "defineConfig",
+        "app"
+      ],
+      "dependencies": [
+        "skills/business-expert",
+        "skills/decision-engine",
+        "core",
+        "skills/google-ads-expert"
+      ],
+      "linesOfCode": 7598
+    },
+    {
+      "name": "dashboard/frontend/src",
+      "path": "dashboard/frontend/src",
+      "type": "frontend",
+      "description": "frontend module",
+      "exports": [
+        "App",
+        "KpiValue",
+        "BusinessSummary",
+        "Snapshot",
+        "TopAction",
+        "DecisionCurrent",
+        "TaskStatus",
+        "TaskPriority",
+        "TaskSource",
+        "Task",
+        "TaskComment",
+        "TaskRun",
+        "TaskArtifact",
+        "TaskDetails",
+        "KanbanSummary",
+        "TasksResponse",
+        "CampaignMetrics",
+        "CampaignPerformanceResult",
+        "CampaignActionGroup",
+        "CampaignActions",
+        "CampaignActionType",
+        "CampaignActionUrgency",
+        "DecisionConfidence",
+        "CampaignDecision",
+        "CampaignDecisionSummary",
+        "api",
+        "BusinessRecommendation",
+        "RecommendationDetails",
+        "AttributionCoverage",
+        "AggregatedMetrics",
+        "TopCampaign",
+        "WebsiteMetrics",
+        "WebsiteViewResult",
+        "CompanyWebsite",
+        "CompanyMetrics",
+        "CompanyViewResult",
+        "CountryMetrics",
+        "CountryViewResult",
+        "ServiceMetrics",
+        "ServiceViewResult",
+        "MacroRecommendation",
+        "MacroRecommendationsResult",
+        "KeywordMatchType",
+        "KeywordPerformanceStatus",
+        "KeywordRecommendation",
+        "WasteFlag",
+        "KeywordPerformance",
+        "KeywordPerformanceResult",
+        "KeywordsQueryParams",
+        "KeywordWasteAnalysis",
+        "KeywordsSummary",
+        "KeywordsWasteResult",
+        "SearchTermWasteFlag",
+        "SearchTermRecommendation",
+        "SearchTermPerformanceStatus",
+        "SearchTermPerformance",
+        "SearchTermWasteAnalysis",
+        "SearchTermsQueryParams",
+        "SearchTermPerformanceResult",
+        "SearchTermsSummary",
+        "SearchTermsWasteResult",
+        "ActionCard",
+        "BusinessCard",
+        "CampaignsTable",
+        "KanbanColumn",
+        "KeywordsTable",
+        "KpiCard",
+        "NewTaskModal",
+        "RecommendationBadge",
+        "StatusBadge",
+        "TaskCard",
+        "TaskModal",
+        "TrendChart",
+        "BusinessViews",
+        "Campaigns",
+        "Executive",
+        "Kanban",
+        "Keywords",
+        "SearchTerms"
+      ],
+      "dependencies": [],
+      "linesOfCode": 4740
+    },
+    {
+      "name": "package-lock.json",
+      "path": "package-lock.json",
+      "type": "unknown",
+      "description": "unknown module",
+      "exports": [],
+      "dependencies": [],
+      "linesOfCode": 1343
+    },
+    {
+      "name": "package.json",
+      "path": "package.json",
+      "type": "unknown",
+      "description": "unknown module",
+      "exports": [],
+      "dependencies": [],
+      "linesOfCode": 26
+    },
+    {
+      "name": "skills/business-expert",
+      "path": "skills/business-expert",
+      "type": "skill",
+      "description": "BusinessExpert - Main Entry Point 5 KPIs CORE de gobierno: P1 - FRR (First Rebill Rate) P2 - CPFR (C",
+      "exports": [
+        "getGoogleAdsCampaigns",
+        "getTopCampaigns",
+        "clearBusinessCache",
+        "getWebsiteView",
+        "getCompanyView",
+        "getCountryView",
+        "getServiceView",
+        "CampaignMetrics",
+        "CampaignPerformanceResult",
+        "clearCampaignCache",
+        "getCampaignPerformance",
+        "getCampaignsToPause",
+        "getCampaignsToScale",
+        "getCampaignsToMonitor",
+        "clearMetricsCache",
+        "fetchRawMetrics",
+        "calculateCoreKpis",
+        "determineBusinessStatus",
+        "generateAlerts",
+        "clearLtvCache",
+        "RevenueData",
+        "TrialsData",
+        "SubscriptionsData",
+        "AdSpendData",
+        "getRevenueData",
+        "getTrialsData",
+        "getFirstRebillsData",
+        "getFirstRebillsCohorte30dData",
+        "getSecondRebillsData",
+        "getUsageBeforeRebill2Data",
+        "getSubscriptionsData",
+        "getAdSpendData",
+        "Ltv30dData",
+        "getLtv30dData",
+        "LtvWindowData",
+        "getLtv21dData",
+        "getLtv51dData",
+        "getLtv81dData",
+        "generateExecutiveSummary",
+        "formatSummaryAsText",
+        "Period",
+        "KpiStatus",
+        "BusinessStatus",
+        "KpiResult",
+        "CoreKpis",
+        "THRESHOLDS",
+        "CPFR_GREEN",
+        "CPFR_YELLOW",
+        "RawMetrics",
+        "AlertType",
+        "Alert",
+        "ExecutiveSummary",
+        "KPI_PRIORITY",
+        "AggregatedMetrics",
+        "BusinessRecommendation",
+        "RecommendationDetails",
+        "WebsiteMetrics",
+        "WebsiteViewResult",
+        "CompanyName",
+        "CompanyMetrics",
+        "CompanyViewResult",
+        "CountryMetrics",
+        "CountryViewResult",
+        "ServiceCategory",
+        "ServiceMetrics",
+        "ServiceViewResult",
+        "MacroRecommendation",
+        "MacroRecommendationsResult",
+        "classifyCampaign",
+        "classifyCampaigns",
+        "getServiceDisplayName",
+        "getAllServiceCategories"
+      ],
+      "dependencies": [
+        "core"
+      ],
+      "linesOfCode": 2920
+    },
+    {
+      "name": "skills/dashboard-tasks",
+      "path": "skills/dashboard-tasks",
+      "type": "skill",
+      "description": "Dashboard Tasks - Main Entry Point Allows OpenClaw to interact with the Kanban board: - List and fil",
+      "exports": [],
+      "dependencies": [
+        "dashboard"
+      ],
+      "linesOfCode": 464
+    },
+    {
+      "name": "skills/db-reader",
+      "path": "skills/db-reader",
+      "type": "skill",
+      "description": "db-reader skill implementation",
+      "exports": [
+        "executeQuery",
+        "closePool",
+        "DBReader",
+        "dbReader",
+        "activeSubscriptionsQuery",
+        "adSpend7dQuery",
+        "websiteAggregationQuery",
+        "companyAggregationQuery",
+        "countryAggregationQuery",
+        "campaignListForServiceQuery",
+        "campaignPerformanceQuery",
+        "campaignSummaryQuery",
+        "dailyRevenue7dQuery",
+        "convertToEur",
+        "firstRebills7dQuery",
+        "ALLOWED_QUERIES",
+        "getQuery",
+        "isAllowedQuery",
+        "ltv30dQuery",
+        "ltv45dQuery",
+        "ltv90dQuery",
+        "ltvAllQuery",
+        "ltv21dQuery",
+        "ltv51dQuery",
+        "ltv81dQuery",
+        "secondRebills7dQuery",
+        "firstRebillsCohorte30dQuery",
+        "trialsLast7DaysQuery",
+        "usageBeforeRebill27dQuery",
+        "AllowedQueryId",
+        "DBReaderRequest",
+        "DBReaderResponse",
+        "QueryDefinition",
+        "SchemaConfig",
+        "DBConfig",
+        "ValidationResult",
+        "validateQuery"
+      ],
+      "dependencies": [
+        "core"
+      ],
+      "linesOfCode": 1805
+    },
+    {
+      "name": "skills/decision-engine",
+      "path": "skills/decision-engine",
+      "type": "skill",
+      "description": "Business Rules - Phase 7.",
+      "exports": [
+        "clearMacroRecommendationsCache",
+        "getMacroRecommendations",
+        "CAMPAIGN_RULES",
+        "getCampaignRules",
+        "evaluateCampaignRules",
+        "getCampaignsNeedingAction",
+        "getCampaignsToPauseByImpact",
+        "getCampaignsToScaleByPayback",
+        "getCampaignDecisionsSummaryText",
+        "CampaignActionType",
+        "CampaignActionUrgency",
+        "DecisionConfidence",
+        "CampaignDecisionRule",
+        "CampaignDecision",
+        "CampaignDecisionSummary",
+        "URGENCY_ORDER",
+        "ACTION_ICONS",
+        "URGENCY_LABELS",
+        "generateWeeklyReport",
+        "formatReportAsText",
+        "DECISION_RULES",
+        "getDecisionRules",
+        "evaluateRules",
+        "deduplicateDecisions",
+        "getTopActions",
+        "DecisionType",
+        "DecisionPriority",
+        "DecisionArea",
+        "DecisionRule",
+        "TriggeredDecision",
+        "WeeklyDecisionReport",
+        "PRIORITY_ORDER",
+        "DECISION_ICONS",
+        "PRIORITY_ICONS"
+      ],
+      "dependencies": [
+        "core"
+      ],
+      "linesOfCode": 1906
+    },
+    {
+      "name": "skills/google-ads-expert",
+      "path": "skills/google-ads-expert",
+      "type": "skill",
+      "description": "DataSources Index Factory para obtener el datasource configurado.",
+      "exports": [
+        "KeywordsDataSource",
+        "AdsScriptKeywordsSource",
+        "keywordsDataSource",
+        "SearchTermsDataSource",
+        "AdsScriptSearchTermsSource",
+        "searchTermsDataSource",
+        "AdsScriptSource",
+        "GoogleApiSource",
+        "getDataSource",
+        "getConfiguredDataSource",
+        "getKeywordsDataSource",
+        "getSearchTermsDataSource",
+        "ValidationResult",
+        "AdsDataSource",
+        "handleIngest",
+        "CampaignSpendData",
+        "getCampaignSpend",
+        "getLatestRecord",
+        "hasCampaignData",
+        "handleKeywordsIngest",
+        "KeywordSpendData",
+        "getKeywordSpend",
+        "hasKeywordData",
+        "handleSearchTermsIngest",
+        "SearchTermSpendData",
+        "getSearchTermSpend",
+        "hasSearchTermData",
+        "KeywordPerformance",
+        "KeywordPerformanceResult",
+        "WasteFlag",
+        "KeywordRecommendation",
+        "KeywordWasteAnalysis",
+        "clearKeywordCache",
+        "getKeywordPerformance",
+        "getTopKeywords",
+        "getKeywordsByCampaign",
+        "getUnderperformingKeywords",
+        "getWasteKeywords",
+        "getKeywordsToScale",
+        "getKeywordsSummary",
+        "SearchTermPerformance",
+        "SearchTermPerformanceResult",
+        "SearchTermWasteFlag",
+        "SearchTermRecommendation",
+        "SearchTermWasteAnalysis",
+        "clearSearchTermCache",
+        "getSearchTermPerformance",
+        "getTopSearchTerms",
+        "getSearchTermsByCampaign",
+        "getSearchTermsByKeyword",
+        "getWasteSearchTerms",
+        "getSearchTermsSummary",
+        "CampaignStatus",
+        "DateRangeType",
+        "DataSourceType",
+        "CampaignMetrics",
+        "AdsIngestPayload",
+        "AdsDataRecord",
+        "IngestResponse",
+        "GoogleAdsExpertConfig",
+        "KeywordMatchType",
+        "KeywordMetrics",
+        "KeywordsIngestPayload",
+        "SearchTermMetrics",
+        "SearchTermsIngestPayload"
+      ],
+      "dependencies": [
+        "core",
+        "dashboard"
+      ],
+      "linesOfCode": 3036
+    },
+    {
+      "name": "skills/senior-dev",
+      "path": "skills/senior-dev",
+      "type": "skill",
+      "description": "SeniorDev - Main Entry Point OpenClaw's Senior Developer / Tech Lead skill.",
+      "exports": [
+        "indexCodebase",
+        "saveIndex",
+        "loadIndex",
+        "indexExists",
+        "find",
+        "explain",
+        "getModuleInfo",
+        "listModules",
+        "getSkillInfo",
+        "listSkills",
+        "listApis",
+        "getModuleDependencies",
+        "ScanOptions",
+        "DEFAULT_EXCLUDE_DIRS",
+        "DEFAULT_INCLUDE_EXTENSIONS",
+        "ModuleDefinition",
+        "MODULE_DEFINITIONS",
+        "FileAnalysis",
+        "FILE_TYPE_MAP",
+        "ApiPatternMatch",
+        "SkillDirectoryInfo",
+        "GitInfo",
+        "CodebaseIndex",
+        "ModuleType",
+        "ModuleInfo",
+        "FileType",
+        "FileInfo",
+        "DependencyGraph",
+        "SkillPattern",
+        "HttpMethod",
+        "ApiEndpoint",
+        "TableInfo",
+        "ComponentInfo",
+        "SearchResult",
+        "FileExplanation",
+        "ExportInfo",
+        "ImportInfo",
+        "FunctionInfo",
+        "TaskCodeMapping",
+        "Complexity",
+        "SuggestedChange",
+        "PrProposal",
+        "PrStatus",
+        "PrFileChange",
+        "EconomicJustification",
+        "ImpactType",
+        "IndexStatus"
+      ],
+      "dependencies": [],
+      "linesOfCode": 2112
+    },
+    {
+      "name": "tests",
+      "path": "tests",
+      "type": "unknown",
+      "description": "unknown module",
+      "exports": [],
+      "dependencies": [
+        "core",
+        "skills/db-reader"
+      ],
+      "linesOfCode": 334
+    },
+    {
+      "name": "tsconfig.json",
+      "path": "tsconfig.json",
+      "type": "unknown",
+      "description": "unknown module",
+      "exports": [],
+      "dependencies": [],
+      "linesOfCode": 16
+    },
+    {
+      "name": "webhook-server.ts",
+      "path": "webhook-server.ts",
+      "type": "unknown",
+      "description": "unknown module",
+      "exports": [],
+      "dependencies": [
+        "skills/google-ads-expert"
+      ],
+      "linesOfCode": 146
+    }
+  ],
+  "files": [
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/config/db-reader.yaml",
+      "relativePath": "config/db-reader.yaml",
+      "type": "yaml",
+      "module": "config",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 56,
+      "lastModified": "2026-01-31T16:06:27.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/config/google-ads-expert.yaml",
+      "relativePath": "config/google-ads-expert.yaml",
+      "type": "yaml",
+      "module": "config",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 39,
+      "lastModified": "2026-01-31T16:27:39.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/config/permissions.yaml",
+      "relativePath": "config/permissions.yaml",
+      "type": "yaml",
+      "module": "config",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 95,
+      "lastModified": "2026-02-01T21:45:05.161Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/core/audit.ts",
+      "relativePath": "core/audit.ts",
+      "type": "typescript",
+      "module": "core",
+      "purpose": "Defines AuditLog",
+      "exports": [
+        "AuditLog",
+        "audit"
+      ],
+      "imports": [
+        "./types.js"
+      ],
+      "linesOfCode": 64,
+      "lastModified": "2026-01-31T14:20:11.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/core/currency.ts",
+      "relativePath": "core/currency.ts",
+      "type": "typescript",
+      "module": "core",
+      "purpose": "Currency Converter Centralized EUR exchange rates for all currency conversions.",
+      "exports": [
+        "EUR_RATES",
+        "buildCurrencyRateCase",
+        "getCurrencyCaseSql",
+        "CurrencyConverter",
+        "CurrencyConverter"
+      ],
+      "imports": [],
+      "linesOfCode": 195,
+      "lastModified": "2026-02-01T11:20:01.477Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/core/permissions.ts",
+      "relativePath": "core/permissions.ts",
+      "type": "typescript",
+      "module": "core",
+      "purpose": "Defines PermissionChecker",
+      "exports": [
+        "PermissionChecker",
+        "permissions"
+      ],
+      "imports": [
+        "./types.js",
+        "./audit.js"
+      ],
+      "linesOfCode": 100,
+      "lastModified": "2026-01-31T14:20:11.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/core/router.ts",
+      "relativePath": "core/router.ts",
+      "type": "typescript",
+      "module": "core",
+      "purpose": "Defines SkillRouter",
+      "exports": [
+        "SkillRouter",
+        "router"
+      ],
+      "imports": [
+        "./types.js",
+        "./audit.js",
+        "./permissions.js"
+      ],
+      "linesOfCode": 153,
+      "lastModified": "2026-02-01T21:44:58.442Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/core/types.ts",
+      "relativePath": "core/types.ts",
+      "type": "typescript",
+      "module": "core",
+      "purpose": "Type definitions",
+      "exports": [
+        "SkillRequest",
+        "SkillResponse",
+        "SuggestedAction",
+        "AuditEntry",
+        "SkillId",
+        "SystemComponent"
+      ],
+      "imports": [],
+      "linesOfCode": 49,
+      "lastModified": "2026-02-01T21:44:38.629Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/db.ts",
+      "relativePath": "dashboard/db.ts",
+      "type": "typescript",
+      "module": "dashboard",
+      "purpose": "OpenClaw Internal Database Connection Separate database for OpenClaw operations (dashboard, tasks, learning).",
+      "exports": [
+        "getPool",
+        "closePool",
+        "KpiSnapshot",
+        "saveSnapshot",
+        "getSnapshots",
+        "TaskStatus",
+        "TaskPriority",
+        "TaskSource",
+        "Task",
+        "createTask",
+        "createTaskWithDedupe",
+        "getTasks",
+        "getTaskById",
+        "updateTask",
+        "deleteTask",
+        "getKanbanSummary",
+        "TaskComment",
+        "addComment",
+        "getComments",
+        "RunStatus",
+        "TaskRun",
+        "startRun",
+        "completeRun",
+        "getRuns",
+        "getLatestRun",
+        "ArtifactType",
+        "TaskArtifact",
+        "createArtifact",
+        "getArtifacts",
+        "GenerationLog",
+        "logGeneration",
+        "getGenerationLogs",
+        "generateDedupeKey",
+        "getISOWeek",
+        "DiscrepancyType",
+        "DiscrepancySeverity",
+        "DiscrepancyEntityType",
+        "DiscrepancyStatus",
+        "Discrepancy",
+        "DiscrepancySummary",
+        "createDiscrepancy",
+        "getDiscrepancies",
+        "getDiscrepancyById",
+        "updateDiscrepancy",
+        "getDiscrepancySummary"
+      ],
+      "imports": [],
+      "linesOfCode": 806,
+      "lastModified": "2026-02-01T19:24:29.597Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/README.md",
+      "relativePath": "dashboard/frontend/README.md",
+      "type": "markdown",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 74,
+      "lastModified": "2026-02-01T00:29:21.570Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/eslint.config.js",
+      "relativePath": "dashboard/frontend/eslint.config.js",
+      "type": "javascript",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "defineConfig"
+      ],
+      "imports": [
+        "@eslint/js",
+        "globals",
+        "eslint-plugin-react-hooks",
+        "eslint-plugin-react-refresh",
+        "typescript-eslint",
+        "eslint/config"
+      ],
+      "linesOfCode": 24,
+      "lastModified": "2026-02-01T00:29:21.570Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/package-lock.json",
+      "relativePath": "dashboard/frontend/package-lock.json",
+      "type": "json",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 4324,
+      "lastModified": "2026-02-01T01:17:02.467Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/package.json",
+      "relativePath": "dashboard/frontend/package.json",
+      "type": "json",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 36,
+      "lastModified": "2026-02-01T01:17:02.443Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/App.tsx",
+      "relativePath": "dashboard/frontend/src/App.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "App"
+      ],
+      "imports": [
+        "react",
+        "lucide-react",
+        "./pages/Executive",
+        "./pages/Kanban",
+        "./pages/Campaigns",
+        "./pages/BusinessViews",
+        "./pages/Keywords",
+        "./pages/SearchTerms"
+      ],
+      "linesOfCode": 112,
+      "lastModified": "2026-02-01T18:38:06.628Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/api/client.ts",
+      "relativePath": "dashboard/frontend/src/api/client.ts",
+      "type": "typescript",
+      "module": "dashboard/frontend/src",
+      "purpose": "Type definitions (45 interfaces)",
+      "exports": [
+        "KpiValue",
+        "BusinessSummary",
+        "Snapshot",
+        "TopAction",
+        "DecisionCurrent",
+        "TaskStatus",
+        "TaskPriority",
+        "TaskSource",
+        "Task",
+        "TaskComment",
+        "TaskRun",
+        "TaskArtifact",
+        "TaskDetails",
+        "KanbanSummary",
+        "TasksResponse",
+        "CampaignMetrics",
+        "CampaignPerformanceResult",
+        "CampaignActionGroup",
+        "CampaignActions",
+        "CampaignActionType",
+        "CampaignActionUrgency",
+        "DecisionConfidence",
+        "CampaignDecision",
+        "CampaignDecisionSummary",
+        "api",
+        "BusinessRecommendation",
+        "RecommendationDetails",
+        "AttributionCoverage",
+        "AggregatedMetrics",
+        "TopCampaign",
+        "WebsiteMetrics",
+        "WebsiteViewResult",
+        "CompanyWebsite",
+        "CompanyMetrics",
+        "CompanyViewResult",
+        "CountryMetrics",
+        "CountryViewResult",
+        "ServiceMetrics",
+        "ServiceViewResult",
+        "MacroRecommendation",
+        "MacroRecommendationsResult",
+        "KeywordMatchType",
+        "KeywordPerformanceStatus",
+        "KeywordRecommendation",
+        "WasteFlag",
+        "KeywordPerformance",
+        "KeywordPerformanceResult",
+        "KeywordsQueryParams",
+        "KeywordWasteAnalysis",
+        "KeywordsSummary",
+        "KeywordsWasteResult",
+        "SearchTermWasteFlag",
+        "SearchTermRecommendation",
+        "SearchTermPerformanceStatus",
+        "SearchTermPerformance",
+        "SearchTermWasteAnalysis",
+        "SearchTermsQueryParams",
+        "SearchTermPerformanceResult",
+        "SearchTermsSummary",
+        "SearchTermsWasteResult"
+      ],
+      "imports": [],
+      "linesOfCode": 726,
+      "lastModified": "2026-02-01T18:35:30.156Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/components/ActionCard.tsx",
+      "relativePath": "dashboard/frontend/src/components/ActionCard.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports ActionCard",
+      "exports": [
+        "ActionCard"
+      ],
+      "imports": [
+        "lucide-react"
+      ],
+      "linesOfCode": 52,
+      "lastModified": "2026-02-01T00:33:59.914Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/components/BusinessCard.tsx",
+      "relativePath": "dashboard/frontend/src/components/BusinessCard.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports BusinessCard",
+      "exports": [
+        "BusinessCard"
+      ],
+      "imports": [
+        "lucide-react",
+        "react",
+        "./RecommendationBadge"
+      ],
+      "linesOfCode": 204,
+      "lastModified": "2026-02-01T14:53:54.416Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/components/CampaignsTable.tsx",
+      "relativePath": "dashboard/frontend/src/components/CampaignsTable.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports CampaignsTable",
+      "exports": [
+        "CampaignsTable"
+      ],
+      "imports": [
+        "react",
+        "lucide-react"
+      ],
+      "linesOfCode": 228,
+      "lastModified": "2026-02-01T12:45:55.734Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/components/KanbanColumn.tsx",
+      "relativePath": "dashboard/frontend/src/components/KanbanColumn.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports KanbanColumn",
+      "exports": [
+        "KanbanColumn"
+      ],
+      "imports": [
+        "@hello-pangea/dnd",
+        "./TaskCard"
+      ],
+      "linesOfCode": 69,
+      "lastModified": "2026-02-01T01:17:50.853Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/components/KeywordsTable.tsx",
+      "relativePath": "dashboard/frontend/src/components/KeywordsTable.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports KeywordsTable",
+      "exports": [
+        "KeywordsTable"
+      ],
+      "imports": [
+        "lucide-react"
+      ],
+      "linesOfCode": 285,
+      "lastModified": "2026-02-01T16:28:53.867Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/components/KpiCard.tsx",
+      "relativePath": "dashboard/frontend/src/components/KpiCard.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports KpiCard",
+      "exports": [
+        "KpiCard"
+      ],
+      "imports": [
+        "lucide-react"
+      ],
+      "linesOfCode": 58,
+      "lastModified": "2026-02-01T12:01:24.019Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/components/NewTaskModal.tsx",
+      "relativePath": "dashboard/frontend/src/components/NewTaskModal.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports NewTaskModal",
+      "exports": [
+        "NewTaskModal"
+      ],
+      "imports": [
+        "react",
+        "lucide-react",
+        "../api/client"
+      ],
+      "linesOfCode": 139,
+      "lastModified": "2026-02-01T01:18:41.350Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/components/RecommendationBadge.tsx",
+      "relativePath": "dashboard/frontend/src/components/RecommendationBadge.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports RecommendationBadge",
+      "exports": [
+        "RecommendationBadge"
+      ],
+      "imports": [
+        "lucide-react"
+      ],
+      "linesOfCode": 96,
+      "lastModified": "2026-02-01T14:51:47.103Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/components/StatusBadge.tsx",
+      "relativePath": "dashboard/frontend/src/components/StatusBadge.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports StatusBadge",
+      "exports": [
+        "StatusBadge"
+      ],
+      "imports": [
+        "lucide-react"
+      ],
+      "linesOfCode": 40,
+      "lastModified": "2026-02-01T00:31:31.571Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/components/TaskCard.tsx",
+      "relativePath": "dashboard/frontend/src/components/TaskCard.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports TaskCard",
+      "exports": [
+        "TaskCard"
+      ],
+      "imports": [
+        "@hello-pangea/dnd",
+        "lucide-react"
+      ],
+      "linesOfCode": 85,
+      "lastModified": "2026-02-01T01:19:20.666Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/components/TaskModal.tsx",
+      "relativePath": "dashboard/frontend/src/components/TaskModal.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports TaskModal",
+      "exports": [
+        "TaskModal"
+      ],
+      "imports": [
+        "react",
+        "lucide-react",
+        "../api/client"
+      ],
+      "linesOfCode": 312,
+      "lastModified": "2026-02-01T01:19:25.954Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/components/TrendChart.tsx",
+      "relativePath": "dashboard/frontend/src/components/TrendChart.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports TrendChart",
+      "exports": [
+        "TrendChart"
+      ],
+      "imports": [
+        "recharts"
+      ],
+      "linesOfCode": 76,
+      "lastModified": "2026-02-01T09:34:31.360Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/index.css",
+      "relativePath": "dashboard/frontend/src/index.css",
+      "type": "css",
+      "module": "dashboard/frontend/src",
+      "purpose": "Module entry point and exports",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 17,
+      "lastModified": "2026-02-01T00:30:25.250Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/main.tsx",
+      "relativePath": "dashboard/frontend/src/main.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [
+        "react",
+        "react-dom/client",
+        "./App.tsx"
+      ],
+      "linesOfCode": 11,
+      "lastModified": "2026-02-01T00:29:21.572Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/pages/BusinessViews.tsx",
+      "relativePath": "dashboard/frontend/src/pages/BusinessViews.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports BusinessViews",
+      "exports": [
+        "BusinessViews"
+      ],
+      "imports": [
+        "react",
+        "lucide-react",
+        "../api/client",
+        "../components/BusinessCard",
+        "../components/RecommendationBadge"
+      ],
+      "linesOfCode": 379,
+      "lastModified": "2026-02-01T14:53:15.744Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/pages/Campaigns.tsx",
+      "relativePath": "dashboard/frontend/src/pages/Campaigns.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports Campaigns",
+      "exports": [
+        "Campaigns"
+      ],
+      "imports": [
+        "react",
+        "lucide-react",
+        "../api/client",
+        "../components/CampaignsTable"
+      ],
+      "linesOfCode": 275,
+      "lastModified": "2026-02-01T12:57:39.293Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/pages/Executive.tsx",
+      "relativePath": "dashboard/frontend/src/pages/Executive.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports Executive",
+      "exports": [
+        "Executive"
+      ],
+      "imports": [
+        "react",
+        "lucide-react",
+        "../api/client",
+        "../components/StatusBadge",
+        "../components/KpiCard",
+        "../components/TrendChart",
+        "../components/ActionCard"
+      ],
+      "linesOfCode": 249,
+      "lastModified": "2026-02-01T12:00:57.360Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/pages/Kanban.tsx",
+      "relativePath": "dashboard/frontend/src/pages/Kanban.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports Kanban",
+      "exports": [
+        "Kanban"
+      ],
+      "imports": [
+        "react",
+        "@hello-pangea/dnd",
+        "lucide-react",
+        "../api/client",
+        "../components/KanbanColumn",
+        "../components/TaskModal",
+        "../components/NewTaskModal"
+      ],
+      "linesOfCode": 164,
+      "lastModified": "2026-02-01T01:19:00.857Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/pages/Keywords.tsx",
+      "relativePath": "dashboard/frontend/src/pages/Keywords.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports Keywords",
+      "exports": [
+        "Keywords"
+      ],
+      "imports": [
+        "react",
+        "lucide-react",
+        "../api/client",
+        "../components/KeywordsTable"
+      ],
+      "linesOfCode": 384,
+      "lastModified": "2026-02-01T17:31:33.785Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/src/pages/SearchTerms.tsx",
+      "relativePath": "dashboard/frontend/src/pages/SearchTerms.tsx",
+      "type": "tsx",
+      "module": "dashboard/frontend/src",
+      "purpose": "Exports SearchTerms",
+      "exports": [
+        "SearchTerms"
+      ],
+      "imports": [
+        "react",
+        "lucide-react",
+        "../api/client"
+      ],
+      "linesOfCode": 779,
+      "lastModified": "2026-02-01T18:37:40.836Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/tsconfig.app.json",
+      "relativePath": "dashboard/frontend/tsconfig.app.json",
+      "type": "json",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 29,
+      "lastModified": "2026-02-01T00:29:21.572Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/tsconfig.json",
+      "relativePath": "dashboard/frontend/tsconfig.json",
+      "type": "json",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 8,
+      "lastModified": "2026-02-01T00:29:21.572Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/tsconfig.node.json",
+      "relativePath": "dashboard/frontend/tsconfig.node.json",
+      "type": "json",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 27,
+      "lastModified": "2026-02-01T00:29:21.572Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/frontend/vite.config.ts",
+      "relativePath": "dashboard/frontend/vite.config.ts",
+      "type": "typescript",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "defineConfig"
+      ],
+      "imports": [
+        "vite",
+        "@vitejs/plugin-react",
+        "@tailwindcss/vite"
+      ],
+      "linesOfCode": 17,
+      "lastModified": "2026-02-01T00:29:59.862Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/migrations/000_setup_db.sql",
+      "relativePath": "dashboard/migrations/000_setup_db.sql",
+      "type": "sql",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 31,
+      "lastModified": "2026-02-01T00:19:43.041Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/migrations/001_init.sql",
+      "relativePath": "dashboard/migrations/001_init.sql",
+      "type": "sql",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 161,
+      "lastModified": "2026-02-01T00:14:23.257Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/migrations/002_kanban_enhancements.sql",
+      "relativePath": "dashboard/migrations/002_kanban_enhancements.sql",
+      "type": "sql",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 68,
+      "lastModified": "2026-02-01T01:13:07.299Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/migrations/003_add_ltv.sql",
+      "relativePath": "dashboard/migrations/003_add_ltv.sql",
+      "type": "sql",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 21,
+      "lastModified": "2026-02-01T08:40:16.024Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/migrations/004_ltv_windows.sql",
+      "relativePath": "dashboard/migrations/004_ltv_windows.sql",
+      "type": "sql",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 28,
+      "lastModified": "2026-02-01T10:27:03.501Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/migrations/005_google_ads_metrics.sql",
+      "relativePath": "dashboard/migrations/005_google_ads_metrics.sql",
+      "type": "sql",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 49,
+      "lastModified": "2026-02-01T13:12:33.195Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/migrations/006_google_ads_keywords.sql",
+      "relativePath": "dashboard/migrations/006_google_ads_keywords.sql",
+      "type": "sql",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 65,
+      "lastModified": "2026-02-01T15:37:54.088Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/migrations/007_google_ads_search_terms.sql",
+      "relativePath": "dashboard/migrations/007_google_ads_search_terms.sql",
+      "type": "sql",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 51,
+      "lastModified": "2026-02-01T17:50:10.397Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/migrations/008_discrepancy_log.sql",
+      "relativePath": "dashboard/migrations/008_discrepancy_log.sql",
+      "type": "sql",
+      "module": "dashboard",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 52,
+      "lastModified": "2026-02-01T19:23:36.645Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/dashboard/server.ts",
+      "relativePath": "dashboard/server.ts",
+      "type": "typescript",
+      "module": "dashboard",
+      "purpose": "Dashboard API Server Express server that exposes BusinessExpert and DecisionEngine via HTTP API.",
+      "exports": [
+        "app"
+      ],
+      "imports": [
+        "cors",
+        "path",
+        "url",
+        "../skills/business-expert/analyzers/cross-analyzer.js",
+        "../skills/business-expert/reporters/executive-summary.js",
+        "../skills/decision-engine/reporters/weekly-report.js",
+        "../skills/decision-engine/rules/evaluator.js",
+        "../skills/decision-engine/rules/decision-matrix.js",
+        "./db.js",
+        "../core/currency.js",
+        "../skills/business-expert/analyzers/campaign-analyzer.js",
+        "../skills/decision-engine/campaign-rules/evaluator.js",
+        "../skills/google-ads-expert/keywords-analyzer.js",
+        "../skills/google-ads-expert/search-terms-analyzer.js",
+        "../skills/business-expert/analyzers/business-aggregator.js",
+        "../skills/decision-engine/business-rules/macro-engine.js"
+      ],
+      "linesOfCode": 1727,
+      "lastModified": "2026-02-01T19:25:37.110Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/package-lock.json",
+      "relativePath": "package-lock.json",
+      "type": "json",
+      "module": "package-lock.json",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 1343,
+      "lastModified": "2026-01-31T23:48:30.540Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/package.json",
+      "relativePath": "package.json",
+      "type": "json",
+      "module": "package.json",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 26,
+      "lastModified": "2026-02-01T00:06:48.348Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/analyzers/ads-analyzer.ts",
+      "relativePath": "skills/business-expert/analyzers/ads-analyzer.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "Ads Analyzer Funciones auxiliares para datos de ads.",
+      "exports": [
+        "getGoogleAdsCampaigns",
+        "getTopCampaigns"
+      ],
+      "imports": [
+        "../../google-ads-expert/ingest.js"
+      ],
+      "linesOfCode": 44,
+      "lastModified": "2026-01-31T23:01:21.170Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/analyzers/business-aggregator.ts",
+      "relativePath": "skills/business-expert/analyzers/business-aggregator.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "Business Aggregator - Phase 7.",
+      "exports": [
+        "clearBusinessCache",
+        "getWebsiteView",
+        "getCompanyView",
+        "getCountryView",
+        "getServiceView"
+      ],
+      "imports": [
+        "../../google-ads-expert/ingest.js",
+        "../../db-reader/executor.js",
+        "../utils/service-classifier.js"
+      ],
+      "linesOfCode": 599,
+      "lastModified": "2026-02-01T14:36:27.684Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/analyzers/campaign-analyzer.ts",
+      "relativePath": "skills/business-expert/analyzers/campaign-analyzer.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "Campaign Analyzer - Phase 7 Combina datos de Google Ads Script (DB) con datos de atribución (DB).",
+      "exports": [
+        "CampaignMetrics",
+        "CampaignPerformanceResult",
+        "clearCampaignCache",
+        "getCampaignPerformance",
+        "getCampaignsToPause",
+        "getCampaignsToScale",
+        "getCampaignsToMonitor"
+      ],
+      "imports": [
+        "../../google-ads-expert/ingest.js",
+        "../../db-reader/executor.js",
+        "../../../core/currency.js"
+      ],
+      "linesOfCode": 377,
+      "lastModified": "2026-02-01T19:29:49.527Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/analyzers/cross-analyzer.ts",
+      "relativePath": "skills/business-expert/analyzers/cross-analyzer.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "Cross Analyzer Cruza datos de DBReader para calcular los 5 KPIs CORE.",
+      "exports": [
+        "clearMetricsCache",
+        "fetchRawMetrics",
+        "calculateCoreKpis",
+        "determineBusinessStatus",
+        "generateAlerts"
+      ],
+      "imports": [
+        "./revenue-analyzer.js",
+        "../types.js"
+      ],
+      "linesOfCode": 551,
+      "lastModified": "2026-02-01T11:45:40.768Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/analyzers/revenue-analyzer.ts",
+      "relativePath": "skills/business-expert/analyzers/revenue-analyzer.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "Revenue Analyzer Obtiene datos de revenue, trials, rebills, usage y ad spend desde DBReader.",
+      "exports": [
+        "clearLtvCache",
+        "RevenueData",
+        "TrialsData",
+        "SubscriptionsData",
+        "AdSpendData",
+        "getRevenueData",
+        "getTrialsData",
+        "getFirstRebillsData",
+        "getFirstRebillsCohorte30dData",
+        "getSecondRebillsData",
+        "getUsageBeforeRebill2Data",
+        "getSubscriptionsData",
+        "getAdSpendData",
+        "Ltv30dData",
+        "getLtv30dData",
+        "LtvWindowData",
+        "getLtv21dData",
+        "getLtv51dData",
+        "getLtv81dData"
+      ],
+      "imports": [
+        "../../db-reader/executor.js"
+      ],
+      "linesOfCode": 303,
+      "lastModified": "2026-02-01T11:32:45.878Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/cli.ts",
+      "relativePath": "skills/business-expert/cli.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "BusinessExpert CLI Entry point for OpenClaw skill invocation.",
+      "exports": [],
+      "imports": [
+        "./reporters/executive-summary.js",
+        "./analyzers/cross-analyzer.js"
+      ],
+      "linesOfCode": 99,
+      "lastModified": "2026-01-31T23:02:33.874Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/index.ts",
+      "relativePath": "skills/business-expert/index.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "BusinessExpert - Main Entry Point 5 KPIs CORE de gobierno: P1 - FRR (First Rebill Rate) P2 - CPFR (C",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 16,
+      "lastModified": "2026-01-31T23:01:58.551Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/reporters/executive-summary.ts",
+      "relativePath": "skills/business-expert/reporters/executive-summary.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "Executive Summary Reporter Genera un resumen ejecutivo tipo CFO: corto, directo, accionable.",
+      "exports": [
+        "generateExecutiveSummary",
+        "formatSummaryAsText"
+      ],
+      "imports": [
+        "../analyzers/cross-analyzer.js",
+        "../types.js",
+        "../../../core/audit.js"
+      ],
+      "linesOfCode": 232,
+      "lastModified": "2026-01-31T23:01:51.812Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/types.ts",
+      "relativePath": "skills/business-expert/types.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "BusinessExpert - Types 5 KPIs CORE de gobierno del negocio.",
+      "exports": [
+        "Period",
+        "KpiStatus",
+        "BusinessStatus",
+        "KpiResult",
+        "CoreKpis",
+        "THRESHOLDS",
+        "CPFR_GREEN",
+        "CPFR_YELLOW",
+        "RawMetrics",
+        "AlertType",
+        "Alert",
+        "ExecutiveSummary",
+        "KPI_PRIORITY"
+      ],
+      "imports": [],
+      "linesOfCode": 264,
+      "lastModified": "2026-02-01T10:27:53.613Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/types/business-views.ts",
+      "relativePath": "skills/business-expert/types/business-views.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "Business Views - Phase 7.",
+      "exports": [
+        "AggregatedMetrics",
+        "BusinessRecommendation",
+        "RecommendationDetails",
+        "WebsiteMetrics",
+        "WebsiteViewResult",
+        "CompanyName",
+        "CompanyMetrics",
+        "CompanyViewResult",
+        "CountryMetrics",
+        "CountryViewResult",
+        "ServiceCategory",
+        "ServiceMetrics",
+        "ServiceViewResult",
+        "MacroRecommendation",
+        "MacroRecommendationsResult"
+      ],
+      "imports": [],
+      "linesOfCode": 254,
+      "lastModified": "2026-02-01T14:06:16.710Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/types/index.ts",
+      "relativePath": "skills/business-expert/types/index.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "Business Expert Types - Phase 7.",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 6,
+      "lastModified": "2026-02-01T14:06:45.829Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/utils/index.ts",
+      "relativePath": "skills/business-expert/utils/index.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "Business Expert Utils - Phase 7.",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 6,
+      "lastModified": "2026-02-01T14:06:50.343Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/business-expert/utils/service-classifier.ts",
+      "relativePath": "skills/business-expert/utils/service-classifier.ts",
+      "type": "typescript",
+      "module": "skills/business-expert",
+      "purpose": "Service Classifier - Phase 7.",
+      "exports": [
+        "classifyCampaign",
+        "classifyCampaigns",
+        "getServiceDisplayName",
+        "getAllServiceCategories"
+      ],
+      "imports": [
+        "../types/business-views.js"
+      ],
+      "linesOfCode": 169,
+      "lastModified": "2026-02-01T14:06:39.358Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/dashboard-tasks/cli.ts",
+      "relativePath": "skills/dashboard-tasks/cli.ts",
+      "type": "typescript",
+      "module": "skills/dashboard-tasks",
+      "purpose": "Dashboard Tasks CLI Entry point for OpenClaw skill invocation.",
+      "exports": [],
+      "imports": [
+        "../../dashboard/db.js"
+      ],
+      "linesOfCode": 436,
+      "lastModified": "2026-02-01T01:28:56.082Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/dashboard-tasks/index.ts",
+      "relativePath": "skills/dashboard-tasks/index.ts",
+      "type": "typescript",
+      "module": "skills/dashboard-tasks",
+      "purpose": "Dashboard Tasks - Main Entry Point Allows OpenClaw to interact with the Kanban board: - List and fil",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 28,
+      "lastModified": "2026-02-01T01:29:02.063Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/cli.ts",
+      "relativePath": "skills/db-reader/cli.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "CLI entry point",
+      "exports": [],
+      "imports": [
+        "./executor.js",
+        "./queries/index.js"
+      ],
+      "linesOfCode": 32,
+      "lastModified": "2026-01-31T16:52:59.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/executor.ts",
+      "relativePath": "skills/db-reader/executor.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Exports executeQuery",
+      "exports": [
+        "executeQuery",
+        "closePool"
+      ],
+      "imports": [
+        "./types.js",
+        "./queries/index.js",
+        "./queries/daily-revenue.js",
+        "../../core/currency.js",
+        "../../core/audit.js",
+        "mysql2/promise"
+      ],
+      "linesOfCode": 300,
+      "lastModified": "2026-02-01T11:20:25.224Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/index.ts",
+      "relativePath": "skills/db-reader/index.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Module entry point and exports",
+      "exports": [
+        "DBReader",
+        "dbReader"
+      ],
+      "imports": [
+        "./types.js",
+        "./validator.js",
+        "./executor.js",
+        "../../core/audit.js"
+      ],
+      "linesOfCode": 44,
+      "lastModified": "2026-01-31T15:56:52.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/queries/active-subscriptions.ts",
+      "relativePath": "skills/db-reader/queries/active-subscriptions.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "activeSubscriptionsQuery"
+      ],
+      "imports": [
+        "../types.js"
+      ],
+      "linesOfCode": 19,
+      "lastModified": "2026-01-31T16:05:41.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/queries/ad-spend-7d.ts",
+      "relativePath": "skills/db-reader/queries/ad-spend-7d.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "adSpend7dQuery"
+      ],
+      "imports": [
+        "../types.js"
+      ],
+      "linesOfCode": 25,
+      "lastModified": "2026-01-31T22:59:22.529Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/queries/business-aggregations.ts",
+      "relativePath": "skills/db-reader/queries/business-aggregations.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "websiteAggregationQuery",
+        "companyAggregationQuery",
+        "countryAggregationQuery",
+        "campaignListForServiceQuery"
+      ],
+      "imports": [
+        "../types.js",
+        "../../../core/currency.js"
+      ],
+      "linesOfCode": 361,
+      "lastModified": "2026-02-01T14:20:22.210Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/queries/campaign-metrics.ts",
+      "relativePath": "skills/db-reader/queries/campaign-metrics.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "campaignPerformanceQuery",
+        "campaignSummaryQuery"
+      ],
+      "imports": [
+        "../types.js",
+        "../../../core/currency.js"
+      ],
+      "linesOfCode": 212,
+      "lastModified": "2026-02-01T13:57:46.026Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/queries/daily-revenue.ts",
+      "relativePath": "skills/db-reader/queries/daily-revenue.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Exports convertToEur",
+      "exports": [
+        "dailyRevenue7dQuery",
+        "convertToEur"
+      ],
+      "imports": [
+        "../types.js",
+        "../../../core/currency.js"
+      ],
+      "linesOfCode": 66,
+      "lastModified": "2026-02-01T11:19:13.804Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/queries/first-rebills-7d.ts",
+      "relativePath": "skills/db-reader/queries/first-rebills-7d.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "firstRebills7dQuery"
+      ],
+      "imports": [
+        "../types.js"
+      ],
+      "linesOfCode": 34,
+      "lastModified": "2026-01-31T22:59:04.383Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/queries/index.ts",
+      "relativePath": "skills/db-reader/queries/index.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Module entry point and exports",
+      "exports": [
+        "ALLOWED_QUERIES",
+        "getQuery",
+        "isAllowedQuery"
+      ],
+      "imports": [
+        "../types.js",
+        "./active-subscriptions.js",
+        "./trials-last-7-days.js",
+        "./daily-revenue.js",
+        "./first-rebills-7d.js",
+        "./second-rebills-7d.js",
+        "./usage-before-rebill2-7d.js",
+        "./ad-spend-7d.js",
+        "./ltv-30d.js",
+        "./ltv-windows.js",
+        "./campaign-metrics.js",
+        "./business-aggregations.js"
+      ],
+      "linesOfCode": 78,
+      "lastModified": "2026-02-01T14:13:08.280Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/queries/ltv-30d.ts",
+      "relativePath": "skills/db-reader/queries/ltv-30d.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "ltv30dQuery",
+        "ltv45dQuery",
+        "ltv90dQuery",
+        "ltvAllQuery"
+      ],
+      "imports": [
+        "../types.js",
+        "../../../core/currency.js"
+      ],
+      "linesOfCode": 123,
+      "lastModified": "2026-02-01T11:19:31.327Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/queries/ltv-windows.ts",
+      "relativePath": "skills/db-reader/queries/ltv-windows.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "ltv21dQuery",
+        "ltv51dQuery",
+        "ltv81dQuery"
+      ],
+      "imports": [
+        "../types.js",
+        "../../../core/currency.js"
+      ],
+      "linesOfCode": 224,
+      "lastModified": "2026-02-01T11:19:01.042Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/queries/second-rebills-7d.ts",
+      "relativePath": "skills/db-reader/queries/second-rebills-7d.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "secondRebills7dQuery",
+        "firstRebillsCohorte30dQuery"
+      ],
+      "imports": [
+        "../types.js"
+      ],
+      "linesOfCode": 65,
+      "lastModified": "2026-01-31T22:59:13.633Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/queries/trials-last-7-days.ts",
+      "relativePath": "skills/db-reader/queries/trials-last-7-days.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "trialsLast7DaysQuery"
+      ],
+      "imports": [
+        "../types.js"
+      ],
+      "linesOfCode": 20,
+      "lastModified": "2026-01-31T22:19:52.766Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/queries/usage-before-rebill2-7d.ts",
+      "relativePath": "skills/db-reader/queries/usage-before-rebill2-7d.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Unknown purpose",
+      "exports": [
+        "usageBeforeRebill27dQuery"
+      ],
+      "imports": [
+        "../types.js"
+      ],
+      "linesOfCode": 53,
+      "lastModified": "2026-01-31T22:59:19.736Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/types.ts",
+      "relativePath": "skills/db-reader/types.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Type definitions",
+      "exports": [
+        "AllowedQueryId",
+        "DBReaderRequest",
+        "DBReaderResponse",
+        "QueryDefinition",
+        "SchemaConfig",
+        "DBConfig"
+      ],
+      "imports": [],
+      "linesOfCode": 83,
+      "lastModified": "2026-02-01T14:13:19.593Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/db-reader/validator.ts",
+      "relativePath": "skills/db-reader/validator.ts",
+      "type": "typescript",
+      "module": "skills/db-reader",
+      "purpose": "Exports validateQuery",
+      "exports": [
+        "ValidationResult",
+        "validateQuery"
+      ],
+      "imports": [
+        "./types.js",
+        "./queries/index.js",
+        "../../core/audit.js",
+        "../../core/permissions.js"
+      ],
+      "linesOfCode": 66,
+      "lastModified": "2026-01-31T15:56:52.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/decision-engine/business-rules/index.ts",
+      "relativePath": "skills/decision-engine/business-rules/index.ts",
+      "type": "typescript",
+      "module": "skills/decision-engine",
+      "purpose": "Business Rules - Phase 7.",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 8,
+      "lastModified": "2026-02-01T14:16:19.990Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/decision-engine/business-rules/macro-engine.ts",
+      "relativePath": "skills/decision-engine/business-rules/macro-engine.ts",
+      "type": "typescript",
+      "module": "skills/decision-engine",
+      "purpose": "Macro DecisionEngine - Phase 7.",
+      "exports": [
+        "clearMacroRecommendationsCache",
+        "getMacroRecommendations"
+      ],
+      "imports": [
+        "../../business-expert/analyzers/business-aggregator.js"
+      ],
+      "linesOfCode": 314,
+      "lastModified": "2026-02-01T14:16:12.898Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/decision-engine/campaign-rules/decision-matrix.ts",
+      "relativePath": "skills/decision-engine/campaign-rules/decision-matrix.ts",
+      "type": "typescript",
+      "module": "skills/decision-engine",
+      "purpose": "Campaign Decision Matrix - Phase 7.",
+      "exports": [
+        "CAMPAIGN_RULES",
+        "getCampaignRules"
+      ],
+      "imports": [],
+      "linesOfCode": 199,
+      "lastModified": "2026-02-01T12:55:45.900Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/decision-engine/campaign-rules/evaluator.ts",
+      "relativePath": "skills/decision-engine/campaign-rules/evaluator.ts",
+      "type": "typescript",
+      "module": "skills/decision-engine",
+      "purpose": "Campaign Rule Evaluator - Phase 7.",
+      "exports": [
+        "evaluateCampaignRules",
+        "getCampaignsNeedingAction",
+        "getCampaignsToPauseByImpact",
+        "getCampaignsToScaleByPayback",
+        "getCampaignDecisionsSummaryText"
+      ],
+      "imports": [
+        "./types.js",
+        "./decision-matrix.js",
+        "../../business-expert/analyzers/campaign-analyzer.js"
+      ],
+      "linesOfCode": 256,
+      "lastModified": "2026-02-01T12:56:15.520Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/decision-engine/campaign-rules/index.ts",
+      "relativePath": "skills/decision-engine/campaign-rules/index.ts",
+      "type": "typescript",
+      "module": "skills/decision-engine",
+      "purpose": "Campaign Rules Module - Phase 7.",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 10,
+      "lastModified": "2026-02-01T12:56:21.704Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/decision-engine/campaign-rules/types.ts",
+      "relativePath": "skills/decision-engine/campaign-rules/types.ts",
+      "type": "typescript",
+      "module": "skills/decision-engine",
+      "purpose": "Campaign Decision Types - Phase 7.",
+      "exports": [
+        "CampaignActionType",
+        "CampaignActionUrgency",
+        "DecisionConfidence",
+        "CampaignDecisionRule",
+        "CampaignDecision",
+        "CampaignDecisionSummary",
+        "URGENCY_ORDER",
+        "ACTION_ICONS",
+        "URGENCY_LABELS"
+      ],
+      "imports": [],
+      "linesOfCode": 165,
+      "lastModified": "2026-02-01T12:55:14.007Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/decision-engine/cli.ts",
+      "relativePath": "skills/decision-engine/cli.ts",
+      "type": "typescript",
+      "module": "skills/decision-engine",
+      "purpose": "Decision Engine CLI Entry point for OpenClaw skill invocation.",
+      "exports": [],
+      "imports": [
+        "./reporters/weekly-report.js",
+        "./rules/evaluator.js",
+        "./rules/decision-matrix.js",
+        "../business-expert/analyzers/cross-analyzer.js",
+        "./types.js"
+      ],
+      "linesOfCode": 106,
+      "lastModified": "2026-01-31T23:11:16.085Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/decision-engine/index.ts",
+      "relativePath": "skills/decision-engine/index.ts",
+      "type": "typescript",
+      "module": "skills/decision-engine",
+      "purpose": "Decision Engine - Main Entry Point Traduce KPIs en acciones concretas.",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 12,
+      "lastModified": "2026-01-31T23:11:05.061Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/decision-engine/reporters/weekly-report.ts",
+      "relativePath": "skills/decision-engine/reporters/weekly-report.ts",
+      "type": "typescript",
+      "module": "skills/decision-engine",
+      "purpose": "Weekly Decision Report Genera el reporte semanal de decisiones basado en KPIs.",
+      "exports": [
+        "generateWeeklyReport",
+        "formatReportAsText"
+      ],
+      "imports": [
+        "../../business-expert/analyzers/cross-analyzer.js",
+        "../../business-expert/types.js",
+        "../types.js",
+        "../rules/evaluator.js",
+        "../../../core/audit.js"
+      ],
+      "linesOfCode": 240,
+      "lastModified": "2026-02-01T10:30:54.827Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/decision-engine/rules/decision-matrix.ts",
+      "relativePath": "skills/decision-engine/rules/decision-matrix.ts",
+      "type": "typescript",
+      "module": "skills/decision-engine",
+      "purpose": "Decision Matrix Reglas de decisión basadas en KPIs.",
+      "exports": [
+        "DECISION_RULES",
+        "getDecisionRules"
+      ],
+      "imports": [
+        "../types.js",
+        "../../business-expert/types.js"
+      ],
+      "linesOfCode": 308,
+      "lastModified": "2026-02-01T10:30:13.170Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/decision-engine/rules/evaluator.ts",
+      "relativePath": "skills/decision-engine/rules/evaluator.ts",
+      "type": "typescript",
+      "module": "skills/decision-engine",
+      "purpose": "Rule Evaluator Evalúa las reglas de decisión contra los KPIs actuales.",
+      "exports": [
+        "evaluateRules",
+        "deduplicateDecisions",
+        "getTopActions"
+      ],
+      "imports": [
+        "../../business-expert/types.js",
+        "../types.js",
+        "./decision-matrix.js"
+      ],
+      "linesOfCode": 114,
+      "lastModified": "2026-01-31T23:11:48.763Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/decision-engine/types.ts",
+      "relativePath": "skills/decision-engine/types.ts",
+      "type": "typescript",
+      "module": "skills/decision-engine",
+      "purpose": "Decision Engine - Types Sistema de decisiones basado en KPIs.",
+      "exports": [
+        "DecisionType",
+        "DecisionPriority",
+        "DecisionArea",
+        "DecisionRule",
+        "TriggeredDecision",
+        "WeeklyDecisionReport",
+        "PRIORITY_ORDER",
+        "DECISION_ICONS",
+        "PRIORITY_ICONS"
+      ],
+      "imports": [
+        "../business-expert/types.js"
+      ],
+      "linesOfCode": 174,
+      "lastModified": "2026-02-01T10:30:26.843Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/cli.ts",
+      "relativePath": "skills/google-ads-expert/cli.ts",
+      "type": "typescript",
+      "module": "skills/google-ads-expert",
+      "purpose": "CLI entry point",
+      "exports": [],
+      "imports": [
+        "./ingest.js"
+      ],
+      "linesOfCode": 57,
+      "lastModified": "2026-02-01T13:14:30.641Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/datasources/ads-script-keywords-source.ts",
+      "relativePath": "skills/google-ads-expert/datasources/ads-script-keywords-source.ts",
+      "type": "typescript",
+      "module": "skills/google-ads-expert",
+      "purpose": "AdsScriptKeywordsSource - Google Ads Scripts Keywords DataSource Receives keyword data exported from Google Ads Scripts via webhook.",
+      "exports": [
+        "KeywordsDataSource",
+        "AdsScriptKeywordsSource",
+        "keywordsDataSource"
+      ],
+      "imports": [
+        "./interface.js",
+        "../types.js"
+      ],
+      "linesOfCode": 202,
+      "lastModified": "2026-02-01T16:48:25.457Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/datasources/ads-script-search-terms-source.ts",
+      "relativePath": "skills/google-ads-expert/datasources/ads-script-search-terms-source.ts",
+      "type": "typescript",
+      "module": "skills/google-ads-expert",
+      "purpose": "AdsScriptSearchTermsSource - Google Ads Scripts Search Terms DataSource Receives search term data exported from Google Ads Scripts via webhook.",
+      "exports": [
+        "SearchTermsDataSource",
+        "AdsScriptSearchTermsSource",
+        "searchTermsDataSource"
+      ],
+      "imports": [
+        "./interface.js",
+        "../types.js"
+      ],
+      "linesOfCode": 209,
+      "lastModified": "2026-02-01T17:50:51.057Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/datasources/ads-script-source.ts",
+      "relativePath": "skills/google-ads-expert/datasources/ads-script-source.ts",
+      "type": "typescript",
+      "module": "skills/google-ads-expert",
+      "purpose": "AdsScriptSource - Google Ads Scripts DataSource Recibe datos exportados desde Google Ads Scripts via webhook.",
+      "exports": [
+        "AdsScriptSource"
+      ],
+      "imports": [
+        "./interface.js",
+        "../types.js"
+      ],
+      "linesOfCode": 167,
+      "lastModified": "2026-01-31T16:26:01.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/datasources/google-api-source.ts",
+      "relativePath": "skills/google-ads-expert/datasources/google-api-source.ts",
+      "type": "typescript",
+      "module": "skills/google-ads-expert",
+      "purpose": "GoogleApiSource - Google Ads API DataSource (STUB) Futuro: Implementar cuando tengamos el Basic Token de Google Ads API.",
+      "exports": [
+        "GoogleApiSource"
+      ],
+      "imports": [
+        "./interface.js",
+        "../types.js"
+      ],
+      "linesOfCode": 56,
+      "lastModified": "2026-01-31T16:26:15.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/datasources/index.ts",
+      "relativePath": "skills/google-ads-expert/datasources/index.ts",
+      "type": "typescript",
+      "module": "skills/google-ads-expert",
+      "purpose": "DataSources Index Factory para obtener el datasource configurado.",
+      "exports": [
+        "getDataSource",
+        "getConfiguredDataSource",
+        "getKeywordsDataSource",
+        "getSearchTermsDataSource"
+      ],
+      "imports": [
+        "./interface.js",
+        "./ads-script-source.js",
+        "./google-api-source.js",
+        "./ads-script-keywords-source.js",
+        "./ads-script-search-terms-source.js",
+        "../types.js"
+      ],
+      "linesOfCode": 43,
+      "lastModified": "2026-02-01T17:51:07.163Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/datasources/interface.ts",
+      "relativePath": "skills/google-ads-expert/datasources/interface.ts",
+      "type": "typescript",
+      "module": "skills/google-ads-expert",
+      "purpose": "DataSource Interface Abstracción para diferentes fuentes de datos de Google Ads.",
+      "exports": [
+        "ValidationResult",
+        "AdsDataSource"
+      ],
+      "imports": [
+        "../types.js"
+      ],
+      "linesOfCode": 46,
+      "lastModified": "2026-01-31T16:23:39.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/google-ads-script.js",
+      "relativePath": "skills/google-ads-expert/google-ads-script.js",
+      "type": "javascript",
+      "module": "skills/google-ads-expert",
+      "purpose": "OpenClaw - Google Ads Export Script Este script exporta métricas de campañas a OpenClaw via webhook.",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 131,
+      "lastModified": "2026-01-31T16:28:02.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/index.ts",
+      "relativePath": "skills/google-ads-expert/index.ts",
+      "type": "typescript",
+      "module": "skills/google-ads-expert",
+      "purpose": "GoogleAdsExpert - Main Entry Point Observer Mode skill para ingerir métricas de Google Ads.",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 16,
+      "lastModified": "2026-01-31T16:26:57.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/ingest.ts",
+      "relativePath": "skills/google-ads-expert/ingest.ts",
+      "type": "typescript",
+      "module": "skills/google-ads-expert",
+      "purpose": "GoogleAdsExpert - Ingest Handler Maneja el webhook HTTP para recibir datos de Google Ads Scripts.",
+      "exports": [
+        "handleIngest",
+        "CampaignSpendData",
+        "getCampaignSpend",
+        "getLatestRecord",
+        "hasCampaignData",
+        "handleKeywordsIngest",
+        "KeywordSpendData",
+        "getKeywordSpend",
+        "hasKeywordData",
+        "handleSearchTermsIngest",
+        "SearchTermSpendData",
+        "getSearchTermSpend",
+        "hasSearchTermData"
+      ],
+      "imports": [
+        "crypto",
+        "./datasources/index.js",
+        "./types.js",
+        "../../core/audit.js",
+        "../../dashboard/db.js",
+        "./datasources/index.js",
+        "./types.js"
+      ],
+      "linesOfCode": 998,
+      "lastModified": "2026-02-01T17:51:40.960Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/keywords-analyzer.ts",
+      "relativePath": "skills/google-ads-expert/keywords-analyzer.ts",
+      "type": "typescript",
+      "module": "skills/google-ads-expert",
+      "purpose": "Keywords Analyzer - Phase 8A Analyzes keyword performance data from Google Ads Scripts.",
+      "exports": [
+        "KeywordPerformance",
+        "KeywordPerformanceResult",
+        "WasteFlag",
+        "KeywordRecommendation",
+        "KeywordWasteAnalysis",
+        "clearKeywordCache",
+        "getKeywordPerformance",
+        "getTopKeywords",
+        "getKeywordsByCampaign",
+        "getUnderperformingKeywords",
+        "getWasteKeywords",
+        "getKeywordsToScale",
+        "getKeywordsSummary"
+      ],
+      "imports": [
+        "./ingest.js",
+        "../../core/currency.js"
+      ],
+      "linesOfCode": 429,
+      "lastModified": "2026-02-01T19:30:28.051Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/search-terms-analyzer.ts",
+      "relativePath": "skills/google-ads-expert/search-terms-analyzer.ts",
+      "type": "typescript",
+      "module": "skills/google-ads-expert",
+      "purpose": "Search Terms Analyzer - Phase 8B Analyzes search term data from Google Ads Scripts.",
+      "exports": [
+        "SearchTermPerformance",
+        "SearchTermPerformanceResult",
+        "SearchTermWasteFlag",
+        "SearchTermRecommendation",
+        "SearchTermWasteAnalysis",
+        "clearSearchTermCache",
+        "getSearchTermPerformance",
+        "getTopSearchTerms",
+        "getSearchTermsByCampaign",
+        "getSearchTermsByKeyword",
+        "getWasteSearchTerms",
+        "getSearchTermsSummary"
+      ],
+      "imports": [
+        "./ingest.js",
+        "../../core/currency.js"
+      ],
+      "linesOfCode": 444,
+      "lastModified": "2026-02-01T19:30:46.244Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/google-ads-expert/types.ts",
+      "relativePath": "skills/google-ads-expert/types.ts",
+      "type": "typescript",
+      "module": "skills/google-ads-expert",
+      "purpose": "GoogleAdsExpert - Unified Schema (Stable) Este schema es independiente del datasource (AdsScript o API).",
+      "exports": [
+        "CampaignStatus",
+        "DateRangeType",
+        "DataSourceType",
+        "CampaignMetrics",
+        "AdsIngestPayload",
+        "AdsDataRecord",
+        "IngestResponse",
+        "GoogleAdsExpertConfig",
+        "KeywordMatchType",
+        "KeywordMetrics",
+        "KeywordsIngestPayload",
+        "SearchTermMetrics",
+        "SearchTermsIngestPayload"
+      ],
+      "imports": [],
+      "linesOfCode": 238,
+      "lastModified": "2026-02-01T17:50:25.924Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/senior-dev/cli.ts",
+      "relativePath": "skills/senior-dev/cli.ts",
+      "type": "typescript",
+      "module": "skills/senior-dev",
+      "purpose": "CLI entry point",
+      "exports": [],
+      "imports": [
+        "./repo/indexer.js",
+        "./repo/navigator.js"
+      ],
+      "linesOfCode": 392,
+      "lastModified": "2026-02-01T21:57:28.113Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/senior-dev/index.ts",
+      "relativePath": "skills/senior-dev/index.ts",
+      "type": "typescript",
+      "module": "skills/senior-dev",
+      "purpose": "SeniorDev - Main Entry Point OpenClaw's Senior Developer / Tech Lead skill.",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 26,
+      "lastModified": "2026-02-01T21:44:34.150Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/senior-dev/repo/indexer.ts",
+      "relativePath": "skills/senior-dev/repo/indexer.ts",
+      "type": "typescript",
+      "module": "skills/senior-dev",
+      "purpose": "SeniorDev - Codebase Indexer Genera un índice estructurado del repositorio para que OpenClaw pueda navegar y entender el código.",
+      "exports": [
+        "indexCodebase",
+        "saveIndex",
+        "loadIndex",
+        "indexExists"
+      ],
+      "imports": [
+        "child_process",
+        "util",
+        "./types.js"
+      ],
+      "linesOfCode": 875,
+      "lastModified": "2026-02-01T21:57:33.586Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/senior-dev/repo/navigator.ts",
+      "relativePath": "skills/senior-dev/repo/navigator.ts",
+      "type": "typescript",
+      "module": "skills/senior-dev",
+      "purpose": "SeniorDev - Code Navigator Navega y busca en el índice del codebase para responder preguntas y encontrar código relevante.",
+      "exports": [
+        "find",
+        "explain",
+        "getModuleInfo",
+        "listModules",
+        "getSkillInfo",
+        "listSkills",
+        "listApis",
+        "getModuleDependencies"
+      ],
+      "imports": [
+        "./indexer.js"
+      ],
+      "linesOfCode": 456,
+      "lastModified": "2026-02-01T21:43:51.161Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/senior-dev/repo/types.ts",
+      "relativePath": "skills/senior-dev/repo/types.ts",
+      "type": "typescript",
+      "module": "skills/senior-dev",
+      "purpose": "SeniorDev - Repo Types Tipos internos para el indexador y navegador de repositorios.",
+      "exports": [
+        "ScanOptions",
+        "DEFAULT_EXCLUDE_DIRS",
+        "DEFAULT_INCLUDE_EXTENSIONS",
+        "ModuleDefinition",
+        "MODULE_DEFINITIONS",
+        "FileAnalysis",
+        "FILE_TYPE_MAP",
+        "ApiPatternMatch",
+        "SkillDirectoryInfo",
+        "GitInfo"
+      ],
+      "imports": [],
+      "linesOfCode": 119,
+      "lastModified": "2026-02-01T21:41:49.325Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/skills/senior-dev/types.ts",
+      "relativePath": "skills/senior-dev/types.ts",
+      "type": "typescript",
+      "module": "skills/senior-dev",
+      "purpose": "SeniorDev Skill - Types Tipos para el indexador de repositorios y navegador de código.",
+      "exports": [
+        "CodebaseIndex",
+        "ModuleType",
+        "ModuleInfo",
+        "FileType",
+        "FileInfo",
+        "DependencyGraph",
+        "SkillPattern",
+        "HttpMethod",
+        "ApiEndpoint",
+        "TableInfo",
+        "ComponentInfo",
+        "SearchResult",
+        "FileExplanation",
+        "ExportInfo",
+        "ImportInfo",
+        "FunctionInfo",
+        "TaskCodeMapping",
+        "Complexity",
+        "SuggestedChange",
+        "PrProposal",
+        "PrStatus",
+        "PrFileChange",
+        "EconomicJustification",
+        "ImpactType",
+        "IndexStatus"
+      ],
+      "imports": [],
+      "linesOfCode": 244,
+      "lastModified": "2026-02-01T21:41:38.556Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/tests/phase-0/run-tests.ts",
+      "relativePath": "tests/phase-0/run-tests.ts",
+      "type": "typescript",
+      "module": "tests",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [
+        "../../core/audit.js",
+        "../../core/permissions.js",
+        "../../core/router.js"
+      ],
+      "linesOfCode": 165,
+      "lastModified": "2026-01-31T14:19:44.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/tests/phase-1/run-tests.ts",
+      "relativePath": "tests/phase-1/run-tests.ts",
+      "type": "typescript",
+      "module": "tests",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [
+        "../../skills/db-reader/index.js",
+        "../../core/audit.js",
+        "../../skills/db-reader/validator.js"
+      ],
+      "linesOfCode": 169,
+      "lastModified": "2026-01-31T15:56:18.000Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/tsconfig.json",
+      "relativePath": "tsconfig.json",
+      "type": "json",
+      "module": "tsconfig.json",
+      "purpose": "Unknown purpose",
+      "exports": [],
+      "imports": [],
+      "linesOfCode": 16,
+      "lastModified": "2026-02-01T00:35:02.688Z"
+    },
+    {
+      "path": "/Users/crissavino/projects/openclaw/custom-skills/webhook-server.ts",
+      "relativePath": "webhook-server.ts",
+      "type": "typescript",
+      "module": "webhook-server.ts",
+      "purpose": "Webhook Server for Google Ads Ingest Expone POST /ingest/google-ads para recibir datos de Google Ads",
+      "exports": [],
+      "imports": [
+        "http",
+        "./skills/google-ads-expert/ingest.js"
+      ],
+      "linesOfCode": 146,
+      "lastModified": "2026-02-01T17:52:05.251Z"
+    }
+  ],
+  "dependencies": {
+    "dependencies": {
+      "config": [],
+      "core": [],
+      "dashboard": [
+        "config",
+        "skills/business-expert",
+        "skills/decision-engine",
+        "core",
+        "skills/google-ads-expert"
+      ],
+      "dashboard/frontend/src": [],
+      "package-lock.json": [],
+      "package.json": [],
+      "skills/business-expert": [
+        "core"
+      ],
+      "skills/dashboard-tasks": [
+        "dashboard"
+      ],
+      "skills/db-reader": [
+        "core"
+      ],
+      "skills/decision-engine": [
+        "core"
+      ],
+      "skills/google-ads-expert": [
+        "core",
+        "dashboard"
+      ],
+      "skills/senior-dev": [],
+      "tests": [
+        "core",
+        "skills/db-reader"
+      ],
+      "tsconfig.json": [],
+      "webhook-server.ts": [
+        "skills/google-ads-expert"
+      ]
+    },
+    "dependents": {
+      "config": [
+        "dashboard"
+      ],
+      "core": [
+        "dashboard",
+        "skills/business-expert",
+        "skills/db-reader",
+        "skills/decision-engine",
+        "skills/google-ads-expert",
+        "tests"
+      ],
+      "dashboard": [
+        "skills/dashboard-tasks",
+        "skills/google-ads-expert"
+      ],
+      "skills/business-expert": [
+        "dashboard"
+      ],
+      "skills/decision-engine": [
+        "dashboard"
+      ],
+      "skills/google-ads-expert": [
+        "dashboard",
+        "webhook-server.ts"
+      ],
+      "dashboard/frontend/src": [],
+      "package-lock.json": [],
+      "package.json": [],
+      "skills/dashboard-tasks": [],
+      "skills/db-reader": [
+        "tests"
+      ],
+      "skills/senior-dev": [],
+      "tests": [],
+      "tsconfig.json": [],
+      "webhook-server.ts": []
+    }
+  },
+  "patterns": {
+    "skills": [
+      {
+        "name": "admin-ops",
+        "path": "skills/admin-ops",
+        "hasIndex": false,
+        "hasCli": false,
+        "hasTypes": false,
+        "commands": [],
+        "exports": []
+      },
+      {
+        "name": "business-expert",
+        "path": "skills/business-expert",
+        "hasIndex": true,
+        "hasCli": true,
+        "hasTypes": true,
+        "commands": [
+          "summary",
+          "kpis",
+          "alerts"
+        ],
+        "exports": [
+          "generateExecutiveSummary",
+          "formatSummaryAsText",
+          "fetchRawMetrics",
+          "calculateCoreKpis",
+          "determineBusinessStatus",
+          "generateAlerts",
+          "getTopCampaigns"
+        ]
+      },
+      {
+        "name": "dashboard-tasks",
+        "path": "skills/dashboard-tasks",
+        "hasIndex": true,
+        "hasCli": true,
+        "hasTypes": false,
+        "commands": [
+          "list",
+          "take",
+          "complete",
+          "artifact",
+          "comment",
+          "status",
+          "get"
+        ],
+        "exports": [
+          "getTasks",
+          "getTaskById",
+          "updateTask",
+          "startRun",
+          "completeRun",
+          "createArtifact",
+          "addComment",
+          "getKanbanSummary",
+          "type Task",
+          "type TaskStatus",
+          "type TaskPriority",
+          "type ArtifactType",
+          "type TaskRun",
+          "type TaskArtifact",
+          "type TaskComment",
+          ""
+        ]
+      },
+      {
+        "name": "db-reader",
+        "path": "skills/db-reader",
+        "hasIndex": true,
+        "hasCli": true,
+        "hasTypes": true,
+        "commands": [],
+        "exports": []
+      },
+      {
+        "name": "decision-engine",
+        "path": "skills/decision-engine",
+        "hasIndex": true,
+        "hasCli": true,
+        "hasTypes": true,
+        "commands": [
+          "report",
+          "rules",
+          "evaluate"
+        ],
+        "exports": [
+          "generateWeeklyReport",
+          "formatReportAsText",
+          "evaluateRules",
+          "getTopActions",
+          "deduplicateDecisions",
+          "getDecisionRules",
+          "DECISION_RULES"
+        ]
+      },
+      {
+        "name": "dev-expert",
+        "path": "skills/dev-expert",
+        "hasIndex": false,
+        "hasCli": false,
+        "hasTypes": false,
+        "commands": [],
+        "exports": []
+      },
+      {
+        "name": "google-ads-expert",
+        "path": "skills/google-ads-expert",
+        "hasIndex": true,
+        "hasCli": true,
+        "hasTypes": true,
+        "commands": [],
+        "exports": [
+          "getDataSource",
+          "getConfiguredDataSource"
+        ]
+      },
+      {
+        "name": "senior-dev",
+        "path": "skills/senior-dev",
+        "hasIndex": true,
+        "hasCli": true,
+        "hasTypes": true,
+        "commands": [
+          "index",
+          "status",
+          "find",
+          "explain",
+          "modules",
+          "skills",
+          "apis",
+          "deps"
+        ],
+        "exports": [
+          "indexCodebase",
+          "saveIndex",
+          "loadIndex",
+          "indexExists",
+          "find",
+          "explain",
+          "listModules",
+          "listSkills",
+          "listApis",
+          "getModuleDependencies"
+        ]
+      }
+    ],
+    "apis": [
+      {
+        "method": "GET",
+        "path": "/api",
+        "file": "dashboard/server.ts",
+        "line": 109
+      },
+      {
+        "method": "GET",
+        "path": "/health",
+        "file": "dashboard/server.ts",
+        "line": 164
+      },
+      {
+        "method": "GET",
+        "path": "/api/currency/rates",
+        "file": "dashboard/server.ts",
+        "line": 173
+      },
+      {
+        "method": "POST",
+        "path": "/api/currency/refresh",
+        "file": "dashboard/server.ts",
+        "line": 185
+      },
+      {
+        "method": "GET",
+        "path": "/api/business/summary",
+        "file": "dashboard/server.ts",
+        "line": 212
+      },
+      {
+        "method": "GET",
+        "path": "/api/business/kpis",
+        "file": "dashboard/server.ts",
+        "line": 253
+      },
+      {
+        "method": "GET",
+        "path": "/api/business/raw",
+        "file": "dashboard/server.ts",
+        "line": 361
+      },
+      {
+        "method": "GET",
+        "path": "/api/decision/weekly-report",
+        "file": "dashboard/server.ts",
+        "line": 375
+      },
+      {
+        "method": "GET",
+        "path": "/api/decision/current",
+        "file": "dashboard/server.ts",
+        "line": 401
+      },
+      {
+        "method": "GET",
+        "path": "/api/decision/rules",
+        "file": "dashboard/server.ts",
+        "line": 425
+      },
+      {
+        "method": "GET",
+        "path": "/api/campaigns",
+        "file": "dashboard/server.ts",
+        "line": 484
+      },
+      {
+        "method": "GET",
+        "path": "/api/campaigns/actions",
+        "file": "dashboard/server.ts",
+        "line": 502
+      },
+      {
+        "method": "GET",
+        "path": "/api/campaigns/decisions",
+        "file": "dashboard/server.ts",
+        "line": 533
+      },
+      {
+        "method": "GET",
+        "path": "/api/campaigns/decisions/urgent",
+        "file": "dashboard/server.ts",
+        "line": 551
+      },
+      {
+        "method": "GET",
+        "path": "/api/keywords",
+        "file": "dashboard/server.ts",
+        "line": 579
+      },
+      {
+        "method": "GET",
+        "path": "/api/keywords/summary",
+        "file": "dashboard/server.ts",
+        "line": 650
+      },
+      {
+        "method": "GET",
+        "path": "/api/keywords/top",
+        "file": "dashboard/server.ts",
+        "line": 668
+      },
+      {
+        "method": "GET",
+        "path": "/api/keywords/underperforming",
+        "file": "dashboard/server.ts",
+        "line": 686
+      },
+      {
+        "method": "GET",
+        "path": "/api/keywords/waste",
+        "file": "dashboard/server.ts",
+        "line": 703
+      },
+      {
+        "method": "GET",
+        "path": "/api/keywords/by-campaign/:id",
+        "file": "dashboard/server.ts",
+        "line": 727
+      },
+      {
+        "method": "GET",
+        "path": "/api/search-terms",
+        "file": "dashboard/server.ts",
+        "line": 762
+      },
+      {
+        "method": "GET",
+        "path": "/api/search-terms/summary",
+        "file": "dashboard/server.ts",
+        "line": 836
+      },
+      {
+        "method": "GET",
+        "path": "/api/search-terms/top",
+        "file": "dashboard/server.ts",
+        "line": 854
+      },
+      {
+        "method": "GET",
+        "path": "/api/search-terms/waste",
+        "file": "dashboard/server.ts",
+        "line": 872
+      },
+      {
+        "method": "GET",
+        "path": "/api/search-terms/by-campaign/:id",
+        "file": "dashboard/server.ts",
+        "line": 897
+      },
+      {
+        "method": "GET",
+        "path": "/api/search-terms/by-keyword",
+        "file": "dashboard/server.ts",
+        "line": 922
+      },
+      {
+        "method": "GET",
+        "path": "/api/business/websites",
+        "file": "dashboard/server.ts",
+        "line": 960
+      },
+      {
+        "method": "GET",
+        "path": "/api/business/companies",
+        "file": "dashboard/server.ts",
+        "line": 974
+      },
+      {
+        "method": "GET",
+        "path": "/api/business/countries",
+        "file": "dashboard/server.ts",
+        "line": 988
+      },
+      {
+        "method": "GET",
+        "path": "/api/business/services",
+        "file": "dashboard/server.ts",
+        "line": 1002
+      },
+      {
+        "method": "GET",
+        "path": "/api/business/recommendations",
+        "file": "dashboard/server.ts",
+        "line": 1016
+      },
+      {
+        "method": "POST",
+        "path": "/api/snapshots",
+        "file": "dashboard/server.ts",
+        "line": 1034
+      },
+      {
+        "method": "GET",
+        "path": "/api/snapshots",
+        "file": "dashboard/server.ts",
+        "line": 1081
+      },
+      {
+        "method": "GET",
+        "path": "/api/tasks",
+        "file": "dashboard/server.ts",
+        "line": 1105
+      },
+      {
+        "method": "GET",
+        "path": "/api/tasks/:id",
+        "file": "dashboard/server.ts",
+        "line": 1140
+      },
+      {
+        "method": "POST",
+        "path": "/api/tasks",
+        "file": "dashboard/server.ts",
+        "line": 1161
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/tasks/:id",
+        "file": "dashboard/server.ts",
+        "line": 1194
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/tasks/:id",
+        "file": "dashboard/server.ts",
+        "line": 1228
+      },
+      {
+        "method": "POST",
+        "path": "/api/tasks/generate",
+        "file": "dashboard/server.ts",
+        "line": 1249
+      },
+      {
+        "method": "GET",
+        "path": "/api/tasks/generation-log",
+        "file": "dashboard/server.ts",
+        "line": 1319
+      },
+      {
+        "method": "GET",
+        "path": "/api/tasks/:id/details",
+        "file": "dashboard/server.ts",
+        "line": 1334
+      },
+      {
+        "method": "POST",
+        "path": "/api/tasks/:id/comments",
+        "file": "dashboard/server.ts",
+        "line": 1369
+      },
+      {
+        "method": "GET",
+        "path": "/api/tasks/:id/runs",
+        "file": "dashboard/server.ts",
+        "line": 1402
+      },
+      {
+        "method": "POST",
+        "path": "/api/tasks/:id/run",
+        "file": "dashboard/server.ts",
+        "line": 1418
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/runs/:id",
+        "file": "dashboard/server.ts",
+        "line": 1456
+      },
+      {
+        "method": "GET",
+        "path": "/api/tasks/:id/artifacts",
+        "file": "dashboard/server.ts",
+        "line": 1483
+      },
+      {
+        "method": "POST",
+        "path": "/api/tasks/:id/artifacts",
+        "file": "dashboard/server.ts",
+        "line": 1501
+      },
+      {
+        "method": "GET",
+        "path": "/api/discrepancies",
+        "file": "dashboard/server.ts",
+        "line": 1539
+      },
+      {
+        "method": "GET",
+        "path": "/api/discrepancies/summary",
+        "file": "dashboard/server.ts",
+        "line": 1575
+      },
+      {
+        "method": "GET",
+        "path": "/api/discrepancies/:id",
+        "file": "dashboard/server.ts",
+        "line": 1585
+      },
+      {
+        "method": "POST",
+        "path": "/api/discrepancies",
+        "file": "dashboard/server.ts",
+        "line": 1606
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/discrepancies/:id",
+        "file": "dashboard/server.ts",
+        "line": 1654
+      },
+      {
+        "method": "GET",
+        "path": "*",
+        "file": "dashboard/server.ts",
+        "line": 1694
+      }
+    ],
+    "dbTables": [
+      {
+        "name": "kpi_snapshots",
+        "file": "dashboard/migrations/001_init.sql",
+        "line": 21
+      },
+      {
+        "name": "tasks",
+        "file": "dashboard/migrations/001_init.sql",
+        "line": 58
+      },
+      {
+        "name": "task_comments",
+        "file": "dashboard/migrations/001_init.sql",
+        "line": 93
+      },
+      {
+        "name": "task_runs",
+        "file": "dashboard/migrations/001_init.sql",
+        "line": 114
+      },
+      {
+        "name": "task_artifacts",
+        "file": "dashboard/migrations/001_init.sql",
+        "line": 144
+      },
+      {
+        "name": "task_generation_log",
+        "file": "dashboard/migrations/002_kanban_enhancements.sql",
+        "line": 48
+      },
+      {
+        "name": "google_ads_campaign_metrics",
+        "file": "dashboard/migrations/005_google_ads_metrics.sql",
+        "line": 7
+      },
+      {
+        "name": "google_ads_keyword_metrics",
+        "file": "dashboard/migrations/006_google_ads_keywords.sql",
+        "line": 10
+      },
+      {
+        "name": "google_ads_search_terms",
+        "file": "dashboard/migrations/007_google_ads_search_terms.sql",
+        "line": 4
+      },
+      {
+        "name": "discrepancy_log",
+        "file": "dashboard/migrations/008_discrepancy_log.sql",
+        "line": 4
+      },
+      {
+        "name": "external",
+        "file": "core/currency.ts",
+        "line": 5
+      },
+      {
+        "name": "cron",
+        "file": "core/currency.ts",
+        "line": 10
+      },
+      {
+        "name": "any",
+        "file": "core/currency.ts",
+        "line": 71
+      },
+      {
+        "name": "EUR",
+        "file": "core/currency.ts",
+        "line": 79
+      },
+      {
+        "name": "timestamp",
+        "file": "core/currency.ts",
+        "line": 115
+      },
+      {
+        "name": "rates",
+        "file": "core/currency.ts",
+        "line": 130
+      },
+      {
+        "name": "admin",
+        "file": "core/currency.ts",
+        "line": 130
+      },
+      {
+        "name": "a",
+        "file": "core/currency.ts",
+        "line": 141
+      },
+      {
+        "name": "ECB",
+        "file": "core/currency.ts",
+        "line": 146
+      },
+      {
+        "name": "core",
+        "file": "dashboard/db.ts",
+        "line": 5
+      },
+      {
+        "name": "ads",
+        "schema": "avocodebo",
+        "file": "dashboard/frontend/src/api/client.ts",
+        "line": 179
+      },
+      {
+        "name": "DB",
+        "file": "dashboard/frontend/src/api/client.ts",
+        "line": 189
+      },
+      {
+        "name": "task",
+        "file": "dashboard/server.ts",
+        "line": 1193
+      },
+      {
+        "name": "DecisionEngine",
+        "file": "dashboard/server.ts",
+        "line": 1248
+      },
+      {
+        "name": "discrepancy",
+        "file": "dashboard/server.ts",
+        "line": 1653
+      },
+      {
+        "name": "Google",
+        "file": "skills/business-expert/analyzers/ads-analyzer.ts",
+        "line": 12
+      },
+      {
+        "name": "Script",
+        "file": "skills/business-expert/analyzers/business-aggregator.ts",
+        "line": 75
+      },
+      {
+        "name": "spendMap",
+        "file": "skills/business-expert/analyzers/business-aggregator.ts",
+        "line": 107
+      },
+      {
+        "name": "first",
+        "file": "skills/business-expert/analyzers/campaign-analyzer.ts",
+        "line": 122
+      },
+      {
+        "name": "DBReader",
+        "file": "skills/business-expert/types.ts",
+        "line": 182
+      },
+      {
+        "name": "status",
+        "file": "skills/dashboard-tasks/cli.ts",
+        "line": 99
+      },
+      {
+        "name": "subscriptions",
+        "schema": "avocode",
+        "file": "skills/db-reader/queries/active-subscriptions.ts",
+        "line": 12
+      },
+      {
+        "name": "campaigns",
+        "schema": "avocodebo",
+        "file": "skills/db-reader/queries/ad-spend-7d.ts",
+        "line": 18
+      },
+      {
+        "name": "separate",
+        "file": "skills/db-reader/queries/business-aggregations.ts",
+        "line": 42
+      },
+      {
+        "name": "google_ads_details",
+        "schema": "avocode",
+        "file": "skills/db-reader/queries/business-aggregations.ts",
+        "line": 48
+      },
+      {
+        "name": "invoices",
+        "schema": "avocode",
+        "file": "skills/db-reader/queries/business-aggregations.ts",
+        "line": 56
+      },
+      {
+        "name": "customers",
+        "schema": "avocode",
+        "file": "skills/db-reader/queries/business-aggregations.ts",
+        "line": 85
+      },
+      {
+        "name": "websites",
+        "schema": "avocode",
+        "file": "skills/db-reader/queries/business-aggregations.ts",
+        "line": 100
+      },
+      {
+        "name": "companies",
+        "schema": "avocode",
+        "file": "skills/db-reader/queries/business-aggregations.ts",
+        "line": 185
+      },
+      {
+        "name": "countries",
+        "schema": "avocode",
+        "file": "skills/db-reader/queries/business-aggregations.ts",
+        "line": 270
+      },
+      {
+        "name": "on",
+        "file": "skills/db-reader/queries/campaign-metrics.ts",
+        "line": 12
+      },
+      {
+        "name": "avocode",
+        "file": "skills/db-reader/queries/daily-revenue.ts",
+        "line": 8
+      },
+      {
+        "name": "avocodebo",
+        "file": "skills/db-reader/queries/daily-revenue.ts",
+        "line": 9
+      },
+      {
+        "name": "paid",
+        "file": "skills/db-reader/queries/daily-revenue.ts",
+        "line": 13
+      },
+      {
+        "name": "invoice_types",
+        "schema": "avocode",
+        "file": "skills/db-reader/queries/daily-revenue.ts",
+        "line": 32
+      },
+      {
+        "name": "zoho_refunds",
+        "schema": "avocodebo",
+        "file": "skills/db-reader/queries/daily-revenue.ts",
+        "line": 47
+      },
+      {
+        "name": "zoho_credit_notes",
+        "schema": "avocodebo",
+        "file": "skills/db-reader/queries/daily-revenue.ts",
+        "line": 48
+      },
+      {
+        "name": "zoho_customers",
+        "schema": "avocodebo",
+        "file": "skills/db-reader/queries/daily-revenue.ts",
+        "line": 49
+      },
+      {
+        "name": "zoho_one_shot_customers",
+        "schema": "avocodebo",
+        "file": "skills/db-reader/queries/daily-revenue.ts",
+        "line": 50
+      },
+      {
+        "name": "centralized",
+        "file": "skills/db-reader/queries/ltv-30d.ts",
+        "line": 18
+      },
+      {
+        "name": "Zoho",
+        "file": "skills/db-reader/queries/ltv-windows.ts",
+        "line": 87
+      },
+      {
+        "name": "zoho_invoices",
+        "schema": "avocodebo",
+        "file": "skills/db-reader/queries/ltv-windows.ts",
+        "line": 93
+      },
+      {
+        "name": "documents",
+        "schema": "avocode",
+        "file": "skills/db-reader/queries/usage-before-rebill2-7d.ts",
+        "line": 23
+      },
+      {
+        "name": "dateRange",
+        "file": "skills/google-ads-expert/ingest.ts",
+        "line": 46
+      },
+      {
+        "name": "counts",
+        "file": "skills/google-ads-expert/ingest.ts",
+        "line": 151
+      },
+      {
+        "name": "database",
+        "file": "skills/google-ads-expert/keywords-analyzer.ts",
+        "line": 123
+      },
+      {
+        "name": "the",
+        "file": "skills/google-ads-expert/types.ts",
+        "line": 158
+      },
+      {
+        "name": "origin",
+        "file": "skills/google-ads-expert/types.ts",
+        "line": 180
+      },
+      {
+        "name": "LAST_X_DAYS",
+        "file": "skills/google-ads-expert/types.ts",
+        "line": 232
+      },
+      {
+        "name": "codebase",
+        "file": "skills/senior-dev/cli.ts",
+        "line": 9
+      },
+      {
+        "name": "source",
+        "file": "skills/senior-dev/cli.ts",
+        "line": 41
+      },
+      {
+        "name": "ts",
+        "schema": "index",
+        "file": "skills/senior-dev/repo/indexer.ts",
+        "line": 474
+      },
+      {
+        "name": "table_name",
+        "file": "skills/senior-dev/repo/indexer.ts",
+        "line": 695
+      }
+    ],
+    "components": [
+      {
+        "name": "Icon",
+        "path": "dashboard/frontend/src/components/StatusBadge.tsx",
+        "type": "react",
+        "exports": [
+          "Icon"
+        ]
+      }
+    ]
+  }
+}

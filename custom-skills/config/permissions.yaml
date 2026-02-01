@@ -63,6 +63,25 @@ skills:
     prohibited:
       - execute_changes
 
+  senior-dev:
+    enabled: true
+    mode: advisory  # Solo propone, no ejecuta
+    permissions:
+      - read_code
+      - analyze_code
+      - index_codebase
+      - propose_changes
+      - create_pr_draft
+    prohibited:
+      - git_push
+      - git_merge
+      - deploy
+      - delete_files
+      - modify_production
+    repo_access:
+      - path: "custom-skills"
+        access: read-only
+
   admin-ops:
     enabled: true
     permissions:

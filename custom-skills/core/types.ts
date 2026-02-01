@@ -42,6 +42,7 @@ export type SkillId =
   | "google-ads-expert"
   | "business-expert"
   | "dev-expert"
+  | "senior-dev"
   | "admin-ops";
 
 export type SystemComponent = "router" | "audit" | "permissions";

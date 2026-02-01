@@ -23,6 +23,13 @@ const SKILL_PATTERNS: Record<Exclude<SkillId, "system">, RegExp[]> = {
   "dev-expert": [
     /\b(código|code|repo|github|pr|pull\s*request|arquitectura|refactor|bug|file|archivo)\b/i,
   ],
+  "senior-dev": [
+    /\b(codebase|index|indexar|módulo|module|skill|implementar|implement)\b/i,
+    /\b(proponer|propose|pr\s*proposal|tech\s*lead|senior\s*dev)\b/i,
+    /\b(analizar\s*código|analyze\s*code|code\s*review|revisar\s*código)\b/i,
+    /\b(dependencias?|dependencies?|arquitectura|architecture)\b/i,
+    /\b(impacto\s*económico|economic\s*impact|roi|justificación)\b/i,
+  ],
   "admin-ops": [
     /\b(tarea|task|pendiente|recordatorio|reminder|checklist|organizar|admin)\b/i,
     /\b(redactar|borrador|draft)\s+(de\s+)?(email|mensaje|mail|message)\b/i,
@@ -54,6 +61,7 @@ export class SkillRouter {
       "google-ads-expert": 0,
       "business-expert": 0,
       "dev-expert": 0,
+      "senior-dev": 0,
       "admin-ops": 0,
     };
 
