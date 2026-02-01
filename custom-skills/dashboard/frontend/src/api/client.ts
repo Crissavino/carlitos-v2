@@ -347,6 +347,24 @@ export const api = {
   getUnderperformingKeywords: () => fetchAPI<{ count: number; keywords: KeywordPerformance[] }>('/keywords/underperforming'),
   getKeywordsWaste: () => fetchAPI<KeywordsWasteResult>('/keywords/waste'),
   getKeywordsByCampaign: (campaignId: string) => fetchAPI<{ campaignId: string; count: number; keywords: KeywordPerformance[] }>(`/keywords/by-campaign/${campaignId}`),
+
+  // Search Terms (Phase 8B)
+  getSearchTerms: (params?: SearchTermsQueryParams) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', params.page.toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    if (params?.minSpend) query.set('minSpend', params.minSpend.toString());
+    if (params?.hasSpend !== undefined) query.set('hasSpend', params.hasSpend.toString());
+    if (params?.campaign) query.set('campaign', params.campaign);
+    if (params?.status) query.set('status', params.status);
+    const queryString = query.toString();
+    return fetchAPI<SearchTermPerformanceResult>(`/search-terms${queryString ? '?' + queryString : ''}`);
+  },
+  getSearchTermsSummary: () => fetchAPI<SearchTermsSummary>('/search-terms/summary'),
+  getTopSearchTerms: (limit = 20) => fetchAPI<{ count: number; searchTerms: SearchTermPerformance[] }>(`/search-terms/top?limit=${limit}`),
+  getSearchTermsWaste: () => fetchAPI<SearchTermsWasteResult>('/search-terms/waste'),
+  getSearchTermsByCampaign: (campaignId: string) => fetchAPI<{ campaignId: string; count: number; searchTerms: SearchTermPerformance[] }>(`/search-terms/by-campaign/${campaignId}`),
+  getSearchTermsByKeyword: (keyword: string) => fetchAPI<{ keywordText: string; count: number; searchTerms: SearchTermPerformance[] }>(`/search-terms/by-keyword?keyword=${encodeURIComponent(keyword)}`),
 };
 
 // ============================================================================
@@ -604,4 +622,104 @@ export interface KeywordsWasteResult {
     SPEND_CONCENTRATION: number;
   };
   keywords: KeywordWasteAnalysis[];
+}
+
+// ============================================================================
+// Search Terms (Phase 8B)
+// ============================================================================
+
+export type SearchTermWasteFlag =
+  | 'HIGH_SPEND_ZERO_CONV'
+  | 'HIGH_SPEND_LOW_CONV'
+  | 'SPEND_CONCENTRATION'
+  | 'REPEAT_WASTE';
+
+export type SearchTermRecommendation =
+  | 'NEGATIVE_SUGGESTION'
+  | 'INTENT_MISMATCH'
+  | 'REVIEW_MATCH_TYPE'
+  | 'PROMOTE_TO_KEYWORD'
+  | 'MONITOR';
+
+export type SearchTermPerformanceStatus = 'good' | 'warning' | 'poor';
+
+export interface SearchTermPerformance {
+  searchTerm: string;
+  keywordText: string;
+  matchType: string;
+  campaignId: string;
+  campaignName: string;
+  adGroupId: string;
+  adGroupName: string;
+  spend: number;
+  clicks: number;
+  impressions: number;
+  conversions: number;
+  conversionValue: number;
+  ctr: number;
+  conversionRate: number;
+  performanceStatus: SearchTermPerformanceStatus;
+  recommendation: SearchTermRecommendation | null;
+}
+
+export interface SearchTermWasteAnalysis {
+  searchTerm: SearchTermPerformance;
+  wasteFlags: SearchTermWasteFlag[];
+  wastedSpend: number;
+  recommendation: SearchTermRecommendation;
+  rationale: string;
+}
+
+export interface SearchTermsQueryParams {
+  page?: number;
+  limit?: number;
+  minSpend?: number;
+  hasSpend?: boolean;
+  campaign?: string;
+  status?: string;
+}
+
+export interface SearchTermPerformanceResult {
+  fetchedAt: string;
+  dateRange: string;
+  currency: string;
+  totalSearchTerms: number;
+  totalSpend: number;
+  searchTerms: SearchTermPerformance[];
+  filteredCount?: number;
+  pagination?: {
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  filters?: {
+    hasSpend: boolean;
+    minSpend: number;
+    campaign: string | null;
+    status: string | null;
+  };
+}
+
+export interface SearchTermsSummary {
+  totalSearchTerms: number;
+  totalSpend: number;
+  searchTermsWithConversions: number;
+  searchTermsWithZeroConversions: number;
+  wasteSearchTermsCount: number;
+  estimatedWaste: number;
+  intentMismatchCount: number;
+}
+
+export interface SearchTermsWasteResult {
+  count: number;
+  totalEstimatedWaste: number;
+  byFlag: {
+    HIGH_SPEND_ZERO_CONV: number;
+    HIGH_SPEND_LOW_CONV: number;
+    SPEND_CONCENTRATION: number;
+    REPEAT_WASTE: number;
+  };
+  searchTerms: SearchTermWasteAnalysis[];
 }

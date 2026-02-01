@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2, Key } from 'lucide-react';
+import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2, Key, Search } from 'lucide-react';
 import { Executive } from './pages/Executive';
 import { Kanban } from './pages/Kanban';
 import { Campaigns } from './pages/Campaigns';
 import { BusinessViews } from './pages/BusinessViews';
 import { Keywords } from './pages/Keywords';
+import { SearchTerms } from './pages/SearchTerms';
 
-type Page = 'executive' | 'kanban' | 'campaigns' | 'keywords' | 'business';
+type Page = 'executive' | 'kanban' | 'campaigns' | 'keywords' | 'search-terms' | 'business';
 
 function App() {
   const [page, setPage] = useState<Page>('executive');
@@ -68,6 +69,17 @@ function App() {
                 Keywords
               </button>
               <button
+                onClick={() => setPage('search-terms')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  page === 'search-terms'
+                    ? 'bg-gray-800 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                }`}
+              >
+                <Search className="w-4 h-4" />
+                Search Terms
+              </button>
+              <button
                 onClick={() => setPage('business')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
                   page === 'business'
@@ -89,6 +101,7 @@ function App() {
         {page === 'kanban' && <Kanban />}
         {page === 'campaigns' && <Campaigns />}
         {page === 'keywords' && <Keywords />}
+        {page === 'search-terms' && <SearchTerms />}
         {page === 'business' && <BusinessViews />}
       </main>
     </div>
