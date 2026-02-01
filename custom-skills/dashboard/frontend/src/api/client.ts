@@ -39,11 +39,20 @@ export interface BusinessSummary {
   period: { start: string; end: string };
   financials: { netRevenueEur: number; adSpendEur: number };
   kpis: {
+    // Core KPIs (decisores)
     frr: KpiValue;
     cpfr: KpiValue;
     srr: KpiValue;
-    ur2: KpiValue & { isDiagnostic: boolean };
     netRoas: KpiValue;
+    // Payback Windows (Phase 6.1)
+    payback21d: KpiValue;  // Warning temprano (R1)
+    payback51d: KpiValue;  // Decisor (R2 completo)
+    // LTV Windows
+    ltv21d: KpiValue;
+    ltv51d: KpiValue;
+    // Diagnóstico (no decisor)
+    ur2: KpiValue & { isDiagnostic: boolean };
+    // Legacy (referencia histórica)
     ltv30d: KpiValue;
     paybackRatio: KpiValue;
   };
