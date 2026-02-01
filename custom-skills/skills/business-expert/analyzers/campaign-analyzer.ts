@@ -1,18 +1,18 @@
 /**
  * Campaign Analyzer - Phase 7
  *
- * Combina datos de Google Ads Script (JSONL) con datos de atribución (DB).
+ * Combina datos de Google Ads Script (DB) con datos de atribución (DB).
  *
- * FUENTES DE DATOS:
- * - Google Ads Script (JSONL): spend, clicks, impressions, conversions, CPA
- *   → Fuente de verdad para métricas de ads
- * - DB (google_ads_details → invoices): acquisitions, revenue, LTV
- *   → Fuente de verdad para revenue real
+ * FUENTES DE DATOS (arquitectura definitiva):
+ * - google_ads_campaign_metrics: spend, clicks, impressions, conversions
+ *   → FUENTE DE VERDAD para COSTO (viene de Google Ads Scripts)
+ * - google_ads_details → invoices: acquisitions, revenue, LTV
+ *   → FUENTE DE VERDAD para ATRIBUCIÓN y REVENUE
  *
  * JOIN KEY: campaignId (script) = utm_campaign (google_ads_details)
  */
 
-import { getLatestRecord, readRecords } from "../../google-ads-expert/ingest.js";
+import { getCampaignSpend, hasCampaignData, type CampaignSpendData } from "../../google-ads-expert/ingest.js";
 import { executeQuery } from "../../db-reader/executor.js";
 import { CurrencyConverter } from "../../../core/currency.js";
 
@@ -26,7 +26,7 @@ export interface CampaignMetrics {
   campaignName: string;
   status: string;
 
-  // From Google Ads Script (source of truth for ads metrics)
+  // From Google Ads Script (SOURCE OF TRUTH for cost)
   spend7d: number;          // EUR
   clicks: number;
   impressions: number;
@@ -35,7 +35,7 @@ export interface CampaignMetrics {
   cpc: number;
   googleCpa: number;         // CPA de Google (spend / conversions)
 
-  // From DB Attribution (source of truth for revenue)
+  // From DB Attribution (SOURCE OF TRUTH for revenue)
   acquisitions: number;      // Customers atribuidos vía utm_campaign
   firstRebills: number;      // Customers con invoice tipo 2
   cohort21dSize: number;
@@ -60,6 +60,10 @@ export interface CampaignPerformanceResult {
   currency: string;
   totalCampaigns: number;
   campaigns: CampaignMetrics[];
+  dataSource: {
+    spend: 'google-ads-script';
+    attribution: 'database';
+  };
 }
 
 // ============================================================================
@@ -84,7 +88,7 @@ export function clearCampaignCache(): void {
 // ============================================================================
 
 /**
- * Get enriched campaign metrics combining Google Ads data with DB attribution
+ * Get enriched campaign metrics combining Google Ads Script data with DB attribution
  */
 export async function getCampaignPerformance(): Promise<CampaignPerformanceResult | null> {
   // Check cache
@@ -95,28 +99,38 @@ export async function getCampaignPerformance(): Promise<CampaignPerformanceResul
 
   console.log("[CampaignAnalyzer] Cache miss - fetching data...");
 
-  // 1. Get campaign data from Google Ads Script (JSONL)
-  const adsRecord = getLatestRecord();
-  if (!adsRecord || !adsRecord.payload || !adsRecord.payload.campaigns) {
-    console.log("[CampaignAnalyzer] No Google Ads data available");
+  // 1. Get campaign COST data from google_ads_campaign_metrics (7d window)
+  const spendData = await getCampaignSpend('7d');
+
+  if (spendData.length === 0) {
+    // Check if we have any data at all
+    const hasData = await hasCampaignData();
+    if (!hasData) {
+      console.log("[CampaignAnalyzer] No Google Ads Script data in database");
+      console.log("[CampaignAnalyzer] Ensure the script is sending data to /ingest/google-ads");
+      return null;
+    }
+    console.log("[CampaignAnalyzer] No recent campaign data found");
     return null;
   }
 
-  const scriptCampaigns = adsRecord.payload.campaigns;
-  const currency = adsRecord.payload.currency || 'EUR';
-  const dateRange = adsRecord.payload.dateRange || 'LAST_7_DAYS';
+  console.log(`[CampaignAnalyzer] Found ${spendData.length} campaigns from Google Ads Script`);
 
-  // 2. Get attribution data from DB for all campaigns
-  const campaignIds = scriptCampaigns.map((c: any) => c.campaignId).filter(Boolean);
-  const attributionData = await getAttributionData(campaignIds);
+  // 2. Get ATTRIBUTION data from DB for all campaigns
+  const attributionData = await getAttributionData();
 
-  // 3. Combine both sources
+  // 3. Determine currency from first campaign (should all be same)
+  const currency = spendData[0]?.currency || 'EUR';
+  const dateRange = spendData[0]?.dateRange || '7d';
+
+  // 4. Combine both sources
   const campaigns: CampaignMetrics[] = [];
 
-  for (const sc of scriptCampaigns) {
-    const campaignId = sc.campaignId;
+  for (const sc of spendData) {
+    const campaignId = String(sc.campaignId || '');
     if (!campaignId) continue;
 
+    // Look up attribution by campaignId
     const attr = attributionData[campaignId] || {
       acquisitions: 0,
       firstRebills: 0,
@@ -124,11 +138,11 @@ export async function getCampaignPerformance(): Promise<CampaignPerformanceResul
       cohort51dSize: 0,
       ltv21d: 0,
       ltv51d: 0,
-      firstAcquisitionDate: null,
+      campaignAgeDays: 0,
     };
 
     // Convert spend to EUR if needed
-    const spendEur = CurrencyConverter.toEur(sc.cost || 0, currency);
+    const spendEur = CurrencyConverter.toEur(sc.cost, currency);
 
     // Calculate CPFR (spend / first rebills)
     const cpfr = attr.firstRebills > 0 ? spendEur / attr.firstRebills : 0;
@@ -137,33 +151,28 @@ export async function getCampaignPerformance(): Promise<CampaignPerformanceResul
     const payback21d = cpfr > 0 ? attr.ltv21d / cpfr : 0;
     const payback51d = cpfr > 0 ? attr.ltv51d / cpfr : 0;
 
-    // Calculate campaign age
-    const campaignAgeDays = attr.firstAcquisitionDate
-      ? Math.floor((Date.now() - new Date(attr.firstAcquisitionDate).getTime()) / (1000 * 60 * 60 * 24))
-      : 0;
-
     // Determine status and recommendation
     const { status, recommendation } = getPaybackStatusAndRecommendation(
       payback51d,
-      campaignAgeDays,
+      attr.campaignAgeDays,
       attr.cohort51dSize
     );
 
     campaigns.push({
       campaignId,
       campaignName: sc.campaignName || 'Unknown',
-      status: sc.status || 'UNKNOWN',
+      status: sc.campaignStatus || 'UNKNOWN',
 
-      // From Google Ads Script
+      // From Google Ads Script (cost metrics)
       spend7d: Math.round(spendEur * 100) / 100,
       clicks: sc.clicks || 0,
       impressions: sc.impressions || 0,
       conversionsGoogle: sc.conversions || 0,
       ctr: sc.ctr || 0,
-      cpc: sc.cpc || 0,
+      cpc: sc.cpc ? CurrencyConverter.toEur(sc.cpc, currency) : 0,
       googleCpa: sc.conversions > 0 ? Math.round((spendEur / sc.conversions) * 100) / 100 : 0,
 
-      // From DB Attribution
+      // From DB Attribution (revenue metrics)
       acquisitions: attr.acquisitions,
       firstRebills: attr.firstRebills,
       cohort21dSize: attr.cohort21dSize,
@@ -171,11 +180,11 @@ export async function getCampaignPerformance(): Promise<CampaignPerformanceResul
       ltv21d: attr.ltv21d,
       ltv51d: attr.ltv51d,
 
-      // Calculated
+      // Calculated (crossing both worlds)
       cpfr: Math.round(cpfr * 100) / 100,
       payback21d: Math.round(payback21d * 100) / 100,
       payback51d: Math.round(payback51d * 100) / 100,
-      campaignAgeDays,
+      campaignAgeDays: attr.campaignAgeDays,
 
       // Status
       payback51dStatus: status,
@@ -188,10 +197,14 @@ export async function getCampaignPerformance(): Promise<CampaignPerformanceResul
 
   const result: CampaignPerformanceResult = {
     fetchedAt: new Date().toISOString(),
-    dateRange,
+    dateRange: `LAST_${dateRange.toUpperCase()}`,
     currency,
     totalCampaigns: campaigns.length,
     campaigns,
+    dataSource: {
+      spend: 'google-ads-script',
+      attribution: 'database',
+    },
   };
 
   // Cache result
@@ -201,7 +214,7 @@ export async function getCampaignPerformance(): Promise<CampaignPerformanceResul
 }
 
 // ============================================================================
-// ATTRIBUTION DATA
+// ATTRIBUTION DATA (from DB)
 // ============================================================================
 
 interface AttributionDataMap {
@@ -212,25 +225,20 @@ interface AttributionDataMap {
     cohort51dSize: number;
     ltv21d: number;
     ltv51d: number;
-    firstAcquisitionDate: string | null;
+    campaignAgeDays: number;
   };
 }
 
 /**
- * Get attribution data from DB for given campaign IDs
+ * Get attribution data from DB for all campaigns
  * Uses google_ads_details → customers → invoices chain
  */
-async function getAttributionData(campaignIds: string[]): Promise<AttributionDataMap> {
-  if (campaignIds.length === 0) return {};
-
-  // Execute single query to get all attribution data
-  // Note: This is a custom query, not going through the standard executeQuery
-  // because we need to pass dynamic campaign IDs
-
+async function getAttributionData(): Promise<AttributionDataMap> {
+  // Execute the campaign-performance query to get attribution data
   const result = await executeQuery("campaign-performance");
 
   if (result.status !== "success" || !result.results) {
-    console.log("[CampaignAnalyzer] Failed to get attribution data:", result.error);
+    console.log("[CampaignAnalyzer] Failed to get attribution data from DB:", result.error);
     return {};
   }
 
@@ -238,19 +246,21 @@ async function getAttributionData(campaignIds: string[]): Promise<AttributionDat
   const dataMap: AttributionDataMap = {};
 
   for (const row of rows) {
-    const campaignId = row.google_campaign_id;
+    const campaignId = String(row.google_campaign_id || '');
     if (!campaignId) continue;
 
     dataMap[campaignId] = {
-      acquisitions: row.total_acquisitions || 0,
-      firstRebills: row.total_first_rebills || 0,
-      cohort21dSize: row.cohort_21d_size || 0,
-      cohort51dSize: row.cohort_51d_size || 0,
+      acquisitions: parseInt(row.total_acquisitions) || 0,
+      firstRebills: parseInt(row.total_first_rebills) || 0,
+      cohort21dSize: parseInt(row.cohort_21d_size) || 0,
+      cohort51dSize: parseInt(row.cohort_51d_size) || 0,
       ltv21d: parseFloat(row.ltv_21d) || 0,
       ltv51d: parseFloat(row.ltv_51d) || 0,
-      firstAcquisitionDate: row.started_at || null,
+      campaignAgeDays: parseInt(row.campaign_age_days) || 0,
     };
   }
+
+  console.log(`[CampaignAnalyzer] Loaded attribution data for ${Object.keys(dataMap).length} campaigns from DB`);
 
   return dataMap;
 }
@@ -268,7 +278,7 @@ function getPaybackStatusAndRecommendation(
   if (campaignAgeDays < 51) {
     return {
       status: 'yellow',
-      recommendation: `Monitorear (${51 - campaignAgeDays}d para datos completos)`,
+      recommendation: `Monitorear (${Math.max(0, 51 - campaignAgeDays)}d para datos completos)`,
     };
   }
 
@@ -277,6 +287,14 @@ function getPaybackStatusAndRecommendation(
     return {
       status: 'yellow',
       recommendation: `Muestra pequeña (n=${cohort51dSize})`,
+    };
+  }
+
+  // No payback (no CPFR or no LTV)
+  if (payback51d === 0) {
+    return {
+      status: 'yellow',
+      recommendation: 'Sin datos de Payback',
     };
   }
 
@@ -322,6 +340,7 @@ export async function getCampaignsToPause(): Promise<CampaignMetrics[]> {
   return data.campaigns.filter(c =>
     c.campaignAgeDays >= 51 &&
     c.cohort51dSize >= 10 &&
+    c.payback51d > 0 &&
     c.payback51d < 0.7 &&
     c.status === 'ENABLED'
   );

@@ -1,42 +1,56 @@
 #!/usr/bin/env node
 /**
  * Google Ads Expert CLI
- * Usage: 
- *   node cli.js latest
- *   node cli.js date <YYYY-MM-DD>
+ * Usage:
+ *   node cli.js latest           - Get latest campaign spend data (7d)
+ *   node cli.js spend30d         - Get 30d campaign spend data
+ *   node cli.js check            - Check if there's any campaign data
  */
 
-import { getLatestRecord, readRecords } from "./ingest.js";
+import { getCampaignSpend, hasCampaignData } from "./ingest.js";
 
 const command = process.argv[2];
 
-if (!command) {
-  console.error("Usage:");
-  console.error("  node cli.js latest           - Get latest ingested data");
-  console.error("  node cli.js date <YYYY-MM-DD> - Get data for specific date");
+async function main() {
+  if (!command) {
+    console.error("Usage:");
+    console.error("  node cli.js latest    - Get latest campaign spend data (7d)");
+    console.error("  node cli.js spend30d  - Get 30d campaign spend data");
+    console.error("  node cli.js check     - Check if there's any campaign data");
+    process.exit(1);
+  }
+
+  if (command === "latest") {
+    const data = await getCampaignSpend('7d');
+    if (data.length === 0) {
+      console.log(JSON.stringify({ error: "No campaign data found" }));
+      process.exit(1);
+    }
+    console.log(JSON.stringify({ count: data.length, campaigns: data }, null, 2));
+    process.exit(0);
+  }
+
+  if (command === "spend30d") {
+    const data = await getCampaignSpend('30d');
+    if (data.length === 0) {
+      console.log(JSON.stringify({ error: "No 30d campaign data found" }));
+      process.exit(1);
+    }
+    console.log(JSON.stringify({ count: data.length, campaigns: data }, null, 2));
+    process.exit(0);
+  }
+
+  if (command === "check") {
+    const hasData = await hasCampaignData();
+    console.log(JSON.stringify({ hasData }));
+    process.exit(hasData ? 0 : 1);
+  }
+
+  console.error("Unknown command: " + command);
   process.exit(1);
 }
 
-if (command === "latest") {
-  const record = getLatestRecord();
-  if (!record) {
-    console.log(JSON.stringify({ error: "No data ingested yet" }));
-    process.exit(1);
-  }
-  console.log(JSON.stringify(record, null, 2));
-  process.exit(0);
-}
-
-if (command === "date") {
-  const date = process.argv[3];
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    console.error("Error: Invalid date format. Use YYYY-MM-DD");
-    process.exit(1);
-  }
-  const records = readRecords(date);
-  console.log(JSON.stringify({ date, records }, null, 2));
-  process.exit(0);
-}
-
-console.error("Unknown command: " + command);
-process.exit(1);
+main().catch(err => {
+  console.error("Error:", err.message);
+  process.exit(1);
+});

@@ -176,8 +176,9 @@ export interface CampaignMetrics {
   campaignName: string;
   status: string;
 
-  // From Google Ads Script
+  // From avocodebo.ads (spend)
   spend7d: number;
+  spend30d: number;
   clicks: number;
   impressions: number;
   conversionsGoogle: number;
@@ -185,8 +186,9 @@ export interface CampaignMetrics {
   cpc: number;
   googleCpa: number;
 
-  // From DB Attribution
+  // From DB Attribution (google_ads_details → invoices)
   acquisitions: number;
+  acquisitions30d: number;
   firstRebills: number;
   cohort21dSize: number;
   cohort51dSize: number;
