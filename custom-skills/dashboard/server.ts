@@ -34,11 +34,23 @@ import {
   saveSnapshot,
   getSnapshots,
   createTask,
+  createTaskWithDedupe,
   getTasks,
   getTaskById,
   updateTask,
   deleteTask,
   getKanbanSummary,
+  addComment,
+  getComments,
+  startRun,
+  completeRun,
+  getRuns,
+  createArtifact,
+  getArtifacts,
+  logGeneration,
+  getGenerationLogs,
+  generateDedupeKey,
+  getISOWeek,
   type KpiSnapshot,
   type Task,
   type TaskStatus,
@@ -538,9 +550,11 @@ app.delete("/api/tasks/:id", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/tasks/generate - Generate tasks from DecisionEngine
+// POST /api/tasks/generate - Generate tasks from DecisionEngine (with dedupe)
 app.post("/api/tasks/generate", async (req: Request, res: Response) => {
   try {
+    const { triggerType = "manual" } = req.body;
+
     const raw = await fetchRawMetrics();
     if (!raw) {
       res.status(500).json({ error: "Failed to fetch metrics" });
@@ -548,43 +562,274 @@ app.post("/api/tasks/generate", async (req: Request, res: Response) => {
     }
 
     const kpis = calculateCoreKpis(raw);
+    const businessStatus = determineBusinessStatus(kpis);
     const decisions = evaluateRules(kpis);
     const topActions = getTopActions(decisions, 5);
 
+    const { week, year } = getISOWeek();
     const created: Task[] = [];
+    let skipped = 0;
 
     for (const action of topActions) {
-      // Check if task already exists for this rule
-      const existing = await getTasks({ source: "decision_engine" });
-      const alreadyExists = existing.some(
-        (t) => t.decision_rule_id === action.ruleId && t.status !== "done" && t.status !== "archived"
-      );
+      const dedupeKey = generateDedupeKey(action.ruleId, week, year);
 
-      if (!alreadyExists) {
-        const newTask: Omit<Task, "id" | "created_at" | "updated_at"> = {
-          title: action.action,
-          description: `Auto-generated from DecisionEngine rule: ${action.ruleName}\n\nRationale: ${action.rationale}`,
-          status: "backlog",
-          priority: action.priority as any,
-          source: "decision_engine",
-          decision_rule_id: action.ruleId,
-          area: action.area,
-        };
+      const newTask: Omit<Task, "id" | "created_at" | "updated_at"> = {
+        title: action.action,
+        description: `**Auto-generated from DecisionEngine**\n\n**Rule:** ${action.ruleName}\n\n**Rationale:** ${action.rationale}\n\n**Week:** ${year}-W${week.toString().padStart(2, "0")}`,
+        status: "backlog",
+        priority: action.priority as Task["priority"],
+        source: "decision_engine",
+        decision_rule_id: action.ruleId,
+        dedupe_key: dedupeKey,
+        area: action.area,
+      };
 
-        const id = await createTask(newTask);
-        const task = await getTaskById(id);
+      const result = await createTaskWithDedupe(newTask);
+      if (result.created) {
+        const task = await getTaskById(result.id);
         if (task) created.push(task);
+      } else {
+        skipped++;
       }
     }
+
+    // Log the generation
+    await logGeneration({
+      source: "decision_engine",
+      trigger_type: triggerType,
+      rules_evaluated: decisions.length,
+      tasks_created: created.length,
+      tasks_skipped: skipped,
+      business_status: businessStatus,
+    });
 
     res.json({
       success: true,
       data: {
+        week: `${year}-W${week.toString().padStart(2, "0")}`,
+        businessStatus,
         evaluated: decisions.length,
         topActions: topActions.length,
         created: created.length,
+        skipped,
         tasks: created,
       },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/tasks/generation-log - Get task generation history
+app.get("/api/tasks/generation-log", async (req: Request, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 10;
+    const logs = await getGenerationLogs(limit);
+    res.json({ success: true, data: logs });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// ============================================================================
+// TASK DETAILS (Comments, Runs, Artifacts)
+// ============================================================================
+
+// GET /api/tasks/:id/details - Get full task details
+app.get("/api/tasks/:id/details", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid task ID" });
+      return;
+    }
+
+    const task = await getTaskById(id);
+    if (!task) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    const [comments, runs, artifacts] = await Promise.all([
+      getComments(id),
+      getRuns(id),
+      getArtifacts(id),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        ...task,
+        comments,
+        runs,
+        artifacts,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// POST /api/tasks/:id/comments - Add comment to task
+app.post("/api/tasks/:id/comments", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid task ID" });
+      return;
+    }
+
+    const { comment, author = "user" } = req.body;
+    if (!comment || typeof comment !== "string") {
+      res.status(400).json({ error: "Comment is required" });
+      return;
+    }
+
+    const task = await getTaskById(id);
+    if (!task) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    const commentId = await addComment(id, comment, author);
+    const comments = await getComments(id);
+
+    res.status(201).json({
+      success: true,
+      data: { id: commentId, comments },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/tasks/:id/runs - Get task execution history
+app.get("/api/tasks/:id/runs", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid task ID" });
+      return;
+    }
+
+    const runs = await getRuns(id);
+    res.json({ success: true, data: runs });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// POST /api/tasks/:id/run - Start a new run (OpenClaw executes task)
+app.post("/api/tasks/:id/run", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid task ID" });
+      return;
+    }
+
+    const task = await getTaskById(id);
+    if (!task) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    // Update task status to in_progress
+    await updateTask(id, { status: "in_progress" });
+
+    // Create run record
+    const runId = await startRun(id);
+
+    // Add comment
+    await addComment(id, "OpenClaw started working on this task", "openclaw");
+
+    res.status(201).json({
+      success: true,
+      data: {
+        runId,
+        taskId: id,
+        status: "running",
+        message: "Run started. Task is now in progress.",
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// PATCH /api/runs/:id - Complete a run
+app.patch("/api/runs/:id", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid run ID" });
+      return;
+    }
+
+    const { status, output, errorMessage, changesMade, tokensUsed } = req.body;
+
+    if (!status || !["success", "failed", "cancelled"].includes(status)) {
+      res.status(400).json({ error: "Valid status required (success, failed, cancelled)" });
+      return;
+    }
+
+    await completeRun(id, status, output, errorMessage, changesMade, tokensUsed);
+
+    res.json({
+      success: true,
+      data: { id, status, message: "Run completed" },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/tasks/:id/artifacts - Get task artifacts
+app.get("/api/tasks/:id/artifacts", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid task ID" });
+      return;
+    }
+
+    const runId = req.query.runId ? parseInt(req.query.runId as string, 10) : undefined;
+    const artifacts = await getArtifacts(id, runId);
+
+    res.json({ success: true, data: artifacts });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// POST /api/tasks/:id/artifacts - Create artifact
+app.post("/api/tasks/:id/artifacts", async (req: Request, res: Response) => {
+  try {
+    const taskId = parseInt(req.params.id, 10);
+    if (isNaN(taskId)) {
+      res.status(400).json({ error: "Invalid task ID" });
+      return;
+    }
+
+    const { runId, artifactType, name, content, metadata } = req.body;
+
+    if (!artifactType || !name) {
+      res.status(400).json({ error: "artifactType and name are required" });
+      return;
+    }
+
+    const id = await createArtifact({
+      task_id: taskId,
+      run_id: runId,
+      artifact_type: artifactType,
+      name,
+      content,
+      metadata,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: { id, taskId, artifactType, name },
     });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });

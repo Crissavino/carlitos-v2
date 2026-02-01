@@ -139,9 +139,9 @@ export async function getSnapshots(days: number = 30): Promise<KpiSnapshot[]> {
 // TASKS (KANBAN)
 // ============================================================================
 
-export type TaskStatus = "backlog" | "todo" | "in_progress" | "done" | "archived";
+export type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done" | "archived";
 export type TaskPriority = "critical" | "high" | "medium" | "low";
-export type TaskSource = "decision_engine" | "manual" | "alert";
+export type TaskSource = "decision_engine" | "manual" | "alert" | "learning";
 
 export interface Task {
   id?: number;
@@ -151,6 +151,8 @@ export interface Task {
   priority: TaskPriority;
   source: TaskSource;
   decision_rule_id?: string;
+  dedupe_key?: string;
+  assignee?: string;
   area?: string;
   due_date?: string;
   created_at?: string;
@@ -161,8 +163,8 @@ export interface Task {
 export async function createTask(task: Omit<Task, "id" | "created_at" | "updated_at">): Promise<number> {
   const db = getPool();
   const [result] = await db.execute<ResultSetHeader>(
-    `INSERT INTO tasks (title, description, status, priority, source, decision_rule_id, area, due_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (title, description, status, priority, source, decision_rule_id, dedupe_key, assignee, area, due_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       task.title,
       task.description || null,
@@ -170,11 +172,36 @@ export async function createTask(task: Omit<Task, "id" | "created_at" | "updated
       task.priority || "medium",
       task.source || "manual",
       task.decision_rule_id || null,
+      task.dedupe_key || null,
+      task.assignee || null,
       task.area || null,
       task.due_date || null,
     ]
   );
   return result.insertId;
+}
+
+// Create task with dedupe - returns existing task id if dedupe_key exists
+export async function createTaskWithDedupe(task: Omit<Task, "id" | "created_at" | "updated_at">): Promise<{ id: number; created: boolean }> {
+  if (!task.dedupe_key) {
+    const id = await createTask(task);
+    return { id, created: true };
+  }
+
+  const db = getPool();
+
+  // Check if task with this dedupe_key already exists and is not done/archived
+  const [existing] = await db.execute<RowDataPacket[]>(
+    "SELECT id, status FROM tasks WHERE dedupe_key = ? AND status NOT IN ('done', 'archived')",
+    [task.dedupe_key]
+  );
+
+  if (existing.length > 0) {
+    return { id: existing[0].id, created: false };
+  }
+
+  const id = await createTask(task);
+  return { id, created: true };
 }
 
 export async function getTasks(filters?: {
@@ -268,6 +295,8 @@ function formatTask(row: RowDataPacket): Task {
     priority: row.priority,
     source: row.source,
     decision_rule_id: row.decision_rule_id,
+    dedupe_key: row.dedupe_key,
+    assignee: row.assignee,
     area: row.area,
     due_date: row.due_date ? (row.due_date instanceof Date
       ? row.due_date.toISOString().split("T")[0]
@@ -294,6 +323,7 @@ export async function getKanbanSummary(): Promise<Record<TaskStatus, number>> {
     backlog: 0,
     todo: 0,
     in_progress: 0,
+    review: 0,
     done: 0,
     archived: 0,
   };
@@ -416,4 +446,131 @@ export async function getRuns(taskId: number): Promise<TaskRun[]> {
 export async function getLatestRun(taskId: number): Promise<TaskRun | null> {
   const runs = await getRuns(taskId);
   return runs.length > 0 ? runs[0] : null;
+}
+
+// ============================================================================
+// TASK ARTIFACTS
+// ============================================================================
+
+export type ArtifactType = "analysis" | "insight" | "data" | "chart" | "recommendation" | "error";
+
+export interface TaskArtifact {
+  id?: number;
+  task_id: number;
+  run_id?: number;
+  artifact_type: ArtifactType;
+  name: string;
+  content?: string;
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+}
+
+export async function createArtifact(artifact: Omit<TaskArtifact, "id" | "created_at">): Promise<number> {
+  const db = getPool();
+  const [result] = await db.execute<ResultSetHeader>(
+    `INSERT INTO task_artifacts (task_id, run_id, artifact_type, name, content, metadata)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      artifact.task_id,
+      artifact.run_id || null,
+      artifact.artifact_type,
+      artifact.name,
+      artifact.content || null,
+      artifact.metadata ? JSON.stringify(artifact.metadata) : null,
+    ]
+  );
+  return result.insertId;
+}
+
+export async function getArtifacts(taskId: number, runId?: number): Promise<TaskArtifact[]> {
+  const db = getPool();
+  let sql = "SELECT * FROM task_artifacts WHERE task_id = ?";
+  const params: unknown[] = [taskId];
+
+  if (runId) {
+    sql += " AND run_id = ?";
+    params.push(runId);
+  }
+
+  sql += " ORDER BY created_at DESC";
+
+  const [rows] = await db.execute<RowDataPacket[]>(sql, params);
+  return rows.map(row => ({
+    id: row.id,
+    task_id: row.task_id,
+    run_id: row.run_id,
+    artifact_type: row.artifact_type,
+    name: row.name,
+    content: row.content,
+    metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+    created_at: row.created_at?.toISOString?.() || row.created_at,
+  }));
+}
+
+// ============================================================================
+// TASK GENERATION (DecisionEngine -> Tasks)
+// ============================================================================
+
+export interface GenerationLog {
+  id?: number;
+  generated_at?: string;
+  source: string;
+  trigger_type: string;
+  rules_evaluated: number;
+  tasks_created: number;
+  tasks_skipped: number;
+  business_status?: string;
+  snapshot_id?: number;
+}
+
+export async function logGeneration(log: Omit<GenerationLog, "id" | "generated_at">): Promise<number> {
+  const db = getPool();
+  const [result] = await db.execute<ResultSetHeader>(
+    `INSERT INTO task_generation_log (source, trigger_type, rules_evaluated, tasks_created, tasks_skipped, business_status, snapshot_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      log.source,
+      log.trigger_type,
+      log.rules_evaluated,
+      log.tasks_created,
+      log.tasks_skipped,
+      log.business_status || null,
+      log.snapshot_id || null,
+    ]
+  );
+  return result.insertId;
+}
+
+export async function getGenerationLogs(limit: number = 10): Promise<GenerationLog[]> {
+  const db = getPool();
+  const [rows] = await db.execute<RowDataPacket[]>(
+    "SELECT * FROM task_generation_log ORDER BY generated_at DESC LIMIT ?",
+    [limit]
+  );
+  return rows.map(row => ({
+    id: row.id,
+    generated_at: row.generated_at?.toISOString?.() || row.generated_at,
+    source: row.source,
+    trigger_type: row.trigger_type,
+    rules_evaluated: row.rules_evaluated,
+    tasks_created: row.tasks_created,
+    tasks_skipped: row.tasks_skipped,
+    business_status: row.business_status,
+    snapshot_id: row.snapshot_id,
+  }));
+}
+
+// Generate dedupe key for decision engine tasks
+export function generateDedupeKey(ruleId: string, weekNumber: number, year: number): string {
+  return `decision:${ruleId}:${year}-W${weekNumber.toString().padStart(2, "0")}`;
+}
+
+// Get current ISO week number
+export function getISOWeek(date: Date = new Date()): { week: number; year: number } {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return { week, year: d.getUTCFullYear() };
 }
