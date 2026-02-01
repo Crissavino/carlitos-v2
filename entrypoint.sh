@@ -91,4 +91,4 @@ echo "Dashboard API started (PID: $DASHBOARD_PID)"
 
 # Start gateway in foreground
 cd /app
-exec openclaw --dev gateway --bind lan --port 18789 --allow-unconfigured --verbose
+exec openclaw --dev gateway --bind lan --port 18789 --allow-unconfigured --token "${OPENCLAW_GATEWAY_TOKEN:-$TOKEN}"
