@@ -160,6 +160,11 @@ app.get("/api/business/summary", async (req: Request, res: Response) => {
           netRoas: { value: summary.kpis.netRoas.value, status: summary.kpis.netRoas.status, reason: summary.kpis.netRoas.shortReason },
           ltv30d: { value: summary.kpis.ltv30d.value, status: summary.kpis.ltv30d.status, reason: summary.kpis.ltv30d.shortReason },
           paybackRatio: { value: summary.kpis.paybackRatio.value, status: summary.kpis.paybackRatio.status, reason: summary.kpis.paybackRatio.shortReason },
+          // Phase 6.1: Ventanas correctas
+          ltv21d: { value: summary.kpis.ltv21d.value, status: summary.kpis.ltv21d.status, reason: summary.kpis.ltv21d.shortReason },
+          payback21d: { value: summary.kpis.payback21d.value, status: summary.kpis.payback21d.status, reason: summary.kpis.payback21d.shortReason },
+          ltv51d: { value: summary.kpis.ltv51d.value, status: summary.kpis.ltv51d.status, reason: summary.kpis.ltv51d.shortReason },
+          payback51d: { value: summary.kpis.payback51d.value, status: summary.kpis.payback51d.status, reason: summary.kpis.payback51d.shortReason },
         },
         alerts: summary.alerts,
         summaryText: summary.summaryText,
@@ -237,6 +242,29 @@ app.get("/api/business/kpis", async (req: Request, res: Response) => {
             reason: kpis.paybackRatio.shortReason,
             numerator: raw.ltv30d,
             denominator: kpis.cpfr.value,
+          },
+          // Phase 6.1: Ventanas correctas
+          ltv21d: {
+            value: kpis.ltv21d.value,
+            status: kpis.ltv21d.status,
+            reason: kpis.ltv21d.shortReason,
+            cohortSize: raw.ltv21dCohortSize,
+          },
+          payback21d: {
+            value: kpis.payback21d.value,
+            status: kpis.payback21d.status,
+            reason: kpis.payback21d.shortReason,
+          },
+          ltv51d: {
+            value: kpis.ltv51d.value,
+            status: kpis.ltv51d.status,
+            reason: kpis.ltv51d.shortReason,
+            cohortSize: raw.ltv51dCohortSize,
+          },
+          payback51d: {
+            value: kpis.payback51d.value,
+            status: kpis.payback51d.status,
+            reason: kpis.payback51d.shortReason,
           },
         },
         totals: {
