@@ -141,8 +141,9 @@ export async function getCampaignPerformance(): Promise<CampaignPerformanceResul
       campaignAgeDays: 0,
     };
 
-    // Convert spend to EUR if needed
-    const spendEur = CurrencyConverter.toEur(sc.cost, currency);
+    // Convert spend to EUR if needed (use campaign's own currency, not global)
+    const campaignCurrency = sc.currency || 'EUR';
+    const spendEur = CurrencyConverter.toEur(sc.cost, campaignCurrency);
 
     // Calculate CPFR (spend / first rebills)
     const cpfr = attr.firstRebills > 0 ? spendEur / attr.firstRebills : 0;
@@ -169,7 +170,7 @@ export async function getCampaignPerformance(): Promise<CampaignPerformanceResul
       impressions: sc.impressions || 0,
       conversionsGoogle: sc.conversions || 0,
       ctr: sc.ctr || 0,
-      cpc: sc.cpc ? CurrencyConverter.toEur(sc.cpc, currency) : 0,
+      cpc: sc.cpc ? CurrencyConverter.toEur(sc.cpc, campaignCurrency) : 0,
       googleCpa: sc.conversions > 0 ? Math.round((spendEur / sc.conversions) * 100) / 100 : 0,
 
       // From DB Attribution (revenue metrics)

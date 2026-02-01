@@ -144,7 +144,9 @@ export async function getKeywordPerformance(): Promise<KeywordPerformanceResult 
   let totalSpend = 0;
 
   for (const kw of spendData) {
-    const spendEur = CurrencyConverter.toEur(kw.cost, currency);
+    // Use keyword's own currency, not global (fixes mixed EUR/RON accounts)
+    const kwCurrency = kw.currency || 'EUR';
+    const spendEur = CurrencyConverter.toEur(kw.cost, kwCurrency);
     totalSpend += spendEur;
 
     const { status, recommendation } = getKeywordStatusAndRecommendation(
@@ -168,7 +170,7 @@ export async function getKeywordPerformance(): Promise<KeywordPerformanceResult 
       conversions: kw.conversions,
       conversionValue: kw.conversionValue,
       ctr: kw.ctr,
-      cpc: kw.cpc ? CurrencyConverter.toEur(kw.cpc, currency) : 0,
+      cpc: kw.cpc ? CurrencyConverter.toEur(kw.cpc, kwCurrency) : 0,
       conversionRate: kw.conversionRate,
       performanceStatus: status,
       recommendation,

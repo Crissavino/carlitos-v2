@@ -156,7 +156,9 @@ export async function getSearchTermPerformance(): Promise<SearchTermPerformanceR
   let totalSpend = 0;
 
   for (const st of spendData) {
-    const spendEur = CurrencyConverter.toEur(st.cost, currency);
+    // Use search term's own currency, not global (fixes mixed EUR/RON accounts)
+    const stCurrency = st.currency || 'EUR';
+    const spendEur = CurrencyConverter.toEur(stCurrency === 'EUR' ? st.cost : st.cost, stCurrency);
     totalSpend += spendEur;
 
     const { status, recommendation } = getSearchTermStatusAndRecommendation(
