@@ -11,8 +11,8 @@
  */
 
 import { randomUUID } from "crypto";
-import { getDataSource } from "./datasources/index.js";
-import { AdsDataRecord, AdsIngestPayload, IngestResponse, DataSourceType, CampaignMetrics, DateRangeType } from "./types.js";
+import { getDataSource, getKeywordsDataSource } from "./datasources/index.js";
+import { AdsDataRecord, AdsIngestPayload, IngestResponse, DataSourceType, CampaignMetrics, DateRangeType, KeywordsIngestPayload, KeywordMetrics } from "./types.js";
 import { audit } from "../../core/audit.js";
 import { getPool } from "../../dashboard/db.js";
 
@@ -374,6 +374,314 @@ export async function hasCampaignData(): Promise<boolean> {
     return rows[0]?.count > 0;
   } catch (err) {
     console.error('[Ingest] Failed to check campaign data:', err);
+    return false;
+  }
+}
+
+// ============================================================================
+// KEYWORDS INGEST (Phase 8A)
+// ============================================================================
+
+/**
+ * Persist keyword metrics to database
+ */
+async function persistKeywordsToDatabase(
+  payload: KeywordsIngestPayload,
+  recordId: string
+): Promise<{ inserted: number; updated: number }> {
+  const pool = getPool();
+  const { startDate, endDate, rangeCode } = calculateDateWindow(payload.dateRange);
+
+  let inserted = 0;
+  let updated = 0;
+
+  for (const keyword of payload.keywords) {
+    const sql = `
+      INSERT INTO google_ads_keyword_metrics (
+        keyword_id, keyword_text, match_type,
+        campaign_id, campaign_name, ad_group_id, ad_group_name,
+        date_range, metrics_start_date, metrics_end_date,
+        cost, currency, impressions, clicks, conversions, conversion_value, ctr, cpc, conversion_rate,
+        account_id, account_name,
+        record_id, source
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        keyword_id = VALUES(keyword_id),
+        campaign_name = VALUES(campaign_name),
+        ad_group_name = VALUES(ad_group_name),
+        cost = VALUES(cost),
+        impressions = VALUES(impressions),
+        clicks = VALUES(clicks),
+        conversions = VALUES(conversions),
+        conversion_value = VALUES(conversion_value),
+        ctr = VALUES(ctr),
+        cpc = VALUES(cpc),
+        conversion_rate = VALUES(conversion_rate),
+        account_id = VALUES(account_id),
+        account_name = VALUES(account_name),
+        record_id = VALUES(record_id),
+        ingested_at = CURRENT_TIMESTAMP
+    `;
+
+    const params = [
+      keyword.keywordId,
+      keyword.keywordText,
+      keyword.matchType,
+      keyword.campaignId,
+      keyword.campaignName,
+      keyword.adGroupId,
+      keyword.adGroupName,
+      rangeCode,
+      startDate,
+      endDate,
+      keyword.cost,
+      payload.currency,
+      keyword.impressions,
+      keyword.clicks,
+      keyword.conversions,
+      keyword.conversionValue,
+      keyword.ctr,
+      keyword.cpc,
+      keyword.conversionRate,
+      payload.accountId,
+      payload.accountName,
+      recordId,
+      'ads-script',
+    ];
+
+    try {
+      const [result] = await pool.execute(sql, params) as any;
+      if (result.affectedRows === 1) {
+        inserted++;
+      } else if (result.affectedRows === 2) {
+        // ON DUPLICATE KEY UPDATE counts as 2 affected rows
+        updated++;
+      }
+    } catch (err) {
+      console.error(`[Ingest] Failed to persist keyword ${keyword.keywordId}:`, err);
+      throw err;
+    }
+  }
+
+  return { inserted, updated };
+}
+
+/**
+ * Process keywords ingest from Google Ads Scripts
+ */
+export async function handleKeywordsIngest(
+  authHeader: string | undefined,
+  rawPayload: unknown
+): Promise<IngestResponse> {
+  const recordId = randomUUID();
+
+  // 1. Verify authentication
+  const authResult = verifyToken(authHeader);
+  if (!authResult.valid) {
+    await audit.log({
+      skill: 'google-ads-expert',
+      action: 'keywords_ingest_blocked',
+      input: {
+        reason: authResult.error,
+      },
+      output: { blocked: true },
+      queries: [],
+    });
+
+    return {
+      success: false,
+      error: authResult.error,
+    };
+  }
+
+  // 2. Get keywords datasource
+  const dataSource = getKeywordsDataSource();
+
+  // 3. Validate payload
+  const validation = dataSource.validate(rawPayload);
+
+  if (!validation.valid) {
+    await audit.log({
+      skill: 'google-ads-expert',
+      action: 'keywords_ingest_validation_failed',
+      input: {
+        errors: validation.errors,
+      },
+      output: { valid: false },
+      queries: [],
+    });
+
+    return {
+      success: false,
+      error: 'Validation failed',
+      validation,
+    };
+  }
+
+  // 4. Transform to unified schema
+  const payload = dataSource.transform(rawPayload);
+
+  // 5. Persist to database
+  try {
+    const { inserted, updated } = await persistKeywordsToDatabase(payload, recordId);
+
+    console.log(`[Ingest] Persisted ${inserted} new, ${updated} updated keywords to database`);
+
+    await audit.log({
+      skill: 'google-ads-expert',
+      action: 'keywords_ingest_success',
+      input: {
+        recordId,
+        accountId: payload.accountId,
+        accountName: payload.accountName,
+        dateRange: payload.dateRange,
+        keywordCount: payload.keywords.length,
+      },
+      output: {
+        persisted: true,
+        inserted,
+        updated,
+        warnings: validation.warnings,
+      },
+      queries: [],
+    });
+
+    return {
+      success: true,
+      recordId,
+      validation,
+    };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+
+    await audit.log({
+      skill: 'google-ads-expert',
+      action: 'keywords_ingest_persist_error',
+      input: { recordId },
+      output: { error: errorMsg },
+      queries: [],
+    });
+
+    return {
+      success: false,
+      error: 'Failed to persist data: ' + errorMsg,
+    };
+  }
+}
+
+// ============================================================================
+// KEYWORDS READ FUNCTIONS (for keywords-analyzer)
+// ============================================================================
+
+export interface KeywordSpendData {
+  keywordId: string;
+  keywordText: string;
+  matchType: string;
+  campaignId: string;
+  campaignName: string;
+  adGroupId: string;
+  adGroupName: string;
+  dateRange: string;
+  metricsStartDate: string;
+  metricsEndDate: string;
+  cost: number;
+  currency: string;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  conversionValue: number;
+  ctr: number;
+  cpc: number;
+  conversionRate: number;
+  ingestedAt: string;
+}
+
+/**
+ * Get latest keyword metrics for a specific date range (7d or 30d)
+ */
+export async function getKeywordSpend(dateRange: '7d' | '30d' = '7d'): Promise<KeywordSpendData[]> {
+  const pool = getPool();
+
+  // Get the most recent metrics for each keyword for the specified date_range
+  // Using the composite key for identity
+  const sql = `
+    SELECT
+      keyword_id as keywordId,
+      keyword_text as keywordText,
+      match_type as matchType,
+      campaign_id as campaignId,
+      campaign_name as campaignName,
+      ad_group_id as adGroupId,
+      ad_group_name as adGroupName,
+      date_range as dateRange,
+      metrics_start_date as metricsStartDate,
+      metrics_end_date as metricsEndDate,
+      cost,
+      currency,
+      impressions,
+      clicks,
+      conversions,
+      conversion_value as conversionValue,
+      ctr,
+      cpc,
+      conversion_rate as conversionRate,
+      ingested_at as ingestedAt
+    FROM google_ads_keyword_metrics m1
+    WHERE date_range = ?
+      AND ingested_at = (
+        SELECT MAX(ingested_at)
+        FROM google_ads_keyword_metrics m2
+        WHERE m2.campaign_id = m1.campaign_id
+          AND m2.ad_group_id = m1.ad_group_id
+          AND m2.keyword_text = m1.keyword_text
+          AND m2.match_type = m1.match_type
+          AND m2.date_range = m1.date_range
+      )
+    ORDER BY cost DESC
+  `;
+
+  try {
+    const [rows] = await pool.execute(sql, [dateRange]) as any;
+    return rows.map((row: any) => ({
+      ...row,
+      cost: parseFloat(row.cost) || 0,
+      impressions: parseInt(row.impressions) || 0,
+      clicks: parseInt(row.clicks) || 0,
+      conversions: parseFloat(row.conversions) || 0,
+      conversionValue: parseFloat(row.conversionValue) || 0,
+      ctr: parseFloat(row.ctr) || 0,
+      cpc: parseFloat(row.cpc) || 0,
+      conversionRate: parseFloat(row.conversionRate) || 0,
+      metricsStartDate: row.metricsStartDate instanceof Date
+        ? row.metricsStartDate.toISOString().split('T')[0]
+        : row.metricsStartDate,
+      metricsEndDate: row.metricsEndDate instanceof Date
+        ? row.metricsEndDate.toISOString().split('T')[0]
+        : row.metricsEndDate,
+      ingestedAt: row.ingestedAt instanceof Date
+        ? row.ingestedAt.toISOString()
+        : row.ingestedAt,
+    }));
+  } catch (err) {
+    console.error('[Ingest] Failed to get keyword spend:', err);
+    return [];
+  }
+}
+
+/**
+ * Check if there's any keyword data in the database
+ */
+export async function hasKeywordData(): Promise<boolean> {
+  const pool = getPool();
+
+  try {
+    const [rows] = await pool.execute(
+      'SELECT COUNT(*) as count FROM google_ads_keyword_metrics WHERE date_range = ?',
+      ['7d']
+    ) as any;
+    return rows[0]?.count > 0;
+  } catch (err) {
+    console.error('[Ingest] Failed to check keyword data:', err);
     return false;
   }
 }

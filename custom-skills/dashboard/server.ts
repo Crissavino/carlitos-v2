@@ -115,6 +115,13 @@ app.get("/api", (req: Request, res: Response) => {
       // Campaign Decisions (Phase 7.5)
       campaignDecisions: "GET /api/campaigns/decisions",
       campaignDecisionsUrgent: "GET /api/campaigns/decisions/urgent",
+      // Keywords (Phase 8A)
+      keywordsList: "GET /api/keywords",
+      keywordsSummary: "GET /api/keywords/summary",
+      keywordsTop: "GET /api/keywords/top?limit=20",
+      keywordsUnderperforming: "GET /api/keywords/underperforming",
+      keywordsWaste: "GET /api/keywords/waste",
+      keywordsByCampaign: "GET /api/keywords/by-campaign/:id",
       // Snapshots (Historical)
       snapshotCreate: "POST /api/snapshots",
       snapshotList: "GET /api/snapshots?days=30",
@@ -433,6 +440,14 @@ import {
   evaluateCampaignRules,
   getCampaignsNeedingAction,
 } from "../skills/decision-engine/campaign-rules/evaluator.js";
+import {
+  getKeywordPerformance,
+  getTopKeywords,
+  getUnderperformingKeywords,
+  getKeywordsByCampaign,
+  getWasteKeywords,
+  getKeywordsSummary,
+} from "../skills/google-ads-expert/keywords-analyzer.js";
 
 // GET /api/campaigns - Get all campaigns with metrics
 app.get("/api/campaigns", async (req: Request, res: Response) => {
@@ -511,6 +526,129 @@ app.get("/api/campaigns/decisions/urgent", async (req: Request, res: Response) =
       data: {
         count: actions.length,
         decisions: actions,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// ============================================================================
+// KEYWORDS (Phase 8A)
+// ============================================================================
+
+// GET /api/keywords - Get all keywords with metrics
+app.get("/api/keywords", async (req: Request, res: Response) => {
+  try {
+    const data = await getKeywordPerformance();
+    if (!data) {
+      res.status(500).json({ error: "No keyword data available" });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/keywords/summary - Get keyword summary statistics
+app.get("/api/keywords/summary", async (req: Request, res: Response) => {
+  try {
+    const summary = await getKeywordsSummary();
+    if (!summary) {
+      res.status(500).json({ error: "No keyword data available" });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: summary,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/keywords/top - Get top keywords by spend
+app.get("/api/keywords/top", async (req: Request, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 20;
+    const keywords = await getTopKeywords(Math.min(limit, 100));
+
+    res.json({
+      success: true,
+      data: {
+        count: keywords.length,
+        keywords,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/keywords/underperforming - Get keywords needing attention
+app.get("/api/keywords/underperforming", async (req: Request, res: Response) => {
+  try {
+    const keywords = await getUnderperformingKeywords();
+
+    res.json({
+      success: true,
+      data: {
+        count: keywords.length,
+        keywords,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/keywords/waste - Get waste analysis (WASTE detection)
+app.get("/api/keywords/waste", async (req: Request, res: Response) => {
+  try {
+    const wasteAnalysis = await getWasteKeywords();
+    const totalWaste = wasteAnalysis.reduce((sum, w) => sum + w.wastedSpend, 0);
+
+    res.json({
+      success: true,
+      data: {
+        count: wasteAnalysis.length,
+        totalEstimatedWaste: Math.round(totalWaste * 100) / 100,
+        byFlag: {
+          HIGH_SPEND_ZERO_CONV: wasteAnalysis.filter(w => w.wasteFlags.includes('HIGH_SPEND_ZERO_CONV')).length,
+          HIGH_SPEND_LOW_CONV: wasteAnalysis.filter(w => w.wasteFlags.includes('HIGH_SPEND_LOW_CONV')).length,
+          SPEND_CONCENTRATION: wasteAnalysis.filter(w => w.wasteFlags.includes('SPEND_CONCENTRATION')).length,
+        },
+        keywords: wasteAnalysis,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/keywords/by-campaign/:id - Get keywords for a specific campaign
+app.get("/api/keywords/by-campaign/:id", async (req: Request, res: Response) => {
+  try {
+    const campaignId = req.params.id;
+    if (!campaignId) {
+      res.status(400).json({ error: "Campaign ID required" });
+      return;
+    }
+
+    const keywords = await getKeywordsByCampaign(campaignId);
+
+    res.json({
+      success: true,
+      data: {
+        campaignId,
+        count: keywords.length,
+        keywords,
       },
     });
   } catch (error) {

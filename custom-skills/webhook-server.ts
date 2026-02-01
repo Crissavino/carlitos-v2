@@ -5,7 +5,7 @@
  */
 
 import http from "http";
-import { handleIngest } from "./skills/google-ads-expert/ingest.js";
+import { handleIngest, handleKeywordsIngest } from "./skills/google-ads-expert/ingest.js";
 
 const PORT = 3001;
 
@@ -22,7 +22,43 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Only handle POST /ingest/google-ads
+  // Log incoming request for debugging
+  console.log(`[webhook] ${req.method} ${req.url}`);
+
+  // Handle POST /ingest/google-ads/keywords (Keywords - Phase 8A)
+  if (req.method === "POST" && req.url === "/ingest/google-ads/keywords") {
+    let body = "";
+
+    req.on("data", (chunk) => {
+      body += chunk.toString();
+    });
+
+    req.on("end", async () => {
+      try {
+        const payload = JSON.parse(body || "{}");
+        const authHeader = req.headers.authorization;
+
+        console.log("[webhook] Received keywords ingest request");
+
+        const result = await handleKeywordsIngest(authHeader, payload);
+
+        res.writeHead(result.success ? 200 : 400, {
+          "Content-Type": "application/json",
+        });
+        res.end(JSON.stringify(result));
+
+        console.log("[webhook] Keywords ingest result:", result.success ? "success" : "failed");
+      } catch (error) {
+        console.error("[webhook] Keywords error:", error);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: false, error: "Internal server error" }));
+      }
+    });
+
+    return;
+  }
+
+  // Handle POST /ingest/google-ads (Campaigns)
   if (req.method === "POST" && req.url?.startsWith("/ingest/google-ads")) {
     let body = "";
 
@@ -35,7 +71,7 @@ const server = http.createServer(async (req, res) => {
         const payload = JSON.parse(body || "{}");
         const authHeader = req.headers.authorization;
 
-        console.log("[webhook] Received ingest request");
+        console.log("[webhook] Received campaigns ingest request");
 
         const result = await handleIngest(authHeader, payload);
 
@@ -44,9 +80,9 @@ const server = http.createServer(async (req, res) => {
         });
         res.end(JSON.stringify(result));
 
-        console.log("[webhook] Ingest result:", result.success ? "success" : "failed");
+        console.log("[webhook] Campaigns ingest result:", result.success ? "success" : "failed");
       } catch (error) {
-        console.error("[webhook] Error:", error);
+        console.error("[webhook] Campaigns error:", error);
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ success: false, error: "Internal server error" }));
       }
@@ -69,5 +105,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`[webhook] Server listening on http://0.0.0.0:${PORT}`);
-  console.log(`[webhook] Endpoint: POST /ingest/google-ads`);
+  console.log(`[webhook] Endpoints:`);
+  console.log(`[webhook]   POST /ingest/google-ads          (Campaigns)`);
+  console.log(`[webhook]   POST /ingest/google-ads/keywords (Keywords)`);
 });

@@ -1,12 +1,13 @@
 /**
  * DataSources Index
- * 
+ *
  * Factory para obtener el datasource configurado.
  */
 
 import { AdsDataSource } from "./interface.js";
 import { AdsScriptSource } from "./ads-script-source.js";
 import { GoogleApiSource } from "./google-api-source.js";
+import { AdsScriptKeywordsSource, keywordsDataSource } from "./ads-script-keywords-source.js";
 import { DataSourceType } from "../types.js";
 
 const sources: Record<DataSourceType, AdsDataSource> = {
@@ -29,4 +30,8 @@ export function getConfiguredDataSource(): AdsDataSource {
   return getDataSource(configuredType);
 }
 
-export { AdsDataSource, AdsScriptSource, GoogleApiSource };
+export function getKeywordsDataSource(): AdsScriptKeywordsSource {
+  return keywordsDataSource;
+}
+
+export { AdsDataSource, AdsScriptSource, GoogleApiSource, AdsScriptKeywordsSource, keywordsDataSource };

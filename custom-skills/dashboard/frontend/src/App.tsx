@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2 } from 'lucide-react';
+import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2, Key } from 'lucide-react';
 import { Executive } from './pages/Executive';
 import { Kanban } from './pages/Kanban';
 import { Campaigns } from './pages/Campaigns';
 import { BusinessViews } from './pages/BusinessViews';
+import { Keywords } from './pages/Keywords';
 
-type Page = 'executive' | 'kanban' | 'campaigns' | 'business';
+type Page = 'executive' | 'kanban' | 'campaigns' | 'keywords' | 'business';
 
 function App() {
   const [page, setPage] = useState<Page>('executive');
@@ -56,6 +57,17 @@ function App() {
                 Campaigns
               </button>
               <button
+                onClick={() => setPage('keywords')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  page === 'keywords'
+                    ? 'bg-gray-800 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                }`}
+              >
+                <Key className="w-4 h-4" />
+                Keywords
+              </button>
+              <button
                 onClick={() => setPage('business')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
                   page === 'business'
@@ -76,6 +88,7 @@ function App() {
         {page === 'executive' && <Executive />}
         {page === 'kanban' && <Kanban />}
         {page === 'campaigns' && <Campaigns />}
+        {page === 'keywords' && <Keywords />}
         {page === 'business' && <BusinessViews />}
       </main>
     </div>

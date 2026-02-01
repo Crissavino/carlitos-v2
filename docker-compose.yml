@@ -61,6 +61,7 @@ services:
       - DASHBOARD_TOKEN=${DASHBOARD_TOKEN:-dev-token}
     ports:
       - "18789:18789"
+      - "3001:3001"
       - "3002:3002"
     restart: unless-stopped
 

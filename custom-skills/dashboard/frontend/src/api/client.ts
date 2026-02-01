@@ -329,6 +329,14 @@ export const api = {
   getBusinessCountries: () => fetchAPI<CountryViewResult>('/business/countries'),
   getBusinessServices: () => fetchAPI<ServiceViewResult>('/business/services'),
   getBusinessRecommendations: () => fetchAPI<MacroRecommendationsResult>('/business/recommendations'),
+
+  // Keywords (Phase 8A)
+  getKeywords: () => fetchAPI<KeywordPerformanceResult>('/keywords'),
+  getKeywordsSummary: () => fetchAPI<KeywordsSummary>('/keywords/summary'),
+  getTopKeywords: (limit = 20) => fetchAPI<{ count: number; keywords: KeywordPerformance[] }>(`/keywords/top?limit=${limit}`),
+  getUnderperformingKeywords: () => fetchAPI<{ count: number; keywords: KeywordPerformance[] }>('/keywords/underperforming'),
+  getKeywordsWaste: () => fetchAPI<KeywordsWasteResult>('/keywords/waste'),
+  getKeywordsByCampaign: (campaignId: string) => fetchAPI<{ campaignId: string; count: number; keywords: KeywordPerformance[] }>(`/keywords/by-campaign/${campaignId}`),
 };
 
 // ============================================================================
@@ -485,4 +493,81 @@ export interface MacroRecommendationsResult {
   };
   recommendations: MacroRecommendation[];
   disclaimer: string;
+}
+
+// ============================================================================
+// Keywords (Phase 8A)
+// ============================================================================
+
+export type KeywordMatchType = 'EXACT' | 'PHRASE' | 'BROAD';
+export type KeywordPerformanceStatus = 'good' | 'warning' | 'poor';
+export type KeywordRecommendation =
+  | 'NEGATIVE_SUGGESTION'
+  | 'INTENT_MISMATCH'
+  | 'SCALE_KEYWORD'
+  | 'MATCH_TYPE_FIX'
+  | 'REVIEW_BID'
+  | 'MONITOR';
+
+export type WasteFlag =
+  | 'HIGH_SPEND_ZERO_CONV'
+  | 'HIGH_SPEND_LOW_CONV'
+  | 'SPEND_CONCENTRATION';
+
+export interface KeywordPerformance {
+  keywordId: string;
+  keywordText: string;
+  matchType: KeywordMatchType;
+  campaignId: string;
+  campaignName: string;
+  adGroupId: string;
+  adGroupName: string;
+  spend7d: number;
+  clicks: number;
+  impressions: number;
+  conversions: number;
+  conversionValue: number;
+  ctr: number;
+  cpc: number;
+  conversionRate: number;
+  performanceStatus: KeywordPerformanceStatus;
+  recommendation: KeywordRecommendation | null;
+}
+
+export interface KeywordPerformanceResult {
+  fetchedAt: string;
+  dateRange: string;
+  currency: string;
+  totalKeywords: number;
+  totalSpend: number;
+  keywords: KeywordPerformance[];
+}
+
+export interface KeywordWasteAnalysis {
+  keyword: KeywordPerformance;
+  wasteFlags: WasteFlag[];
+  wastedSpend: number;
+  recommendation: KeywordRecommendation;
+  rationale: string;
+}
+
+export interface KeywordsSummary {
+  totalKeywords: number;
+  totalSpend: number;
+  keywordsWithConversions: number;
+  keywordsWithZeroConversions: number;
+  wasteKeywordsCount: number;
+  estimatedWaste: number;
+  byMatchType: Record<string, { count: number; spend: number; conversions: number }>;
+}
+
+export interface KeywordsWasteResult {
+  count: number;
+  totalEstimatedWaste: number;
+  byFlag: {
+    HIGH_SPEND_ZERO_CONV: number;
+    HIGH_SPEND_LOW_CONV: number;
+    SPEND_CONCENTRATION: number;
+  };
+  keywords: KeywordWasteAnalysis[];
 }

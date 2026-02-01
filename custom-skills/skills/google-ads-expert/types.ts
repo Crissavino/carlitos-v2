@@ -118,3 +118,65 @@ export interface GoogleAdsExpertConfig {
     retentionDays: number;
   };
 }
+
+// ============================================================================
+// Keywords (Phase 8A)
+// ============================================================================
+
+/**
+ * Match type for keywords.
+ * Controls how strictly the keyword matches search queries.
+ */
+export type KeywordMatchType = 'EXACT' | 'PHRASE' | 'BROAD';
+
+/**
+ * Keyword metrics from Google Ads.
+ * Primary metrics for cost analysis.
+ */
+export interface KeywordMetrics {
+  // Identification
+  keywordId: string;
+  keywordText: string;
+  matchType: KeywordMatchType;
+
+  // Hierarchy
+  campaignId: string;
+  campaignName: string;
+  adGroupId: string;
+  adGroupName: string;
+
+  // Primary metrics (source of truth)
+  cost: number;              // In currency real (NOT micros)
+  clicks: number;
+  impressions: number;
+  conversions: number;       // Google-reported conversions
+  conversionValue: number;   // Google-reported conversion value
+
+  /**
+   * Derived metrics (calculated).
+   *
+   * IMPORTANT: These metrics are convenience from the datasource.
+   * The Analyzer should recalculate if precision is needed.
+   *
+   * Formulas:
+   * - ctr = clicks / impressions (0 if impressions = 0)
+   * - cpc = cost / clicks (0 if clicks = 0)
+   * - conversionRate = conversions / clicks (0 if clicks = 0)
+   */
+  ctr: number;
+  cpc: number;
+  conversionRate: number;
+}
+
+/**
+ * Payload for keywords ingest from Google Ads Scripts.
+ */
+export interface KeywordsIngestPayload {
+  source: 'ads-script-keywords';
+  accountId: string;
+  accountName: string;
+  currency: string;
+  dateRange: DateRangeType;
+  fetchedAt: string;         // ISO timestamp from origin
+  keywords: KeywordMetrics[];
+}
