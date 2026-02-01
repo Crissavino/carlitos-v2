@@ -223,6 +223,53 @@ export interface CampaignActions {
   toMonitor: CampaignActionGroup;
 }
 
+// Campaign Decisions (Phase 7.5 - DecisionEngine)
+export type CampaignActionType = 'pause' | 'scale' | 'optimize' | 'monitor' | 'maintain';
+export type CampaignActionUrgency = 'immediate' | 'this_week' | 'next_review';
+export type DecisionConfidence = 'high' | 'medium' | 'low';
+
+export interface CampaignDecision {
+  campaignId: string;
+  campaignName: string;
+  ruleId: string;
+  ruleName: string;
+  action: CampaignActionType;
+  urgency: CampaignActionUrgency;
+  actionText: string;
+  rationale: string;
+  metrics: {
+    spend7d: number;
+    payback21d: number;
+    payback51d: number;
+    campaignAgeDays: number;
+    cohort51dSize: number;
+    cpfr: number;
+    ltv51d: number;
+  };
+  confidence: DecisionConfidence;
+  confidenceReason: string;
+}
+
+export interface CampaignDecisionSummary {
+  generatedAt: string;
+  totalCampaigns: number;
+  campaignsAnalyzed: number;
+  actionCounts: {
+    pause: number;
+    scale: number;
+    optimize: number;
+    monitor: number;
+    maintain: number;
+  };
+  impact: {
+    spendToPause: number;
+    spendToScale: number;
+    campaignsNeedingAction: number;
+  };
+  decisions: CampaignDecision[];
+  topActions: CampaignDecision[];
+}
+
 // ============================================================================
 // API Methods
 // ============================================================================
@@ -271,4 +318,6 @@ export const api = {
   // Campaigns (Phase 7)
   getCampaigns: () => fetchAPI<CampaignPerformanceResult>('/campaigns'),
   getCampaignActions: () => fetchAPI<CampaignActions>('/campaigns/actions'),
+  // Campaign Decisions (Phase 7.5)
+  getCampaignDecisions: () => fetchAPI<CampaignDecisionSummary>('/campaigns/decisions'),
 };

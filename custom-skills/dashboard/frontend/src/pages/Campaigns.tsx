@@ -1,11 +1,26 @@
 import { useEffect, useState } from 'react';
-import { RefreshCw, Clock, TrendingUp, Pause, AlertCircle } from 'lucide-react';
-import { api, type CampaignPerformanceResult, type CampaignActions } from '../api/client';
+import { RefreshCw, Clock, TrendingUp, Pause, AlertCircle, Zap, Shield } from 'lucide-react';
+import { api, type CampaignPerformanceResult, type CampaignActions, type CampaignDecisionSummary, type CampaignDecision } from '../api/client';
 import { CampaignsTable } from '../components/CampaignsTable';
+
+const ACTION_ICONS: Record<string, string> = {
+  pause: '⏸️',
+  scale: '📈',
+  optimize: '⚡',
+  monitor: '👁️',
+  maintain: '✅',
+};
+
+const CONFIDENCE_COLORS: Record<string, string> = {
+  high: 'text-green-400',
+  medium: 'text-yellow-400',
+  low: 'text-gray-400',
+};
 
 export function Campaigns() {
   const [data, setData] = useState<CampaignPerformanceResult | null>(null);
   const [actions, setActions] = useState<CampaignActions | null>(null);
+  const [decisions, setDecisions] = useState<CampaignDecisionSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -14,12 +29,14 @@ export function Campaigns() {
     setLoading(true);
     setError(null);
     try {
-      const [campaignsData, actionsData] = await Promise.all([
+      const [campaignsData, actionsData, decisionsData] = await Promise.all([
         api.getCampaigns(),
         api.getCampaignActions(),
+        api.getCampaignDecisions().catch(() => null), // Graceful fail
       ]);
       setData(campaignsData);
       setActions(actionsData);
+      setDecisions(decisionsData);
       setLastUpdate(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error loading campaigns');
@@ -150,6 +167,36 @@ export function Campaigns() {
           </div>
         )}
 
+        {/* DecisionEngine Actions (Phase 7.5) */}
+        {decisions && decisions.topActions.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Zap className="w-4 h-4 text-purple-400" />
+              <span className="text-sm text-gray-400 uppercase tracking-wide">
+                DecisionEngine Actions
+              </span>
+              <span className="text-xs text-gray-500 ml-2">
+                ({decisions.impact.campaignsNeedingAction} campaigns need action)
+              </span>
+            </div>
+            <div className="space-y-2">
+              {decisions.topActions.map((decision) => (
+                <DecisionCard key={decision.campaignId} decision={decision} />
+              ))}
+            </div>
+            {decisions.impact.spendToPause > 0 && (
+              <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <div className="flex items-center gap-2 text-sm">
+                  <Shield className="w-4 h-4 text-red-400" />
+                  <span className="text-red-400 font-medium">
+                    Impacto potencial: €{decisions.impact.spendToPause.toFixed(0)}/sem en campañas a pausar
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Campaigns Table */}
         <div className="mb-6">
           <div className="text-sm text-gray-400 uppercase tracking-wide mb-3">
@@ -174,6 +221,51 @@ export function Campaigns() {
             <div>
               <span className="text-red-400 font-medium">PAUSE</span>: Payback 51d &lt; 0.7x, age &ge; 51d, n &ge; 10
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// DecisionCard component for showing individual decisions
+function DecisionCard({ decision }: { decision: CampaignDecision }) {
+  const actionColor = decision.action === 'pause' ? 'border-red-500/30 bg-red-500/5' :
+                      decision.action === 'scale' ? 'border-green-500/30 bg-green-500/5' :
+                      decision.action === 'optimize' ? 'border-yellow-500/30 bg-yellow-500/5' :
+                      'border-gray-700 bg-gray-800/50';
+
+  const urgencyBadge = decision.urgency === 'immediate' ? 'bg-red-500/20 text-red-400' :
+                       decision.urgency === 'this_week' ? 'bg-yellow-500/20 text-yellow-400' :
+                       'bg-gray-700 text-gray-400';
+
+  return (
+    <div className={`rounded-lg border p-3 ${actionColor}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-lg">{ACTION_ICONS[decision.action]}</span>
+            <span className="font-medium truncate">{decision.campaignName}</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${urgencyBadge}`}>
+              {decision.urgency === 'immediate' ? 'Inmediato' :
+               decision.urgency === 'this_week' ? 'Esta semana' : 'Próxima revisión'}
+            </span>
+          </div>
+          <div className="text-sm text-gray-300 mb-2">{decision.actionText}</div>
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <span>Spend: €{decision.metrics.spend7d}/sem</span>
+            <span>PB 51d: {decision.metrics.payback51d.toFixed(2)}x</span>
+            <span>Age: {decision.metrics.campaignAgeDays}d</span>
+            <span>n={decision.metrics.cohort51dSize}</span>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className={`text-xs ${CONFIDENCE_COLORS[decision.confidence]}`}>
+            Confianza: {decision.confidence === 'high' ? 'Alta' :
+                       decision.confidence === 'medium' ? 'Media' : 'Baja'}
+          </div>
+          <div className="text-xs text-gray-500 mt-1 max-w-[150px]">
+            {decision.confidenceReason}
           </div>
         </div>
       </div>

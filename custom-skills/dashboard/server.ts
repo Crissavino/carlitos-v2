@@ -112,6 +112,9 @@ app.get("/api", (req: Request, res: Response) => {
       // Campaigns (Phase 7)
       campaignsList: "GET /api/campaigns",
       campaignsActions: "GET /api/campaigns/actions",
+      // Campaign Decisions (Phase 7.5)
+      campaignDecisions: "GET /api/campaigns/decisions",
+      campaignDecisionsUrgent: "GET /api/campaigns/decisions/urgent",
       // Snapshots (Historical)
       snapshotCreate: "POST /api/snapshots",
       snapshotList: "GET /api/snapshots?days=30",
@@ -426,6 +429,10 @@ import {
   getCampaignsToScale,
   getCampaignsToMonitor,
 } from "../skills/business-expert/analyzers/campaign-analyzer.js";
+import {
+  evaluateCampaignRules,
+  getCampaignsNeedingAction,
+} from "../skills/decision-engine/campaign-rules/evaluator.js";
 
 // GET /api/campaigns - Get all campaigns with metrics
 app.get("/api/campaigns", async (req: Request, res: Response) => {
@@ -469,6 +476,41 @@ app.get("/api/campaigns/actions", async (req: Request, res: Response) => {
           count: toMonitor.length,
           campaigns: toMonitor,
         },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/campaigns/decisions - Get DecisionEngine decisions for campaigns (Phase 7.5)
+app.get("/api/campaigns/decisions", async (req: Request, res: Response) => {
+  try {
+    const summary = await evaluateCampaignRules();
+    if (!summary) {
+      res.status(500).json({ error: "No campaign data available for decisions" });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: summary,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/campaigns/decisions/urgent - Get only campaigns needing immediate action
+app.get("/api/campaigns/decisions/urgent", async (req: Request, res: Response) => {
+  try {
+    const actions = await getCampaignsNeedingAction();
+
+    res.json({
+      success: true,
+      data: {
+        count: actions.length,
+        decisions: actions,
       },
     });
   } catch (error) {
