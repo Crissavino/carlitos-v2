@@ -99,7 +99,7 @@ function authMiddleware(req: Request, res: Response, next: NextFunction): void {
 app.get("/api", (req: Request, res: Response) => {
   res.json({
     name: "OpenClaw Dashboard API",
-    version: "1.1.0",
+    version: "2.0.0",
     endpoints: {
       // Business Expert
       summary: "GET /api/business/summary",
@@ -109,6 +109,9 @@ app.get("/api", (req: Request, res: Response) => {
       weeklyReport: "GET /api/decision/weekly-report",
       decisions: "GET /api/decision/current",
       rules: "GET /api/decision/rules",
+      // Campaigns (Phase 7)
+      campaignsList: "GET /api/campaigns",
+      campaignsActions: "GET /api/campaigns/actions",
       // Snapshots (Historical)
       snapshotCreate: "POST /api/snapshots",
       snapshotList: "GET /api/snapshots?days=30",
@@ -406,6 +409,66 @@ app.get("/api/decision/rules", (req: Request, res: Response) => {
           },
           triggerKpis: r.triggerKpis,
         })),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// ============================================================================
+// CAMPAIGNS (Phase 7)
+// ============================================================================
+
+import {
+  getCampaignPerformance,
+  getCampaignsToPause,
+  getCampaignsToScale,
+  getCampaignsToMonitor,
+} from "../skills/business-expert/analyzers/campaign-analyzer.js";
+
+// GET /api/campaigns - Get all campaigns with metrics
+app.get("/api/campaigns", async (req: Request, res: Response) => {
+  try {
+    const data = await getCampaignPerformance();
+    if (!data) {
+      res.status(500).json({ error: "No campaign data available" });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/campaigns/actions - Get campaigns needing action (pause/scale/monitor)
+app.get("/api/campaigns/actions", async (req: Request, res: Response) => {
+  try {
+    const [toPause, toScale, toMonitor] = await Promise.all([
+      getCampaignsToPause(),
+      getCampaignsToScale(),
+      getCampaignsToMonitor(),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        toPause: {
+          count: toPause.length,
+          campaigns: toPause,
+        },
+        toScale: {
+          count: toScale.length,
+          campaigns: toScale,
+        },
+        toMonitor: {
+          count: toMonitor.length,
+          campaigns: toMonitor,
+        },
       },
     });
   } catch (error) {

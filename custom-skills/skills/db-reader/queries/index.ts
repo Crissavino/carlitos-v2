@@ -8,6 +8,7 @@ import { usageBeforeRebill27dQuery } from "./usage-before-rebill2-7d.js";
 import { adSpend7dQuery } from "./ad-spend-7d.js";
 import { ltv30dQuery, ltv45dQuery, ltv90dQuery } from "./ltv-30d.js";
 import { ltv21dQuery, ltv51dQuery, ltv81dQuery } from "./ltv-windows.js";
+import { campaignPerformanceQuery, campaignSummaryQuery } from "./campaign-metrics.js";
 
 export const ALLOWED_QUERIES: Record<AllowedQueryId, QueryDefinition> = {
   "active-subscriptions": activeSubscriptionsQuery,
@@ -25,6 +26,9 @@ export const ALLOWED_QUERIES: Record<AllowedQueryId, QueryDefinition> = {
   "ltv-21d": ltv21dQuery,
   "ltv-51d": ltv51dQuery,
   "ltv-81d": ltv81dQuery,
+  // Phase 7: Campaign-level metrics
+  "campaign-performance": campaignPerformanceQuery,
+  "campaign-summary": campaignSummaryQuery,
 };
 
 export function getQuery(queryId: string): QueryDefinition | null {
@@ -51,4 +55,7 @@ export {
   ltv21dQuery,
   ltv51dQuery,
   ltv81dQuery,
+  // Phase 7: Campaign metrics
+  campaignPerformanceQuery,
+  campaignSummaryQuery,
 };

@@ -13,7 +13,10 @@ export type AllowedQueryId =
   // LTV ventanas correctas (basadas en modelo de cobro real)
   | "ltv-21d"   // R1 completo
   | "ltv-51d"   // R2 completo
-  | "ltv-81d";  // R3 completo
+  | "ltv-81d"   // R3 completo
+  // Phase 7: Campaign-level metrics
+  | "campaign-performance"  // Full metrics per campaign
+  | "campaign-summary";     // Lightweight summary
 
 export interface DBReaderRequest {
   query: AllowedQueryId;
