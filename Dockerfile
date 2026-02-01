@@ -27,9 +27,13 @@ COPY custom-skills/ /root/.openclaw/custom-skills/
 # Copiar skills (SKILL.md para OpenClaw)
 COPY skills/ /root/.openclaw/skills/
 
-# Instalar dependencias y compilar custom-skills
+# Instalar dependencias y compilar custom-skills (backend)
 WORKDIR /root/.openclaw/custom-skills
 RUN npm install && npx tsc --build
+
+# Build frontend dashboard
+WORKDIR /root/.openclaw/custom-skills/dashboard/frontend
+RUN npm install && npm run build
 
 # Volver al directorio de trabajo
 WORKDIR /app

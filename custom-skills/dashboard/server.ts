@@ -7,6 +7,11 @@
 
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import {
   fetchRawMetrics,
   calculateCoreKpis,
@@ -78,7 +83,7 @@ function authMiddleware(req: Request, res: Response, next: NextFunction): void {
 // PUBLIC ROUTES
 // ============================================================================
 
-app.get("/", (req: Request, res: Response) => {
+app.get("/api", (req: Request, res: Response) => {
   res.json({
     name: "OpenClaw Dashboard API",
     version: "1.1.0",
@@ -587,6 +592,22 @@ app.post("/api/tasks/generate", async (req: Request, res: Response) => {
 });
 
 // ============================================================================
+// FRONTEND (Static files)
+// ============================================================================
+
+// __dirname is dist/dashboard/ after compilation, frontend is at dashboard/frontend/dist
+const frontendPath = path.join(__dirname, "..", "..", "dashboard", "frontend", "dist");
+app.use(express.static(frontendPath, { index: "index.html" }));
+
+// SPA fallback - serve index.html for non-API routes
+app.get("*", (req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith("/api")) {
+    return next();
+  }
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
+
+// ============================================================================
 // ERROR HANDLING
 // ============================================================================
 
@@ -599,7 +620,8 @@ app.use((req: Request, res: Response) => {
 // ============================================================================
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Dashboard API running on http://0.0.0.0:${PORT}`);
+  console.log(`Dashboard running on http://0.0.0.0:${PORT}`);
+  console.log(`API: http://0.0.0.0:${PORT}/api`);
   console.log(`Auth token: ${DASHBOARD_TOKEN ? "configured" : "using default"}`);
 });
 

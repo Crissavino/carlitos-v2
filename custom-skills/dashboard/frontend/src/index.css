@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+body {
+  @apply bg-gray-950 text-gray-100 antialiased min-h-screen;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.status-healthy { @apply text-green-500; }
+.status-warning { @apply text-yellow-500; }
+.status-critical { @apply text-red-500; }
+.status-unknown { @apply text-gray-500; }
+
+.bg-status-healthy { @apply bg-green-500/10 border-green-500/30; }
+.bg-status-warning { @apply bg-yellow-500/10 border-yellow-500/30; }
+.bg-status-critical { @apply bg-red-500/10 border-red-500/30; }
+.bg-status-unknown { @apply bg-gray-500/10 border-gray-500/30; }

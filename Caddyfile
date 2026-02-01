@@ -9,3 +9,7 @@ carlitos-bot.com {
         reverse_proxy openclaw:18789
     }
 }
+
+dashboard.carlitos-bot.com {
+    reverse_proxy openclaw:3002
+}

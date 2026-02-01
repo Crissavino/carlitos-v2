@@ -71,8 +71,9 @@ openclaw skills list 2>/dev/null | grep -E "ready|db-reader|google-ads" || echo 
 TOKEN=$(grep -o '"token": "[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
 echo ""
 echo "=== Starting Services ==="
-echo "Dashboard: http://localhost:18789/?token=$TOKEN"
-echo "Webhook:   http://localhost:3001/ingest/google-ads"
+echo "Gateway:       http://localhost:18789/?token=$TOKEN"
+echo "Dashboard API: http://localhost:3002/"
+echo "Webhook:       http://localhost:3001/ingest/google-ads"
 echo ""
 
 # Start webhook server in background
@@ -81,6 +82,12 @@ cd /root/.openclaw/custom-skills
 node dist/webhook-server.js &
 WEBHOOK_PID=$!
 echo "Webhook server started (PID: $WEBHOOK_PID)"
+
+# Start dashboard API in background
+echo "Starting dashboard API..."
+node dist/dashboard/server.js &
+DASHBOARD_PID=$!
+echo "Dashboard API started (PID: $DASHBOARD_PID)"
 
 # Start gateway in foreground
 cd /app
