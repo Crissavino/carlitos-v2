@@ -78,7 +78,14 @@ CONFIG_TEMPLATE="$APP_CODE/openclaw.config.json"
 # Generate gateway token
 TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$(head -c 24 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)}"
 
-if [ -f "$CONFIG_FILE" ]; then
+# Remove broken symlink if exists (from old config setup)
+if [ -L "$CONFIG_FILE" ] && [ ! -e "$CONFIG_FILE" ]; then
+    echo "→ Removing broken config symlink..."
+    rm -f "$CONFIG_FILE"
+fi
+
+# Check if config exists and is a valid file
+if [ -f "$CONFIG_FILE" ] && [ -s "$CONFIG_FILE" ]; then
     echo "✓ Config exists: $CONFIG_FILE (preserved)"
 
     # Update token in existing config if env var is set
@@ -90,7 +97,10 @@ if [ -f "$CONFIG_FILE" ]; then
         fi
     fi
 else
-    echo "→ Config not found, creating from template..."
+    echo "→ Config not found or empty, creating from template..."
+    # Remove any existing broken file/symlink
+    rm -f "$CONFIG_FILE"
+    # Create config from template
     sed "s/__GATEWAY_TOKEN__/$TOKEN/g" "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
     echo "✓ Config created: $CONFIG_FILE"
 fi
