@@ -594,30 +594,33 @@ app.get("/api/business/daily", sessionAuth, async (req: Request, res: Response) 
     const cpfrChange = cpfr7dAgo > 0 ? ((cpfrToday - cpfr7dAgo) / cpfr7dAgo) * 100 : 0;
 
     res.json({
-      date: new Date().toISOString().split('T')[0],
-      comparedTo: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      acquisitions: {
-        today: trialsToday,
-        weekAgo: trials7dAgo,
-        change: Math.round(trialsChange * 10) / 10,
-      },
-      cpa: {
-        today: Math.round(cpaToday * 100) / 100,
-        weekAgo: Math.round(cpa7dAgo * 100) / 100,
-        change: Math.round(cpaChange * 10) / 10,
-      },
-      cpfr: {
-        today: Math.round(cpfrToday * 100) / 100,
-        weekAgo: Math.round(cpfr7dAgo * 100) / 100,
-        change: Math.round(cpfrChange * 10) / 10,
-      },
-      adSpend: {
-        today: adSpendTodayEur,
-        weekAgo: adSpend7dAgoEur,
-      },
-      firstRebills: {
-        today: firstRebillsToday,
-        weekAgo: firstRebills7dAgo,
+      success: true,
+      data: {
+        date: new Date().toISOString().split('T')[0],
+        comparedTo: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        acquisitions: {
+          today: trialsToday,
+          weekAgo: trials7dAgo,
+          change: Math.round(trialsChange * 10) / 10,
+        },
+        cpa: {
+          today: Math.round(cpaToday * 100) / 100,
+          weekAgo: Math.round(cpa7dAgo * 100) / 100,
+          change: Math.round(cpaChange * 10) / 10,
+        },
+        cpfr: {
+          today: Math.round(cpfrToday * 100) / 100,
+          weekAgo: Math.round(cpfr7dAgo * 100) / 100,
+          change: Math.round(cpfrChange * 10) / 10,
+        },
+        adSpend: {
+          today: adSpendTodayEur,
+          weekAgo: adSpend7dAgoEur,
+        },
+        firstRebills: {
+          today: firstRebillsToday,
+          weekAgo: firstRebills7dAgo,
+        },
       },
     });
   } catch (err) {
