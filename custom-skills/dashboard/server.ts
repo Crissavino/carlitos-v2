@@ -25,6 +25,9 @@ import {
   clearLtvCache,
 } from "../skills/business-expert/analyzers/revenue-analyzer.js";
 import {
+  executeQuery,
+} from "../skills/db-reader/executor.js";
+import {
   generateWeeklyReport,
 } from "../skills/decision-engine/reporters/weekly-report.js";
 import {
@@ -540,9 +543,92 @@ app.get("/api/business/summary", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/business/daily?websiteId=1
+// Daily comparison: Today vs 7 days ago (same weekday)
+app.get("/api/business/daily", sessionAuth, async (req: Request, res: Response) => {
+  try {
+    const websiteIdParam = req.query.websiteId as string;
+    if (!websiteIdParam) {
+      res.status(400).json({
+        error: "WEBSITE_ID_REQUIRED",
+        validWebsiteIds: VALID_WEBSITE_IDS,
+      });
+      return;
+    }
+
+    const websiteId = validateWebsiteId(parseInt(websiteIdParam, 10));
+
+    // Fetch all daily comparison data in parallel
+    const [
+      trialsTodayResult,
+      trials7dAgoResult,
+      firstRebillsTodayResult,
+      firstRebills7dAgoResult,
+      adSpendTodayResult,
+      adSpend7dAgoResult,
+    ] = await Promise.all([
+      executeQuery("trials-today", websiteId),
+      executeQuery("trials-7d-ago", websiteId),
+      executeQuery("first-rebills-today", websiteId),
+      executeQuery("first-rebills-7d-ago", websiteId),
+      executeQuery("ad-spend-today", websiteId),
+      executeQuery("ad-spend-7d-ago", websiteId),
+    ]);
+
+    const trialsToday = (trialsTodayResult.results as any)?.count || 0;
+    const trials7dAgo = (trials7dAgoResult.results as any)?.count || 0;
+    const firstRebillsToday = (firstRebillsTodayResult.results as any)?.count || 0;
+    const firstRebills7dAgo = (firstRebills7dAgoResult.results as any)?.count || 0;
+    const adSpendTodayEur = (adSpendTodayResult.results as any)?.totalEur || 0;
+    const adSpend7dAgoEur = (adSpend7dAgoResult.results as any)?.totalEur || 0;
+
+    // Calculate derived metrics
+    const cpaToday = trialsToday > 0 ? adSpendTodayEur / trialsToday : 0;
+    const cpa7dAgo = trials7dAgo > 0 ? adSpend7dAgoEur / trials7dAgo : 0;
+    const cpfrToday = firstRebillsToday > 0 ? adSpendTodayEur / firstRebillsToday : 0;
+    const cpfr7dAgo = firstRebills7dAgo > 0 ? adSpend7dAgoEur / firstRebills7dAgo : 0;
+
+    // Calculate % changes
+    const trialsChange = trials7dAgo > 0 ? ((trialsToday - trials7dAgo) / trials7dAgo) * 100 : 0;
+    const cpaChange = cpa7dAgo > 0 ? ((cpaToday - cpa7dAgo) / cpa7dAgo) * 100 : 0;
+    const cpfrChange = cpfr7dAgo > 0 ? ((cpfrToday - cpfr7dAgo) / cpfr7dAgo) * 100 : 0;
+
+    res.json({
+      date: new Date().toISOString().split('T')[0],
+      comparedTo: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      acquisitions: {
+        today: trialsToday,
+        weekAgo: trials7dAgo,
+        change: Math.round(trialsChange * 10) / 10,
+      },
+      cpa: {
+        today: Math.round(cpaToday * 100) / 100,
+        weekAgo: Math.round(cpa7dAgo * 100) / 100,
+        change: Math.round(cpaChange * 10) / 10,
+      },
+      cpfr: {
+        today: Math.round(cpfrToday * 100) / 100,
+        weekAgo: Math.round(cpfr7dAgo * 100) / 100,
+        change: Math.round(cpfrChange * 10) / 10,
+      },
+      adSpend: {
+        today: adSpendTodayEur,
+        weekAgo: adSpend7dAgoEur,
+      },
+      firstRebills: {
+        today: firstRebillsToday,
+        weekAgo: firstRebills7dAgo,
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: msg });
+  }
+});
+
 // GET /api/business/kpis?websiteId=1
 // HARDENING: websiteId is REQUIRED - no global KPIs
-app.get("/api/business/kpis", async (req: Request, res: Response) => {
+app.get("/api/business/kpis", sessionAuth, async (req: Request, res: Response) => {
   try {
     const websiteIdParam = req.query.websiteId as string;
     if (!websiteIdParam) {

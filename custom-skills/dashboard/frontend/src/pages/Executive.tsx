@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw, Clock } from 'lucide-react';
-import { api, type BusinessSummary, type Snapshot, type DecisionCurrent, type WebsiteId } from '../api/client';
+import { api, type BusinessSummary, type Snapshot, type DecisionCurrent, type DailyComparison, type WebsiteId } from '../api/client';
 import { StatusBadge } from '../components/StatusBadge';
 import { KpiCard } from '../components/KpiCard';
 import { TrendChart } from '../components/TrendChart';
@@ -14,6 +14,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
   const [summary, setSummary] = useState<BusinessSummary | null>(null);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [decisions, setDecisions] = useState<DecisionCurrent | null>(null);
+  const [daily, setDaily] = useState<DailyComparison | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -22,14 +23,16 @@ export function Executive({ websiteId }: ExecutiveProps) {
     setLoading(true);
     setError(null);
     try {
-      const [summaryData, snapshotsData, decisionsData] = await Promise.all([
+      const [summaryData, snapshotsData, decisionsData, dailyData] = await Promise.all([
         api.getSummary(websiteId),
         api.getSnapshots(websiteId, 14),
         api.getDecisions(websiteId),
+        api.getDailyComparison(websiteId),
       ]);
       setSummary(summaryData);
       setSnapshots(snapshotsData.snapshots);
       setDecisions(decisionsData);
+      setDaily(dailyData);
       setLastUpdate(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error loading data');
@@ -43,6 +46,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
     setSummary(null);
     setSnapshots([]);
     setDecisions(null);
+    setDaily(null);
     setError(null);
 
     loadData();
@@ -128,6 +132,45 @@ export function Executive({ websiteId }: ExecutiveProps) {
             <StatusBadge status={summary.businessStatus} size="lg" />
           </div>
         </div>
+
+        {/* Daily Comparison - Today vs Same Day Last Week */}
+        {daily && (
+          <div className="mb-6">
+            <div className="text-sm text-gray-400 uppercase tracking-wide mb-3">
+              Hoy vs {new Date(daily.comparedTo).toLocaleDateString('es', { weekday: 'long' })} pasado
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-gray-900 rounded-xl p-4 border-l-4 border-l-blue-500">
+                <div className="text-sm text-gray-400">Acquisitions</div>
+                <div className="text-2xl font-bold">{daily.acquisitions.today}</div>
+                <div className={`text-sm ${daily.acquisitions.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {daily.acquisitions.change >= 0 ? '↑' : '↓'} {Math.abs(daily.acquisitions.change)}% vs {daily.acquisitions.weekAgo}
+                </div>
+              </div>
+              <div className="bg-gray-900 rounded-xl p-4 border-l-4 border-l-purple-500">
+                <div className="text-sm text-gray-400">CPA</div>
+                <div className="text-2xl font-bold">€{daily.cpa.today.toFixed(0)}</div>
+                <div className={`text-sm ${daily.cpa.change <= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {daily.cpa.change <= 0 ? '↓' : '↑'} {Math.abs(daily.cpa.change)}% vs €{daily.cpa.weekAgo.toFixed(0)}
+                </div>
+              </div>
+              <div className="bg-gray-900 rounded-xl p-4 border-l-4 border-l-orange-500">
+                <div className="text-sm text-gray-400">CPFR</div>
+                <div className="text-2xl font-bold">€{daily.cpfr.today.toFixed(0)}</div>
+                <div className={`text-sm ${daily.cpfr.change <= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {daily.cpfr.change <= 0 ? '↓' : '↑'} {Math.abs(daily.cpfr.change)}% vs €{daily.cpfr.weekAgo.toFixed(0)}
+                </div>
+              </div>
+              <div className="bg-gray-900 rounded-xl p-4 border-l-4 border-l-gray-500">
+                <div className="text-sm text-gray-400">First Rebills</div>
+                <div className="text-2xl font-bold">{daily.firstRebills.today}</div>
+                <div className="text-sm text-gray-500">
+                  vs {daily.firstRebills.weekAgo} semana pasada
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* P1 HEADLINE - Payback M1 (Utility Model) */}
         <div className="mb-6">

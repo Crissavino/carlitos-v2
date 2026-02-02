@@ -109,6 +109,17 @@ export interface DecisionCurrent {
   topActions: TopAction[];
 }
 
+// Daily Comparison - Today vs 7 days ago
+export interface DailyComparison {
+  date: string;
+  comparedTo: string;
+  acquisitions: { today: number; weekAgo: number; change: number };
+  cpa: { today: number; weekAgo: number; change: number };
+  cpfr: { today: number; weekAgo: number; change: number };
+  adSpend: { today: number; weekAgo: number };
+  firstRebills: { today: number; weekAgo: number };
+}
+
 // ============================================================================
 // Tasks & Kanban
 // ============================================================================
@@ -300,6 +311,7 @@ export const api = {
   getSummary: (websiteId: number) => fetchAPI<BusinessSummary>(`/business/summary?websiteId=${websiteId}`),
   getSnapshots: (websiteId: number, days = 30) => fetchAPI<{ count: number; snapshots: Snapshot[] }>(`/snapshots?websiteId=${websiteId}&days=${days}`),
   getDecisions: (websiteId: number) => fetchAPI<DecisionCurrent>(`/decision/current?websiteId=${websiteId}`),
+  getDailyComparison: (websiteId: number) => fetchAPI<DailyComparison>(`/business/daily?websiteId=${websiteId}`),
 
   // Tasks
   getTasks: (status?: string) => {

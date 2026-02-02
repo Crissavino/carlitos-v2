@@ -320,6 +320,42 @@ function formatResults(queryId: AllowedQueryId, rows: unknown[]): unknown {
         byDay: Object.values(byDay).sort((a, b) => b.date.localeCompare(a.date)),
       };
     }
+    // Phase 10: Daily comparison queries
+    case "trials-today":
+    case "trials-7d-ago":
+    case "first-rebills-today":
+    case "first-rebills-7d-ago": {
+      // Single row with count
+      const row = rows[0] as any || { count: 0 };
+      return {
+        count: parseInt(row.count) || 0,
+      };
+    }
+    case "ad-spend-today":
+    case "ad-spend-7d-ago": {
+      // Same format as ad-spend-7d
+      let totalEur = 0;
+      const byCurrency: any[] = [];
+
+      for (const r of rows as any[]) {
+        const currencyId = r.currency_id;
+        const cost = parseFloat(r.total_cost) || 0;
+        const currencyCode = currencyId === 4 ? 'RON' : 'EUR';
+        const costEur = CurrencyConverter.toEur(cost, currencyCode);
+
+        totalEur += costEur;
+        byCurrency.push({
+          currencyId,
+          original: Math.round(cost * 100) / 100,
+          eur: costEur,
+        });
+      }
+
+      return {
+        totalEur: Math.round(totalEur * 100) / 100,
+        byCurrency,
+      };
+    }
     default:
       return rows;
   }

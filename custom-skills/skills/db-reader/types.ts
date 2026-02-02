@@ -25,7 +25,14 @@ export type AllowedQueryId =
   // Phase 9: Utility Model KPIs
   | "trial-revenue-7d"       // Trial revenue for Payback M1
   | "first-rebill-revenue-7d" // First rebill revenue for Payback M1
-  | "refunds-m1-7d";          // Refunds before M2 for Payback M1
+  | "refunds-m1-7d"          // Refunds before M2 for Payback M1
+  // Phase 10: Daily Comparison (Today vs 7 days ago)
+  | "trials-today"           // Trials started today
+  | "trials-7d-ago"          // Trials started 7 days ago
+  | "first-rebills-today"    // First rebills today
+  | "first-rebills-7d-ago"   // First rebills 7 days ago
+  | "ad-spend-today"         // Ad spend today
+  | "ad-spend-7d-ago";       // Ad spend 7 days ago
 
 export interface DBReaderRequest {
   query: AllowedQueryId;

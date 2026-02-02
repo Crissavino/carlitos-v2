@@ -20,6 +20,14 @@ import {
   firstRebillRevenue7dQuery,
   refundsM1Query,
 } from "./utility-model.js";
+import {
+  trialsTodayQuery,
+  trials7dAgoQuery,
+  firstRebillsTodayQuery,
+  firstRebills7dAgoQuery,
+  adSpendTodayQuery,
+  adSpend7dAgoQuery,
+} from "./daily-comparison.js";
 
 // Query builders that support websiteId filtering
 export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
@@ -50,6 +58,13 @@ export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
   "trial-revenue-7d": trialRevenue7dQuery,
   "first-rebill-revenue-7d": firstRebillRevenue7dQuery,
   "refunds-m1-7d": refundsM1Query,
+  // Phase 10: Daily Comparison (Today vs 7 days ago)
+  "trials-today": trialsTodayQuery,
+  "trials-7d-ago": trials7dAgoQuery,
+  "first-rebills-today": firstRebillsTodayQuery,
+  "first-rebills-7d-ago": firstRebills7dAgoQuery,
+  "ad-spend-today": adSpendTodayQuery,
+  "ad-spend-7d-ago": adSpend7dAgoQuery,
 };
 
 /**
