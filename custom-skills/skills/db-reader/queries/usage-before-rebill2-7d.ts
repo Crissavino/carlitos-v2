@@ -1,4 +1,4 @@
-import { QueryDefinition } from "../types.js";
+import { QueryDefinition, QueryBuilder } from "../types.js";
 
 /**
  * Usage Before Rebill 2 - Customers con actividad entre first y second rebill.
@@ -9,44 +9,54 @@ import { QueryDefinition } from "../types.js";
  *
  * NOTA: Esta métrica es diagnóstica, no alerta crítica.
  * El modelo de negocio es de necesidad puntual, no uso recurrente.
+ *
+ * HARDENING: Filter by website_id through subscriptions table
  */
-export const usageBeforeRebill27dQuery: QueryDefinition = {
-  id: "usage-before-rebill2-7d",
-  name: "Usage Before Rebill 2",
-  description: "Customers con uso de producto entre first y second rebill (cohorte 30-37d)",
-  sql: `
-    SELECT
-      COUNT(DISTINCT i.customer_id) AS first_rebills,
-      COUNT(DISTINCT CASE
-        WHEN EXISTS (
-          SELECT 1
-          FROM avocode.documents d
-          WHERE d.customer_id = i.customer_id
-            AND d.create_time >= i.transacted_at
-            AND d.create_time < COALESCE(
-              (SELECT MIN(i3.transacted_at)
-               FROM avocode.invoices i3
-               WHERE i3.customer_id = i.customer_id
-                 AND i3.invoice_type_id = 2
-                 AND i3.invoice_status_id = 1
-                 AND i3.id > i.id),
-              NOW()
-            )
-        ) THEN i.customer_id
-      END) AS with_usage
-    FROM avocode.invoices i
-    WHERE i.transacted_at >= DATE_SUB(CURDATE(), INTERVAL 37 DAY)
-      AND i.transacted_at < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-      AND i.invoice_type_id = 2
-      AND i.invoice_status_id = 1
-      AND i.id = (
-        SELECT MIN(i2.id)
-        FROM avocode.invoices i2
-        WHERE i2.customer_id = i.customer_id
-          AND i2.invoice_type_id = 2
-          AND i2.invoice_status_id = 1
-      )
-  `,
-  params: [],
-  permissions: ["SELECT"],
+export const usageBeforeRebill27dQuery: QueryBuilder = (websiteId?: number): QueryDefinition => {
+  const websiteJoin = websiteId ? `
+    INNER JOIN avocode.subscriptions s ON i.customer_id = s.customer_id AND s.website_id = ?
+  ` : '';
+  const params = websiteId ? [websiteId] : [];
+
+  return {
+    id: "usage-before-rebill2-7d",
+    name: "Usage Before Rebill 2",
+    description: "Customers con uso de producto entre first y second rebill (cohorte 30-37d)",
+    sql: `
+      SELECT
+        COUNT(DISTINCT i.customer_id) AS first_rebills,
+        COUNT(DISTINCT CASE
+          WHEN EXISTS (
+            SELECT 1
+            FROM avocode.documents d
+            WHERE d.customer_id = i.customer_id
+              AND d.create_time >= i.transacted_at
+              AND d.create_time < COALESCE(
+                (SELECT MIN(i3.transacted_at)
+                 FROM avocode.invoices i3
+                 WHERE i3.customer_id = i.customer_id
+                   AND i3.invoice_type_id = 2
+                   AND i3.invoice_status_id = 1
+                   AND i3.id > i.id),
+                NOW()
+              )
+          ) THEN i.customer_id
+        END) AS with_usage
+      FROM avocode.invoices i
+      ${websiteJoin}
+      WHERE i.transacted_at >= DATE_SUB(CURDATE(), INTERVAL 37 DAY)
+        AND i.transacted_at < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        AND i.invoice_type_id = 2
+        AND i.invoice_status_id = 1
+        AND i.id = (
+          SELECT MIN(i2.id)
+          FROM avocode.invoices i2
+          WHERE i2.customer_id = i.customer_id
+            AND i2.invoice_type_id = 2
+            AND i2.invoice_status_id = 1
+        )
+    `,
+    params,
+    permissions: ["SELECT"],
+  };
 };

@@ -14,24 +14,29 @@ export interface WebsiteConfig {
 
 // HARDENING: Website → Configuration mapping
 // Source: avocode.websites table (id 2 is not operational)
+//
+// Business structure:
+// - conversie-pdf.com (id=1): Avocode + Jackcode (Jack pays ads) - EUR
+// - convierte-pdf.com (id=3): KiwiKode - RON
+// - device-finder.com (id=4): Jackcode - EUR
 export const WEBSITES: Record<number, WebsiteConfig> = {
   1: {
     id: 1,
-    name: 'Jackcode',
+    name: 'ConversiePDF',  // conversie-pdf.com - Avocode/Jackcode
     currency: 'EUR',
     googleAccountId: '338-426-8994',
   },
   3: {
     id: 3,
-    name: 'KiwiKode',
+    name: 'ConviertePDF',  // convierte-pdf.com - KiwiKode
     currency: 'RON',
     googleAccountId: '502-581-1084',
   },
   4: {
     id: 4,
-    name: 'DeviceFinder',
-    currency: 'EUR',  // Campaigns from Jackcode account
-    googleAccountId: '338-426-8994',  // Same as Jackcode
+    name: 'DeviceFinder',  // device-finder.com - Jackcode
+    currency: 'EUR',
+    googleAccountId: '338-426-8994',
   },
 };
 

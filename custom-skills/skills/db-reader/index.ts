@@ -28,12 +28,16 @@ export class DBReader {
   }
 
   async listQueries(): Promise<{ id: string; name: string; description: string }[]> {
-    const { ALLOWED_QUERIES } = await import("./queries/index.js");
-    return Object.values(ALLOWED_QUERIES).map((q) => ({
-      id: q.id,
-      name: q.name,
-      description: q.description,
-    }));
+    const { QUERY_BUILDERS } = await import("./queries/index.js");
+    // Call each builder without websiteId to get query metadata
+    return Object.entries(QUERY_BUILDERS).map(([id, builder]) => {
+      const q = builder();
+      return {
+        id: q.id,
+        name: q.name,
+        description: q.description,
+      };
+    });
   }
 }
 

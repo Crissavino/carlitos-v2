@@ -3,14 +3,13 @@
  *
  * Obtiene datos de revenue, trials, rebills, usage y ad spend desde DBReader.
  *
- * LTV queries are cached for 1 hour to improve performance.
- * Cache is invalidated on server restart or when TTL expires.
+ * HARDENING: All functions require websiteId parameter - no global metrics allowed
  */
 
 import { executeQuery } from "../../db-reader/executor.js";
 
 // ============================================================================
-// LTV CACHE (1 hour TTL for expensive queries)
+// LTV CACHE (1 hour TTL, keyed by websiteId)
 // ============================================================================
 
 interface CacheEntry<T> {
@@ -21,20 +20,22 @@ interface CacheEntry<T> {
 const LTV_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const ltvCache: Map<string, CacheEntry<any>> = new Map();
 
-function getCachedLtv<T>(key: string): T | null {
-  const entry = ltvCache.get(key);
+function getCachedLtv<T>(key: string, websiteId: number): T | null {
+  const cacheKey = `${key}-${websiteId}`;
+  const entry = ltvCache.get(cacheKey);
   if (!entry) return null;
 
   if (Date.now() - entry.cachedAt > LTV_CACHE_TTL_MS) {
-    ltvCache.delete(key);
+    ltvCache.delete(cacheKey);
     return null;
   }
 
   return entry.data as T;
 }
 
-function setCachedLtv<T>(key: string, data: T): void {
-  ltvCache.set(key, { data, cachedAt: Date.now() });
+function setCachedLtv<T>(key: string, websiteId: number, data: T): void {
+  const cacheKey = `${key}-${websiteId}`;
+  ltvCache.set(cacheKey, { data, cachedAt: Date.now() });
 }
 
 export function clearLtvCache(): void {
@@ -60,8 +61,8 @@ export interface AdSpendData {
   totalEur: number;
 }
 
-export async function getRevenueData(): Promise<RevenueData | null> {
-  const result = await executeQuery("daily-revenue-7d");
+export async function getRevenueData(websiteId: number): Promise<RevenueData | null> {
+  const result = await executeQuery("daily-revenue-7d", websiteId);
 
   if (result.status !== "success" || !result.results) {
     return null;
@@ -76,8 +77,8 @@ export async function getRevenueData(): Promise<RevenueData | null> {
   };
 }
 
-export async function getTrialsData(): Promise<TrialsData | null> {
-  const result = await executeQuery("trials-last-7-days");
+export async function getTrialsData(websiteId: number): Promise<TrialsData | null> {
+  const result = await executeQuery("trials-last-7-days", websiteId);
 
   if (result.status !== "success" || !result.results) {
     return null;
@@ -90,8 +91,8 @@ export async function getTrialsData(): Promise<TrialsData | null> {
   };
 }
 
-export async function getFirstRebillsData(): Promise<number | null> {
-  const result = await executeQuery("first-rebills-7d");
+export async function getFirstRebillsData(websiteId: number): Promise<number | null> {
+  const result = await executeQuery("first-rebills-7d", websiteId);
 
   if (result.status !== "success" || !result.results) {
     return null;
@@ -101,8 +102,8 @@ export async function getFirstRebillsData(): Promise<number | null> {
   return data.total;
 }
 
-export async function getFirstRebillsCohorte30dData(): Promise<number | null> {
-  const result = await executeQuery("first-rebills-cohorte-30d");
+export async function getFirstRebillsCohorte30dData(websiteId: number): Promise<number | null> {
+  const result = await executeQuery("first-rebills-cohorte-30d", websiteId);
 
   if (result.status !== "success" || !result.results) {
     return null;
@@ -112,8 +113,8 @@ export async function getFirstRebillsCohorte30dData(): Promise<number | null> {
   return data.total;
 }
 
-export async function getSecondRebillsData(): Promise<number | null> {
-  const result = await executeQuery("second-rebills-7d");
+export async function getSecondRebillsData(websiteId: number): Promise<number | null> {
+  const result = await executeQuery("second-rebills-7d", websiteId);
 
   if (result.status !== "success" || !result.results) {
     return null;
@@ -123,8 +124,8 @@ export async function getSecondRebillsData(): Promise<number | null> {
   return data.total;
 }
 
-export async function getUsageBeforeRebill2Data(): Promise<{ firstRebills: number; withUsage: number } | null> {
-  const result = await executeQuery("usage-before-rebill2-7d");
+export async function getUsageBeforeRebill2Data(websiteId: number): Promise<{ firstRebills: number; withUsage: number } | null> {
+  const result = await executeQuery("usage-before-rebill2-7d", websiteId);
 
   if (result.status !== "success" || !result.results) {
     return null;
@@ -137,8 +138,8 @@ export async function getUsageBeforeRebill2Data(): Promise<{ firstRebills: numbe
   };
 }
 
-export async function getSubscriptionsData(): Promise<SubscriptionsData | null> {
-  const result = await executeQuery("active-subscriptions");
+export async function getSubscriptionsData(websiteId: number): Promise<SubscriptionsData | null> {
+  const result = await executeQuery("active-subscriptions", websiteId);
 
   if (result.status !== "success" || !result.results) {
     return null;
@@ -151,8 +152,8 @@ export async function getSubscriptionsData(): Promise<SubscriptionsData | null> 
   };
 }
 
-export async function getAdSpendData(): Promise<AdSpendData | null> {
-  const result = await executeQuery("ad-spend-7d");
+export async function getAdSpendData(websiteId: number): Promise<AdSpendData | null> {
+  const result = await executeQuery("ad-spend-7d", websiteId);
 
   if (result.status !== "success" || !result.results) {
     return null;
@@ -170,24 +171,22 @@ export interface Ltv30dData {
   sampleSize: number;
 }
 
-export async function getLtv30dData(): Promise<Ltv30dData | null> {
+export async function getLtv30dData(websiteId: number): Promise<Ltv30dData | null> {
   // Check cache first
-  const cached = getCachedLtv<Ltv30dData>("ltv-30d");
+  const cached = getCachedLtv<Ltv30dData>("ltv-30d", websiteId);
   if (cached) {
-    console.log("[LtvCache] Hit: ltv-30d");
+    console.log(`[LtvCache] Hit: ltv-30d for website ${websiteId}`);
     return cached;
   }
 
-  console.log("[LtvCache] Miss: ltv-30d, executing query...");
-  const result = await executeQuery("ltv-30d");
+  console.log(`[LtvCache] Miss: ltv-30d for website ${websiteId}, executing query...`);
+  const result = await executeQuery("ltv-30d", websiteId);
 
   if (result.status !== "success" || !result.results) {
     return null;
   }
 
   const data = result.results as any;
-
-  // La query retorna un array con un solo row
   const row = Array.isArray(data) ? data[0] : data;
 
   const ltvData: Ltv30dData = {
@@ -195,7 +194,7 @@ export async function getLtv30dData(): Promise<Ltv30dData | null> {
     sampleSize: parseInt(row.sample_size) || 0,
   };
 
-  setCachedLtv("ltv-30d", ltvData);
+  setCachedLtv("ltv-30d", websiteId, ltvData);
   return ltvData;
 }
 
@@ -211,16 +210,15 @@ export interface LtvWindowData {
   totalNetRevenueEur: number;
 }
 
-export async function getLtv21dData(): Promise<LtvWindowData | null> {
-  // Check cache first
-  const cached = getCachedLtv<LtvWindowData>("ltv-21d");
+export async function getLtv21dData(websiteId: number): Promise<LtvWindowData | null> {
+  const cached = getCachedLtv<LtvWindowData>("ltv-21d", websiteId);
   if (cached) {
-    console.log("[LtvCache] Hit: ltv-21d");
+    console.log(`[LtvCache] Hit: ltv-21d for website ${websiteId}`);
     return cached;
   }
 
-  console.log("[LtvCache] Miss: ltv-21d, executing query...");
-  const result = await executeQuery("ltv-21d");
+  console.log(`[LtvCache] Miss: ltv-21d for website ${websiteId}, executing query...`);
+  const result = await executeQuery("ltv-21d", websiteId);
 
   if (result.status !== "success" || !result.results) {
     return null;
@@ -237,20 +235,19 @@ export async function getLtv21dData(): Promise<LtvWindowData | null> {
     totalNetRevenueEur: parseFloat(row.total_net_revenue_eur) || 0,
   };
 
-  setCachedLtv("ltv-21d", ltvData);
+  setCachedLtv("ltv-21d", websiteId, ltvData);
   return ltvData;
 }
 
-export async function getLtv51dData(): Promise<LtvWindowData | null> {
-  // Check cache first
-  const cached = getCachedLtv<LtvWindowData>("ltv-51d");
+export async function getLtv51dData(websiteId: number): Promise<LtvWindowData | null> {
+  const cached = getCachedLtv<LtvWindowData>("ltv-51d", websiteId);
   if (cached) {
-    console.log("[LtvCache] Hit: ltv-51d");
+    console.log(`[LtvCache] Hit: ltv-51d for website ${websiteId}`);
     return cached;
   }
 
-  console.log("[LtvCache] Miss: ltv-51d, executing query...");
-  const result = await executeQuery("ltv-51d");
+  console.log(`[LtvCache] Miss: ltv-51d for website ${websiteId}, executing query...`);
+  const result = await executeQuery("ltv-51d", websiteId);
 
   if (result.status !== "success" || !result.results) {
     return null;
@@ -267,20 +264,19 @@ export async function getLtv51dData(): Promise<LtvWindowData | null> {
     totalNetRevenueEur: parseFloat(row.total_net_revenue_eur) || 0,
   };
 
-  setCachedLtv("ltv-51d", ltvData);
+  setCachedLtv("ltv-51d", websiteId, ltvData);
   return ltvData;
 }
 
-export async function getLtv81dData(): Promise<LtvWindowData | null> {
-  // Check cache first
-  const cached = getCachedLtv<LtvWindowData>("ltv-81d");
+export async function getLtv81dData(websiteId: number): Promise<LtvWindowData | null> {
+  const cached = getCachedLtv<LtvWindowData>("ltv-81d", websiteId);
   if (cached) {
-    console.log("[LtvCache] Hit: ltv-81d");
+    console.log(`[LtvCache] Hit: ltv-81d for website ${websiteId}`);
     return cached;
   }
 
-  console.log("[LtvCache] Miss: ltv-81d, executing query...");
-  const result = await executeQuery("ltv-81d");
+  console.log(`[LtvCache] Miss: ltv-81d for website ${websiteId}, executing query...`);
+  const result = await executeQuery("ltv-81d", websiteId);
 
   if (result.status !== "success" || !result.results) {
     return null;
@@ -297,6 +293,6 @@ export async function getLtv81dData(): Promise<LtvWindowData | null> {
     totalNetRevenueEur: parseFloat(row.total_net_revenue_eur) || 0,
   };
 
-  setCachedLtv("ltv-81d", ltvData);
+  setCachedLtv("ltv-81d", websiteId, ltvData);
   return ltvData;
 }

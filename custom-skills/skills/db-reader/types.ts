@@ -48,6 +48,9 @@ export interface QueryDefinition {
   permissions: string[];
 }
 
+// Query builder function type for dynamic queries with websiteId
+export type QueryBuilder = (websiteId?: number) => QueryDefinition;
+
 export interface SchemaConfig {
   subscriptions: {
     table: string;

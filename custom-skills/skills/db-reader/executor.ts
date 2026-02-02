@@ -39,9 +39,13 @@ function getPool(): mysql.Pool {
   return pool;
 }
 
-export async function executeQuery(queryId: AllowedQueryId): Promise<DBReaderResponse> {
+/**
+ * Execute a query with optional website_id filtering
+ * HARDENING: Pass websiteId to filter data by website
+ */
+export async function executeQuery(queryId: AllowedQueryId, websiteId?: number): Promise<DBReaderResponse> {
   const startTime = Date.now();
-  const query = getQuery(queryId);
+  const query = getQuery(queryId, websiteId);
 
   if (!query) {
     return {
@@ -57,7 +61,7 @@ export async function executeQuery(queryId: AllowedQueryId): Promise<DBReaderRes
   await audit.log({
     skill: "db-reader",
     action: "execute_start",
-    input: { queryId, sql: query.sql },
+    input: { queryId, websiteId, sql: query.sql },
     output: null,
     queries: [query.sql],
   });

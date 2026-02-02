@@ -93,8 +93,7 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
 
   console.log(`[MetricsCache] Miss for website_id=${websiteId} - fetching fresh metrics...`);
 
-  // TODO: Pass websiteId to all get*Data functions once queries support filtering
-  // For now, we fetch all data but this should be filtered by websiteId
+  // HARDENING: All queries now filter by websiteId
   const [
     revenueData,
     trialsData,
@@ -109,18 +108,18 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
     ltv51dData,
     ltv81dData,
   ] = await Promise.all([
-    getRevenueData(),
-    getTrialsData(),
-    getFirstRebillsData(),
-    getFirstRebillsCohorte30dData(),
-    getSecondRebillsData(),
-    getUsageBeforeRebill2Data(),
-    getSubscriptionsData(),
-    getAdSpendData(),
-    getLtv30dData(),
-    getLtv21dData(),
-    getLtv51dData(),
-    getLtv81dData(),
+    getRevenueData(websiteId),
+    getTrialsData(websiteId),
+    getFirstRebillsData(websiteId),
+    getFirstRebillsCohorte30dData(websiteId),
+    getSecondRebillsData(websiteId),
+    getUsageBeforeRebill2Data(websiteId),
+    getSubscriptionsData(websiteId),
+    getAdSpendData(websiteId),
+    getLtv30dData(websiteId),
+    getLtv21dData(websiteId),
+    getLtv51dData(websiteId),
+    getLtv81dData(websiteId),
   ]);
 
   if (!revenueData || !trialsData) {

@@ -1,4 +1,4 @@
-import { QueryDefinition, AllowedQueryId } from "../types.js";
+import { QueryDefinition, AllowedQueryId, QueryBuilder } from "../types.js";
 import { activeSubscriptionsQuery } from "./active-subscriptions.js";
 import { trialsLast7DaysQuery } from "./trials-last-7-days.js";
 import { dailyRevenue7dQuery } from "./daily-revenue.js";
@@ -16,7 +16,8 @@ import {
   campaignListForServiceQuery,
 } from "./business-aggregations.js";
 
-export const ALLOWED_QUERIES: Record<AllowedQueryId, QueryDefinition> = {
+// Query builders that support websiteId filtering
+export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
   "active-subscriptions": activeSubscriptionsQuery,
   "trials-last-7-days": trialsLast7DaysQuery,
   "daily-revenue-7d": dailyRevenue7dQuery,
@@ -42,12 +43,18 @@ export const ALLOWED_QUERIES: Record<AllowedQueryId, QueryDefinition> = {
   "campaigns-for-service-classification": campaignListForServiceQuery,
 };
 
-export function getQuery(queryId: string): QueryDefinition | null {
-  return ALLOWED_QUERIES[queryId as AllowedQueryId] ?? null;
+/**
+ * Get query definition with optional websiteId filtering
+ * HARDENING: Queries that support website filtering will use the websiteId
+ */
+export function getQuery(queryId: string, websiteId?: number): QueryDefinition | null {
+  const builder = QUERY_BUILDERS[queryId as AllowedQueryId];
+  if (!builder) return null;
+  return builder(websiteId);
 }
 
 export function isAllowedQuery(queryId: string): queryId is AllowedQueryId {
-  return queryId in ALLOWED_QUERIES;
+  return queryId in QUERY_BUILDERS;
 }
 
 export {
