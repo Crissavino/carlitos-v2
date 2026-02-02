@@ -40,6 +40,7 @@ services:
       - openclaw-data:/root/.openclaw/data
       - openclaw-workspace:/root/.openclaw/workspace
       - openclaw-config:/root/.openclaw/config
+      - openclaw-identity:/root/.openclaw/identity
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -89,5 +90,6 @@ volumes:
   openclaw-data:
   openclaw-workspace:
   openclaw-config:
+  openclaw-identity:
   caddy-data:
   caddy-config:
