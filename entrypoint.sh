@@ -16,6 +16,13 @@ PERSISTED_CONFIG="/root/.openclaw/config/openclaw.json"
 if [ -f "$PERSISTED_CONFIG" ]; then
     echo "Using persisted config from $PERSISTED_CONFIG"
     ln -sf "$PERSISTED_CONFIG" "$CONFIG_FILE"
+
+    # Sync gateway token from env var if set
+    if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
+        echo "Syncing gateway token from environment..."
+        # Update token in config file using sed
+        sed -i "s/\"token\": \"[^\"]*\"/\"token\": \"$OPENCLAW_GATEWAY_TOKEN\"/" "$PERSISTED_CONFIG"
+    fi
 elif [ ! -f "$CONFIG_FILE" ]; then
     echo "Creating default OpenClaw config..."
 
