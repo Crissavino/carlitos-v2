@@ -1,3 +1,12 @@
+// Available websites (from core/websites.ts)
+export const WEBSITES = [
+  { id: 1, name: 'ConversiePDF', currency: 'EUR' },
+  { id: 3, name: 'ConviertePDF', currency: 'RON' },
+  { id: 4, name: 'DeviceFinder', currency: 'EUR' },
+] as const;
+
+export type WebsiteId = 1 | 3 | 4;
+
 // Get token from localStorage (set by AuthContext on login)
 function getToken(): string {
   return localStorage.getItem('session_token') || '';
@@ -281,10 +290,10 @@ export interface CampaignDecisionSummary {
 // ============================================================================
 
 export const api = {
-  // Business
-  getSummary: () => fetchAPI<BusinessSummary>('/business/summary'),
-  getSnapshots: (days = 30) => fetchAPI<{ count: number; snapshots: Snapshot[] }>(`/snapshots?days=${days}`),
-  getDecisions: () => fetchAPI<DecisionCurrent>('/decision/current'),
+  // Business (HARDENING: all require websiteId)
+  getSummary: (websiteId: number) => fetchAPI<BusinessSummary>(`/business/summary?websiteId=${websiteId}`),
+  getSnapshots: (websiteId: number, days = 30) => fetchAPI<{ count: number; snapshots: Snapshot[] }>(`/snapshots?websiteId=${websiteId}&days=${days}`),
+  getDecisions: (websiteId: number) => fetchAPI<DecisionCurrent>(`/decision/current?websiteId=${websiteId}`),
 
   // Tasks
   getTasks: (status?: string) => {

@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw, Clock } from 'lucide-react';
-import { api, type BusinessSummary, type Snapshot, type DecisionCurrent } from '../api/client';
+import { api, type BusinessSummary, type Snapshot, type DecisionCurrent, type WebsiteId } from '../api/client';
 import { StatusBadge } from '../components/StatusBadge';
 import { KpiCard } from '../components/KpiCard';
 import { TrendChart } from '../components/TrendChart';
 import { ActionCard } from '../components/ActionCard';
 
-export function Executive() {
+interface ExecutiveProps {
+  websiteId: WebsiteId;
+}
+
+export function Executive({ websiteId }: ExecutiveProps) {
   const [summary, setSummary] = useState<BusinessSummary | null>(null);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [decisions, setDecisions] = useState<DecisionCurrent | null>(null);
@@ -19,9 +23,9 @@ export function Executive() {
     setError(null);
     try {
       const [summaryData, snapshotsData, decisionsData] = await Promise.all([
-        api.getSummary(),
-        api.getSnapshots(14),
-        api.getDecisions(),
+        api.getSummary(websiteId),
+        api.getSnapshots(websiteId, 14),
+        api.getDecisions(websiteId),
       ]);
       setSummary(summaryData);
       setSnapshots(snapshotsData.snapshots);
@@ -38,7 +42,7 @@ export function Executive() {
     loadData();
     const interval = setInterval(loadData, 60000); // Refresh every minute
     return () => clearInterval(interval);
-  }, []);
+  }, [websiteId]);
 
   if (loading && !summary) {
     return (

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2, Key, Search, Users, LogOut, Loader2, MessageSquare, Menu, X, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2, Key, Search, Users, LogOut, Loader2, MessageSquare, Menu, X, ChevronDown, Globe } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { Login } from './pages/Login';
 import { Executive } from './pages/Executive';
@@ -10,6 +10,7 @@ import { Keywords } from './pages/Keywords';
 import { SearchTerms } from './pages/SearchTerms';
 import { Chat } from './pages/Chat';
 import { AdminUsers } from './components/AdminUsers';
+import { WEBSITES, type WebsiteId } from './api/client';
 
 type Page = 'executive' | 'kanban' | 'campaigns' | 'keywords' | 'search-terms' | 'business' | 'users' | 'chat';
 
@@ -18,7 +19,31 @@ function App() {
   const [page, setPage] = useState<Page>('executive');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [adsDropdownOpen, setAdsDropdownOpen] = useState(false);
+  const [websiteId, setWebsiteId] = useState<WebsiteId>(() => {
+    const saved = localStorage.getItem('selectedWebsiteId');
+    return (saved ? parseInt(saved, 10) : 1) as WebsiteId;
+  });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const websiteDropdownRef = useRef<HTMLDivElement>(null);
+  const [websiteDropdownOpen, setWebsiteDropdownOpen] = useState(false);
+
+  // Save website selection
+  useEffect(() => {
+    localStorage.setItem('selectedWebsiteId', websiteId.toString());
+  }, [websiteId]);
+
+  // Close website dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (websiteDropdownRef.current && !websiteDropdownRef.current.contains(event.target as Node)) {
+        setWebsiteDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedWebsite = WEBSITES.find(w => w.id === websiteId) || WEBSITES[0];
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -146,8 +171,41 @@ function App() {
               )}
             </div>
 
-            {/* User info and logout (Desktop) */}
+            {/* Website Selector + User info and logout (Desktop) */}
             <div className="hidden md:flex items-center gap-3">
+              {/* Website Selector */}
+              <div className="relative" ref={websiteDropdownRef}>
+                <button
+                  onClick={() => setWebsiteDropdownOpen(!websiteDropdownOpen)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+                >
+                  <Globe className="w-4 h-4 text-gray-400" />
+                  <span>{selectedWebsite.name}</span>
+                  <span className="text-xs text-gray-500">({selectedWebsite.currency})</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform ${websiteDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {websiteDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[180px] z-50">
+                    {WEBSITES.map(website => (
+                      <button
+                        key={website.id}
+                        onClick={() => {
+                          setWebsiteId(website.id as WebsiteId);
+                          setWebsiteDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
+                          websiteId === website.id ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                        }`}
+                      >
+                        <span>{website.name}</span>
+                        <span className="text-xs text-gray-500">{website.currency}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <span className="text-sm text-gray-400 truncate max-w-[150px]">{user.email}</span>
               <button
                 onClick={logout}
@@ -281,7 +339,7 @@ function App() {
 
       {/* Content */}
       <main className="pt-14">
-        {page === 'executive' && <Executive />}
+        {page === 'executive' && <Executive websiteId={websiteId} />}
         {page === 'kanban' && <Kanban />}
         {page === 'campaigns' && <Campaigns />}
         {page === 'keywords' && <Keywords />}
