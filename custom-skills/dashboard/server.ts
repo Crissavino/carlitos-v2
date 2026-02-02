@@ -16,10 +16,14 @@ import {
   fetchRawMetrics,
   calculateCoreKpis,
   determineBusinessStatus,
+  clearMetricsCache,
 } from "../skills/business-expert/analyzers/cross-analyzer.js";
 import {
   generateExecutiveSummary,
 } from "../skills/business-expert/reporters/executive-summary.js";
+import {
+  clearLtvCache,
+} from "../skills/business-expert/analyzers/revenue-analyzer.js";
 import {
   generateWeeklyReport,
 } from "../skills/decision-engine/reporters/weekly-report.js";
@@ -2187,9 +2191,16 @@ app.listen(PORT, "0.0.0.0", async () => {
   }
 
   // Pre-warm metrics cache for all websites (runs in background)
+  warmAllCaches();
+
+  // Schedule daily cache refresh at 5:30 AM Romania time (after Google Ads data update)
+  scheduleDailyCacheRefresh();
+});
+
+async function warmAllCaches(): Promise<void> {
   console.log("[CacheWarmup] Starting cache pre-warm for all websites...");
   const warmupStart = Date.now();
-  Promise.all(
+  await Promise.all(
     VALID_WEBSITE_IDS.map(async (websiteId) => {
       try {
         await fetchRawMetrics(websiteId);
@@ -2198,10 +2209,47 @@ app.listen(PORT, "0.0.0.0", async () => {
         console.error(`[CacheWarmup] Failed for website_id=${websiteId}:`, err);
       }
     })
-  ).then(() => {
-    const elapsed = ((Date.now() - warmupStart) / 1000).toFixed(1);
-    console.log(`[CacheWarmup] Complete! All caches warm in ${elapsed}s`);
-  });
-});
+  );
+  const elapsed = ((Date.now() - warmupStart) / 1000).toFixed(1);
+  console.log(`[CacheWarmup] Complete! All caches warm in ${elapsed}s`);
+}
+
+function scheduleDailyCacheRefresh(): void {
+  // Calculate ms until next 5:30 AM Romania time (Europe/Bucharest)
+  const getNextRefreshTime = (): number => {
+    const now = new Date();
+    // Create date in Romania timezone
+    const romaniaTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Bucharest" }));
+    const target = new Date(romaniaTime);
+    target.setHours(5, 30, 0, 0);
+
+    // If 5:30 AM already passed today, schedule for tomorrow
+    if (romaniaTime >= target) {
+      target.setDate(target.getDate() + 1);
+    }
+
+    // Calculate difference in ms (accounting for timezone)
+    const nowUTC = now.getTime();
+    const targetUTC = target.getTime() - (romaniaTime.getTime() - now.getTime());
+    return targetUTC - nowUTC;
+  };
+
+  const scheduleNext = () => {
+    const msUntilRefresh = getNextRefreshTime();
+    const hoursUntil = (msUntilRefresh / (1000 * 60 * 60)).toFixed(1);
+    console.log(`[CacheScheduler] Next refresh in ${hoursUntil}h (5:30 AM Romania)`);
+
+    setTimeout(async () => {
+      console.log("[CacheScheduler] Daily refresh triggered - clearing and re-warming caches...");
+      clearMetricsCache();
+      clearLtvCache();
+      await warmAllCaches();
+      // Schedule next refresh
+      scheduleNext();
+    }, msUntilRefresh);
+  };
+
+  scheduleNext();
+}
 
 export default app;
