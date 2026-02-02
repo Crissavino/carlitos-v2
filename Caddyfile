@@ -4,15 +4,21 @@ carlitos-bot.com {
         reverse_proxy openclaw:3001
     }
 
-    # Gateway con token (para redirects desde dashboard)
+    # Gateway UI y assets
     handle /__openclaw__/* {
         reverse_proxy openclaw:18789
     }
-    handle /ws {
+
+    # WebSocket connections (detectar upgrade header)
+    @websocket {
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    handle @websocket {
         reverse_proxy openclaw:18789
     }
 
-    # Root redirect al dashboard
+    # Root redirect al dashboard (solo para requests HTTP normales)
     handle {
         redir https://dashboard.carlitos-bot.com/chat permanent
     }
