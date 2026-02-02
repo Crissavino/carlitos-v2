@@ -598,17 +598,17 @@ export interface KeywordSpendData {
 /**
  * Get latest keyword metrics for a specific date range (7d or 30d)
  */
-export async function getKeywordSpend(dateRange: '7d' | '30d' = '7d', campaignId?: string): Promise<KeywordSpendData[]> {
+export async function getKeywordSpend(dateRange: '7d' | '30d' = '7d', campaignName?: string): Promise<KeywordSpendData[]> {
   const pool = getPool();
 
   // Build params array
   const params: any[] = [dateRange];
 
-  // Optional campaign filter
+  // Optional campaign filter (by name, since frontend sends campaign names)
   let campaignFilter = '';
-  if (campaignId) {
-    campaignFilter = 'AND m1.campaign_id = ?';
-    params.push(campaignId);
+  if (campaignName) {
+    campaignFilter = 'AND m1.campaign_name = ?';
+    params.push(campaignName);
   }
 
   // Get the most recent metrics for each keyword for the specified date_range
@@ -933,17 +933,17 @@ export interface SearchTermSpendData {
 /**
  * Get search terms for a specific date range (7d or 30d)
  */
-export async function getSearchTermSpend(dateRange: '7d' | '30d' = '7d', campaignId?: string): Promise<SearchTermSpendData[]> {
+export async function getSearchTermSpend(dateRange: '7d' | '30d' = '7d', campaignName?: string): Promise<SearchTermSpendData[]> {
   const pool = getPool();
 
   // Build params array
   const params: any[] = [dateRange];
 
-  // Optional campaign filter
+  // Optional campaign filter (by name, since frontend sends campaign names)
   let campaignFilter = '';
-  if (campaignId) {
-    campaignFilter = 'AND campaign_id = ?';
-    params.push(campaignId);
+  if (campaignName) {
+    campaignFilter = 'AND campaign_name = ?';
+    params.push(campaignName);
   }
 
   const sql = `
