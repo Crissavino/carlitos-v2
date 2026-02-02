@@ -34,6 +34,24 @@ Ver detalle completo de una tarea:
 node /root/.openclaw/custom-skills/dist/skills/dashboard-tasks/cli.js get <task-id>
 ```
 
+### create
+Crear una nueva tarea:
+```bash
+node /root/.openclaw/custom-skills/dist/skills/dashboard-tasks/cli.js create "Título de la tarea" [opciones]
+```
+
+Opciones:
+- `--priority <critical|high|medium|low>` - Prioridad (default: medium)
+- `--area <nombre>` - Área (ej: Ads, Retention, Dev)
+- `--status <estado>` - Estado inicial (default: backlog)
+- `--description <texto>` - Descripción detallada
+
+Ejemplos:
+```bash
+node /root/.openclaw/custom-skills/dist/skills/dashboard-tasks/cli.js create "Revisar métricas de ads" --priority high --area Ads
+node /root/.openclaw/custom-skills/dist/skills/dashboard-tasks/cli.js create "Bug en login" --priority critical --description "El login falla cuando..."
+```
+
 ### take
 Tomar una tarea e iniciar una ejecución. Esto:
 1. Crea un nuevo "run" en la base de datos

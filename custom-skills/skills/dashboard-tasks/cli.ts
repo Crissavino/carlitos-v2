@@ -17,6 +17,7 @@ import {
   getTasks,
   getTaskById,
   updateTask,
+  createTask,
   startRun,
   completeRun,
   createArtifact,
@@ -26,6 +27,7 @@ import {
   type Task,
   type TaskStatus,
   type ArtifactType,
+  type TaskPriority,
 } from "../../dashboard/db.js";
 
 const PRIORITY_ICONS: Record<string, string> = {
@@ -302,6 +304,64 @@ async function getTaskDetails(taskId: number) {
   }
 }
 
+async function createNewTask(
+  title: string,
+  options: {
+    description?: string;
+    priority?: TaskPriority;
+    area?: string;
+    status?: TaskStatus;
+  }
+) {
+  const validPriorities: TaskPriority[] = ["critical", "high", "medium", "low"];
+  const validStatuses: TaskStatus[] = ["backlog", "todo", "in_progress", "review", "done", "archived"];
+
+  const priority = options.priority || "medium";
+  const status = options.status || "backlog";
+
+  if (!validPriorities.includes(priority)) {
+    console.error(`Error: Prioridad inválida '${priority}'`);
+    console.error(`Prioridades válidas: ${validPriorities.join(", ")}`);
+    process.exit(1);
+  }
+
+  if (!validStatuses.includes(status)) {
+    console.error(`Error: Estado inválido '${status}'`);
+    console.error(`Estados válidos: ${validStatuses.join(", ")}`);
+    process.exit(1);
+  }
+
+  const taskId = await createTask({
+    title,
+    description: options.description,
+    status,
+    priority,
+    area: options.area,
+    source: "manual",
+  });
+
+  const task = await getTaskById(taskId);
+
+  console.log("✅ TAREA CREADA");
+  console.log("═══════════════════════════════════════════════════");
+  console.log("");
+  console.log(formatTask(task!));
+  console.log("");
+  console.log(`ID: ${taskId}`);
+  console.log(`Título: ${title}`);
+  console.log(`Estado: ${status}`);
+  console.log(`Prioridad: ${priority}`);
+  if (options.area) console.log(`Área: ${options.area}`);
+  if (options.description) {
+    console.log("");
+    console.log("Descripción:");
+    console.log("───────────────────────────────────────────────────");
+    console.log(options.description);
+  }
+  console.log("");
+  console.log(`TASK_ID=${taskId}`);
+}
+
 async function main() {
   const command = process.argv[2] || "help";
 
@@ -393,6 +453,47 @@ async function main() {
         break;
       }
 
+      case "create": {
+        // Parse arguments: create "title" [--priority medium] [--area Ads] [--status backlog] [--description "desc"]
+        const args = process.argv.slice(3);
+
+        if (args.length === 0) {
+          console.error("Error: Se requiere un título para la tarea");
+          console.error('Uso: node cli.js create "Título de la tarea" [opciones]');
+          console.error("");
+          console.error("Opciones:");
+          console.error("  --priority <critical|high|medium|low>  (default: medium)");
+          console.error("  --area <nombre>                        (ej: Ads, Retention, Dev)");
+          console.error("  --status <estado>                      (default: backlog)");
+          console.error("  --description <texto>                  (descripción detallada)");
+          process.exit(1);
+        }
+
+        const title = args[0];
+        const options: {
+          description?: string;
+          priority?: TaskPriority;
+          area?: string;
+          status?: TaskStatus;
+        } = {};
+
+        // Parse optional flags
+        for (let i = 1; i < args.length; i++) {
+          if (args[i] === "--priority" && args[i + 1]) {
+            options.priority = args[++i] as TaskPriority;
+          } else if (args[i] === "--area" && args[i + 1]) {
+            options.area = args[++i];
+          } else if (args[i] === "--status" && args[i + 1]) {
+            options.status = args[++i] as TaskStatus;
+          } else if (args[i] === "--description" && args[i + 1]) {
+            options.description = args[++i];
+          }
+        }
+
+        await createNewTask(title, options);
+        break;
+      }
+
       case "help":
       default:
         console.log(`
@@ -401,26 +502,36 @@ Dashboard Tasks - Gestión del Kanban
 Comandos:
   list [status]              Lista tareas (default: backlog,todo)
   get <id>                   Ver detalle de una tarea
+  create <título> [opts]     Crear una nueva tarea
   take <id>                  Tomar una tarea y empezar a trabajar
   complete <id> <status>     Completar tarea (success/failed)
   artifact <id> <type>       Guardar un artifact
   comment <id> <mensaje>     Agregar un comentario
   status <id> <estado>       Cambiar estado de la tarea
 
+Opciones de create:
+  --priority <critical|high|medium|low>  (default: medium)
+  --area <nombre>                        (ej: Ads, Retention, Dev)
+  --status <estado>                      (default: backlog)
+  --description <texto>                  (descripción detallada)
+
 Ejemplos:
   node cli.js list                    # Ver tareas pendientes
   node cli.js list backlog,todo       # Filtrar por estados
   node cli.js get 5                   # Ver tarea #5
+  node cli.js create "Revisar métricas" --priority high --area Ads
+  node cli.js create "Bug en login" --priority critical --description "El login falla con..."
   node cli.js take 5                  # Tomar tarea #5
   node cli.js artifact 5 analysis "Mi análisis" "Contenido..."
   node cli.js complete 5 success "Tarea completada exitosamente"
   node cli.js status 5 done           # Marcar como hecha
 
 Workflow típico:
-  1. list     → Ver qué hay por hacer
-  2. take     → Tomar una tarea (inicia run)
-  3. artifact → Guardar resultados del análisis
-  4. complete → Finalizar la ejecución (success/failed)
+  1. create   → Crear nueva tarea
+  2. list     → Ver qué hay por hacer
+  3. take     → Tomar una tarea (inicia run)
+  4. artifact → Guardar resultados del análisis
+  5. complete → Finalizar la ejecución (success/failed)
 `);
         break;
     }
