@@ -1,17 +1,39 @@
 import { useState } from 'react';
-import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2, Key, Search } from 'lucide-react';
+import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2, Key, Search, Users, LogOut, Loader2 } from 'lucide-react';
+import { useAuth } from './contexts/AuthContext';
+import { Login } from './pages/Login';
 import { Executive } from './pages/Executive';
 import { Kanban } from './pages/Kanban';
 import { Campaigns } from './pages/Campaigns';
 import { BusinessViews } from './pages/BusinessViews';
 import { Keywords } from './pages/Keywords';
 import { SearchTerms } from './pages/SearchTerms';
+import { AdminUsers } from './components/AdminUsers';
 
-type Page = 'executive' | 'kanban' | 'campaigns' | 'keywords' | 'search-terms' | 'business';
+type Page = 'executive' | 'kanban' | 'campaigns' | 'keywords' | 'search-terms' | 'business' | 'users';
 
 function App() {
+  const { user, isLoading, isAdmin, logout } = useAuth();
   const [page, setPage] = useState<Page>('executive');
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <span className="text-gray-400">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated - show login
+  if (!user) {
+    return <Login />;
+  }
+
+  // Authenticated - show dashboard
   return (
     <div className="min-h-screen">
       {/* Navigation */}
@@ -90,6 +112,31 @@ function App() {
                 <Building2 className="w-4 h-4" />
                 Business
               </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setPage('users')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                    page === 'users'
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  Users
+                </button>
+              )}
+            </div>
+
+            {/* User info and logout */}
+            <div className="ml-auto flex items-center gap-4">
+              <span className="text-sm text-gray-400">{user.email}</span>
+              <button
+                onClick={logout}
+                className="flex items-center gap-2 px-3 py-1.5 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-lg transition-colors text-sm"
+                title="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -103,6 +150,7 @@ function App() {
         {page === 'keywords' && <Keywords />}
         {page === 'search-terms' && <SearchTerms />}
         {page === 'business' && <BusinessViews />}
+        {page === 'users' && isAdmin && <AdminUsers />}
       </main>
     </div>
   );

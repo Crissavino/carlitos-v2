@@ -56,6 +56,15 @@ import {
   getDiscrepancyById,
   updateDiscrepancy,
   getDiscrepancySummary,
+  // Auth
+  createUser,
+  validateLogin,
+  createSession,
+  validateSession,
+  deleteSession,
+  getUsers,
+  getUserById,
+  hasUsers,
   type KpiSnapshot,
   type Task,
   type TaskStatus,
@@ -64,12 +73,23 @@ import {
   type DiscrepancySeverity,
   type DiscrepancyEntityType,
   type DiscrepancyStatus,
+  type User,
+  type UserScope,
 } from "./db.js";
 import { CurrencyConverter } from "../core/currency.js";
 
 const app = express();
 const PORT = parseInt(process.env.DASHBOARD_PORT || "3002", 10);
 const DASHBOARD_TOKEN = process.env.DASHBOARD_TOKEN || "dev-token-change-in-prod";
+
+// Extend Express Request to include user from session auth
+declare global {
+  namespace Express {
+    interface Request {
+      user?: User;
+    }
+  }
+}
 
 // ============================================================================
 // MIDDLEWARE
@@ -87,7 +107,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Auth middleware
+// Legacy auth middleware (API token for backwards compatibility / cron jobs)
 function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -100,6 +120,75 @@ function authMiddleware(req: Request, res: Response, next: NextFunction): void {
     return;
   }
   next();
+}
+
+// Session-based auth middleware
+async function sessionAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    res.status(401).json({ error: "Missing Authorization header" });
+    return;
+  }
+
+  const [type, token] = authHeader.split(" ");
+  if (type !== "Bearer") {
+    res.status(401).json({ error: "Invalid authorization type" });
+    return;
+  }
+
+  // First try session token
+  const user = await validateSession(token);
+  if (user) {
+    req.user = user;
+    next();
+    return;
+  }
+
+  // Fallback to legacy API token for backwards compatibility
+  if (token === DASHBOARD_TOKEN) {
+    // Create a synthetic admin user for API token access
+    req.user = { id: 0, email: "api@system", scope: "admin" };
+    next();
+    return;
+  }
+
+  res.status(401).json({ error: "Invalid session" });
+}
+
+// Admin-only auth middleware
+async function adminAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    res.status(401).json({ error: "Missing Authorization header" });
+    return;
+  }
+
+  const [type, token] = authHeader.split(" ");
+  if (type !== "Bearer") {
+    res.status(401).json({ error: "Invalid authorization type" });
+    return;
+  }
+
+  // First try session token
+  const user = await validateSession(token);
+  if (user) {
+    if (user.scope !== "admin") {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+    req.user = user;
+    next();
+    return;
+  }
+
+  // Fallback to legacy API token (admin access)
+  if (token === DASHBOARD_TOKEN) {
+    req.user = { id: 0, email: "api@system", scope: "admin" };
+    next();
+    return;
+  }
+
+  res.status(401).json({ error: "Invalid session" });
 }
 
 // ============================================================================
@@ -181,8 +270,161 @@ app.get("/api/currency/rates", (req: Request, res: Response) => {
   });
 });
 
+// ============================================================================
+// AUTHENTICATION ROUTES (Public)
+// ============================================================================
+
+// POST /api/auth/login - Login with email/password
+app.post("/api/auth/login", async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      res.status(400).json({ error: "Email and password are required" });
+      return;
+    }
+
+    const user = await validateLogin(email, password);
+    if (!user) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+
+    const token = await createSession(user.id!);
+
+    res.json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          scope: user.scope,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// POST /api/auth/logout - Logout (invalidate session)
+app.post("/api/auth/logout", async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      const [, token] = authHeader.split(" ");
+      if (token) {
+        await deleteSession(token);
+      }
+    }
+
+    res.json({ success: true, data: { message: "Logged out" } });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/auth/me - Get current user info (requires session)
+app.get("/api/auth/me", sessionAuth, async (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    data: {
+      id: req.user!.id,
+      email: req.user!.email,
+      scope: req.user!.scope,
+    },
+  });
+});
+
+// POST /api/auth/setup - One-time initial user setup (only works if no users exist)
+app.post("/api/auth/setup", async (req: Request, res: Response) => {
+  try {
+    const usersExist = await hasUsers();
+    if (usersExist) {
+      res.status(403).json({ error: "Setup already completed. Users exist." });
+      return;
+    }
+
+    const { email, password, scope = "admin" } = req.body;
+
+    if (!email || !password) {
+      res.status(400).json({ error: "Email and password are required" });
+      return;
+    }
+
+    const userId = await createUser(email, password, scope as UserScope);
+    const user = await getUserById(userId);
+
+    res.status(201).json({
+      success: true,
+      data: {
+        message: "Initial admin user created",
+        user: {
+          id: user!.id,
+          email: user!.email,
+          scope: user!.scope,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// ============================================================================
+// ADMIN ROUTES (Require admin scope)
+// ============================================================================
+
+// POST /api/admin/users - Create a new user (admin only)
+app.post("/api/admin/users", adminAuth, async (req: Request, res: Response) => {
+  try {
+    const { email, password, scope = "viewer" } = req.body;
+
+    if (!email || !password) {
+      res.status(400).json({ error: "Email and password are required" });
+      return;
+    }
+
+    if (scope !== "admin" && scope !== "viewer") {
+      res.status(400).json({ error: "Scope must be 'admin' or 'viewer'" });
+      return;
+    }
+
+    const userId = await createUser(email, password, scope as UserScope);
+    const user = await getUserById(userId);
+
+    res.status(201).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Duplicate entry")) {
+      res.status(409).json({ error: "User with this email already exists" });
+      return;
+    }
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/admin/users - List all users (admin only)
+app.get("/api/admin/users", adminAuth, async (req: Request, res: Response) => {
+  try {
+    const users = await getUsers();
+    res.json({
+      success: true,
+      data: {
+        count: users.length,
+        users,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
 // POST /api/currency/refresh - Refresh rates from external API (protected)
-app.post("/api/currency/refresh", authMiddleware, async (req: Request, res: Response) => {
+app.post("/api/currency/refresh", sessionAuth, async (req: Request, res: Response) => {
   try {
     const success = await CurrencyConverter.refreshRates();
     if (success) {
@@ -206,7 +448,7 @@ app.post("/api/currency/refresh", authMiddleware, async (req: Request, res: Resp
 // PROTECTED ROUTES
 // ============================================================================
 
-app.use("/api", authMiddleware);
+app.use("/api", sessionAuth);
 
 // GET /api/business/summary
 app.get("/api/business/summary", async (req: Request, res: Response) => {

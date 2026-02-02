@@ -1,10 +1,14 @@
-const API_TOKEN = import.meta.env.VITE_API_TOKEN || 'openclaw-dashboard-2024';
+// Get token from localStorage (set by AuthContext on login)
+function getToken(): string {
+  return localStorage.getItem('session_token') || '';
+}
 
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
   const res = await fetch(`/api${endpoint}`, {
     ...options,
     headers: {
-      'Authorization': `Bearer ${API_TOKEN}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
       ...options?.headers,
     },

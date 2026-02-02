@@ -9,6 +9,8 @@
  */
 
 import mysql, { Pool, RowDataPacket, ResultSetHeader } from "mysql2/promise";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
 
 let pool: Pool | null = null;
 
@@ -802,4 +804,180 @@ export async function getDiscrepancySummary(): Promise<{
     by_severity: bySeverity as Record<DiscrepancySeverity, number>,
     total_spend_involved: parseFloat(countRows[0]?.total_spend) || 0,
   };
+}
+
+// ============================================================================
+// AUTHENTICATION (Users & Sessions)
+// ============================================================================
+
+export type UserScope = 'admin' | 'viewer';
+
+export interface User {
+  id?: number;
+  email: string;
+  password_hash?: string;
+  scope: UserScope;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Session {
+  id?: number;
+  user_id: number;
+  token: string;
+  expires_at: string;
+  created_at?: string;
+}
+
+const BCRYPT_ROUNDS = 12;
+const SESSION_DURATION_DAYS = 7;
+
+// Create user with hashed password
+export async function createUser(
+  email: string,
+  password: string,
+  scope: UserScope = 'viewer'
+): Promise<number> {
+  const db = getPool();
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+  const [result] = await db.execute<ResultSetHeader>(
+    "INSERT INTO users (email, password_hash, scope) VALUES (?, ?, ?)",
+    [email.toLowerCase().trim(), passwordHash, scope]
+  );
+
+  return result.insertId;
+}
+
+// Validate login credentials
+export async function validateLogin(
+  email: string,
+  password: string
+): Promise<User | null> {
+  const db = getPool();
+  const [rows] = await db.execute<RowDataPacket[]>(
+    "SELECT id, email, password_hash, scope, created_at, updated_at FROM users WHERE email = ?",
+    [email.toLowerCase().trim()]
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const user = rows[0];
+  const isValid = await bcrypt.compare(password, user.password_hash);
+
+  if (!isValid) {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    scope: user.scope,
+    created_at: user.created_at?.toISOString?.() || user.created_at,
+    updated_at: user.updated_at?.toISOString?.() || user.updated_at,
+  };
+}
+
+// Create session for user
+export async function createSession(userId: number): Promise<string> {
+  const db = getPool();
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
+
+  await db.execute(
+    "INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)",
+    [userId, token, expiresAt.toISOString().slice(0, 19).replace('T', ' ')]
+  );
+
+  return token;
+}
+
+// Validate session token and return user if valid
+export async function validateSession(token: string): Promise<User | null> {
+  if (!token) return null;
+
+  const db = getPool();
+  const [rows] = await db.execute<RowDataPacket[]>(
+    `SELECT u.id, u.email, u.scope, u.created_at, u.updated_at
+     FROM sessions s
+     JOIN users u ON s.user_id = u.id
+     WHERE s.token = ? AND s.expires_at > NOW()`,
+    [token]
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const user = rows[0];
+  return {
+    id: user.id,
+    email: user.email,
+    scope: user.scope,
+    created_at: user.created_at?.toISOString?.() || user.created_at,
+    updated_at: user.updated_at?.toISOString?.() || user.updated_at,
+  };
+}
+
+// Delete session (logout)
+export async function deleteSession(token: string): Promise<void> {
+  const db = getPool();
+  await db.execute("DELETE FROM sessions WHERE token = ?", [token]);
+}
+
+// Get all users (for admin panel)
+export async function getUsers(): Promise<User[]> {
+  const db = getPool();
+  const [rows] = await db.execute<RowDataPacket[]>(
+    "SELECT id, email, scope, created_at, updated_at FROM users ORDER BY created_at DESC"
+  );
+
+  return rows.map(row => ({
+    id: row.id,
+    email: row.email,
+    scope: row.scope,
+    created_at: row.created_at?.toISOString?.() || row.created_at,
+    updated_at: row.updated_at?.toISOString?.() || row.updated_at,
+  }));
+}
+
+// Get user by ID
+export async function getUserById(id: number): Promise<User | null> {
+  const db = getPool();
+  const [rows] = await db.execute<RowDataPacket[]>(
+    "SELECT id, email, scope, created_at, updated_at FROM users WHERE id = ?",
+    [id]
+  );
+
+  if (rows.length === 0) return null;
+
+  const row = rows[0];
+  return {
+    id: row.id,
+    email: row.email,
+    scope: row.scope,
+    created_at: row.created_at?.toISOString?.() || row.created_at,
+    updated_at: row.updated_at?.toISOString?.() || row.updated_at,
+  };
+}
+
+// Check if any users exist (for initial setup)
+export async function hasUsers(): Promise<boolean> {
+  const db = getPool();
+  const [rows] = await db.execute<RowDataPacket[]>(
+    "SELECT COUNT(*) as count FROM users"
+  );
+  return rows[0].count > 0;
+}
+
+// Cleanup expired sessions
+export async function cleanupExpiredSessions(): Promise<number> {
+  const db = getPool();
+  const [result] = await db.execute<ResultSetHeader>(
+    "DELETE FROM sessions WHERE expires_at <= NOW()"
+  );
+  return result.affectedRows;
 }
