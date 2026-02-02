@@ -2185,6 +2185,23 @@ app.listen(PORT, "0.0.0.0", async () => {
   if (!success) {
     console.log("Using default currency rates (API refresh failed)");
   }
+
+  // Pre-warm metrics cache for all websites (runs in background)
+  console.log("[CacheWarmup] Starting cache pre-warm for all websites...");
+  const warmupStart = Date.now();
+  Promise.all(
+    VALID_WEBSITE_IDS.map(async (websiteId) => {
+      try {
+        await fetchRawMetrics(websiteId);
+        console.log(`[CacheWarmup] Warmed cache for website_id=${websiteId}`);
+      } catch (err) {
+        console.error(`[CacheWarmup] Failed for website_id=${websiteId}:`, err);
+      }
+    })
+  ).then(() => {
+    const elapsed = ((Date.now() - warmupStart) / 1000).toFixed(1);
+    console.log(`[CacheWarmup] Complete! All caches warm in ${elapsed}s`);
+  });
 });
 
 export default app;
