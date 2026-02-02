@@ -1,4 +1,5 @@
-import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
+import { useState } from 'react';
+import { TrendingUp, TrendingDown, Minus, Info, HelpCircle } from 'lucide-react';
 
 interface Props {
   title: string;
@@ -10,6 +11,7 @@ interface Props {
   badge?: string;  // Optional badge (e.g., "DECISOR", "WARNING", "HEADLINE")
   isInformative?: boolean;  // If true, shows gray style without semaphore
   size?: 'normal' | 'large';  // Size variant for headline KPIs
+  tooltip?: string;  // Explanation shown on hover
 }
 
 const statusColors: Record<string, string> = {
@@ -32,7 +34,9 @@ const badgeStyles: Record<string, string> = {
   INFO: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
 };
 
-export function KpiCard({ title, value, subtitle, status, trend, reason, badge, isInformative, size = 'normal' }: Props) {
+export function KpiCard({ title, value, subtitle, status, trend, reason, badge, isInformative, size = 'normal', tooltip }: Props) {
+  const [showTooltip, setShowTooltip] = useState(false);
+
   // Informative KPIs use gray border, others use semaphore colors
   const borderColor = isInformative
     ? 'border-l-gray-600'
@@ -44,15 +48,31 @@ export function KpiCard({ title, value, subtitle, status, trend, reason, badge, 
   // Size variants
   const isLarge = size === 'large';
   const containerClass = isLarge
-    ? `bg-gray-900 rounded-xl border-l-4 ${borderColor} p-6`
-    : `bg-gray-900 rounded-xl border-l-4 ${borderColor} p-4`;
+    ? `bg-gray-900 rounded-xl border-l-4 ${borderColor} p-6 relative`
+    : `bg-gray-900 rounded-xl border-l-4 ${borderColor} p-4 relative`;
   const valueClass = isLarge ? 'mt-2 text-5xl font-bold' : 'mt-2 text-3xl font-bold';
   const titleClass = isLarge ? 'text-base text-gray-400 uppercase tracking-wide' : 'text-sm text-gray-400 uppercase tracking-wide';
 
   return (
     <div className={containerClass}>
       <div className="flex items-start justify-between">
-        <div className={titleClass}>{title}</div>
+        <div className="flex items-center gap-2">
+          <span className={titleClass}>{title}</span>
+          {tooltip && (
+            <div className="relative">
+              <HelpCircle
+                className="w-4 h-4 text-gray-500 cursor-help hover:text-gray-400"
+                onMouseEnter={() => setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
+              />
+              {showTooltip && (
+                <div className="absolute z-50 left-0 top-6 w-64 p-3 bg-gray-800 border border-gray-700 rounded-lg shadow-xl text-xs text-gray-300 leading-relaxed">
+                  {tooltip}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {isInformative && (
             <span title="Informativo - no genera alertas">

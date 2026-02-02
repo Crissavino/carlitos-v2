@@ -121,18 +121,18 @@ export function Executive({ websiteId }: ExecutiveProps) {
           </div>
         </div>
 
-        {/* Revenue Summary */}
+        {/* Resumen Financiero */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-gray-900 rounded-xl p-4">
-            <div className="text-sm text-gray-400">Gross Revenue</div>
+            <div className="text-sm text-gray-400">Ingresos Brutos</div>
             <div className="text-2xl font-bold text-green-400">€{summary.financials.grossRevenueEur.toLocaleString()}</div>
           </div>
           <div className="bg-gray-900 rounded-xl p-4">
-            <div className="text-sm text-gray-400">Net Revenue</div>
+            <div className="text-sm text-gray-400">Ingresos Netos</div>
             <div className="text-2xl font-bold">€{summary.financials.netRevenueEur.toLocaleString()}</div>
           </div>
           <div className="bg-gray-900 rounded-xl p-4">
-            <div className="text-sm text-gray-400">Ad Spend</div>
+            <div className="text-sm text-gray-400">Gasto en Ads</div>
             <div className="text-2xl font-bold text-gray-400">€{summary.financials.adSpendEur.toLocaleString()}</div>
           </div>
           <div className="lg:row-span-1">
@@ -148,28 +148,28 @@ export function Executive({ websiteId }: ExecutiveProps) {
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-gray-900 rounded-xl p-4 border-l-4 border-l-blue-500">
-                <div className="text-sm text-gray-400">Acquisitions</div>
+                <div className="text-sm text-gray-400">Trials (Adquisiciones)</div>
                 <div className="text-2xl font-bold">{daily.acquisitions.today}</div>
                 <div className={`text-sm ${daily.acquisitions.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {daily.acquisitions.change >= 0 ? '↑' : '↓'} {Math.abs(daily.acquisitions.change)}% vs {daily.acquisitions.weekAgo}
                 </div>
               </div>
-              <div className="bg-gray-900 rounded-xl p-4 border-l-4 border-l-purple-500">
-                <div className="text-sm text-gray-400">CPA</div>
+              <div className="bg-gray-900 rounded-xl p-4 border-l-4 border-l-purple-500" title="Costo por Trial = Gasto Ads / Trials">
+                <div className="text-sm text-gray-400">CPA (Costo por Trial)</div>
                 <div className="text-2xl font-bold">€{daily.cpa.today.toFixed(0)}</div>
                 <div className={`text-sm ${daily.cpa.change <= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {daily.cpa.change <= 0 ? '↓' : '↑'} {Math.abs(daily.cpa.change)}% vs €{daily.cpa.weekAgo.toFixed(0)}
                 </div>
               </div>
-              <div className="bg-gray-900 rounded-xl p-4 border-l-4 border-l-orange-500">
-                <div className="text-sm text-gray-400">CPFR</div>
+              <div className="bg-gray-900 rounded-xl p-4 border-l-4 border-l-orange-500" title="Costo por First Rebill = Gasto Ads / First Rebills. Es el costo real de conseguir un cliente que paga.">
+                <div className="text-sm text-gray-400">CPFR (Costo por Pago)</div>
                 <div className="text-2xl font-bold">€{daily.cpfr.today.toFixed(0)}</div>
                 <div className={`text-sm ${daily.cpfr.change <= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {daily.cpfr.change <= 0 ? '↓' : '↑'} {Math.abs(daily.cpfr.change)}% vs €{daily.cpfr.weekAgo.toFixed(0)}
                 </div>
               </div>
               <div className="bg-gray-900 rounded-xl p-4 border-l-4 border-l-gray-500">
-                <div className="text-sm text-gray-400">First Rebills</div>
+                <div className="text-sm text-gray-400">First Rebills (Pagos)</div>
                 <div className="text-2xl font-bold">{daily.firstRebills.today}</div>
                 <div className="text-sm text-gray-500">
                   vs {daily.firstRebills.weekAgo} semana pasada
@@ -189,6 +189,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
             reason={summary.kpis.paybackM1?.reason || 'Payback cohorte M1'}
             badge="HEADLINE"
             size="large"
+            tooltip="Cuánto recuperas por cada €1 invertido en el primer mes. Fórmula: (Trial + Subscripciones M1 - Refunds M1) / Gasto Ads. Si es < 1.0, pierdes dinero en M1 (normal en modelo utility)."
           />
         </div>
 
@@ -201,23 +202,26 @@ export function Executive({ websiteId }: ExecutiveProps) {
             <KpiCard
               title="FRR"
               value={`${summary.kpis.frr.percentage}%`}
-              subtitle="First Rebill Rate"
+              subtitle="Tasa de Primer Pago"
               status={summary.kpis.frr.status}
               reason={summary.kpis.frr.reason}
+              tooltip="First Rebill Rate = First Rebills / Trials. Mide qué % de trials se convierten en clientes de pago. Verde: ≥35%, Amarillo: 25-34%, Rojo: <25%."
             />
             <KpiCard
               title="CPFR"
               value={`€${summary.kpis.cpfr.value.toFixed(0)}`}
-              subtitle="Cost Per First Rebill"
+              subtitle="Costo por Primer Pago"
               status={summary.kpis.cpfr.status}
               reason={summary.kpis.cpfr.reason}
+              tooltip="Cost Per First Rebill = Gasto Ads / First Rebills. Es el costo REAL de adquirir un cliente que paga (no un trial). Si FRR=35%, CPFR = CPA / 0.35."
             />
             <KpiCard
               title="Refund M1"
               value={`${((summary.kpis.refundRateM1?.value || 0) * 100).toFixed(1)}%`}
-              subtitle="Refunds de cohorte antes de M2"
+              subtitle="Tasa de Refunds en M1"
               status={summary.kpis.refundRateM1?.status || 'yellow'}
               reason={summary.kpis.refundRateM1?.reason}
+              tooltip="% de clientes que piden reembolso antes del segundo mes. Verde: ≤5%, Amarillo: 5-10%, Rojo: >10%."
             />
           </div>
         </div>
@@ -231,16 +235,18 @@ export function Executive({ websiteId }: ExecutiveProps) {
             <KpiCard
               title="Net ROAS"
               value={`${summary.kpis.netRoas.value.toFixed(2)}x`}
-              subtitle="Return on Ad Spend"
+              subtitle="Retorno sobre Gasto Ads"
               status={summary.kpis.netRoas.status}
               reason={summary.kpis.netRoas.reason}
+              tooltip="Return on Ad Spend = Ingresos Netos / Gasto Ads. Mide rentabilidad general (no por cohorte). Verde: ≥2.0x, Amarillo: 1.3-2.0x, Rojo: <1.3x."
             />
             <KpiCard
               title="CPT"
               value={`€${summary.kpis.cpt?.value?.toFixed(0) || '0'}`}
-              subtitle="Cost Per Trial"
+              subtitle="Costo por Trial"
               status={summary.kpis.cpt?.status || 'yellow'}
               reason={summary.kpis.cpt?.reason}
+              tooltip="Cost Per Trial = Gasto Ads / Trials. Lo que pagas por conseguir un trial (no un cliente de pago). Verde: ≤€30, Amarillo: €30-50, Rojo: >€50."
             />
           </div>
         </div>
@@ -249,24 +255,26 @@ export function Executive({ websiteId }: ExecutiveProps) {
         <div className="mb-6">
           <div className="text-sm text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
             Informativos
-            <span className="text-xs text-gray-600 normal-case">(Modelo utility: M2+ bajo es normal)</span>
+            <span className="text-xs text-gray-600 normal-case">(Modelo utility: retención M2+ baja es normal)</span>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
               title="SRR"
               value={`${summary.kpis.srr.percentage}%`}
-              subtitle="Second Rebill Rate"
+              subtitle="Tasa de Segundo Pago"
               status={summary.kpis.srr.status}
               reason={summary.kpis.srr.reason}
               isInformative
+              tooltip="Second Rebill Rate = Second Rebills / First Rebills (de cohorte 30d). En modelo utility es normal que sea bajo porque el cliente resuelve su problema en M1."
             />
             <KpiCard
               title="U-R2"
               value={`${((summary.kpis.ur2?.value || 0) * 100).toFixed(1)}%`}
-              subtitle="Usage antes de R2"
+              subtitle="Uso antes de R2"
               status={summary.kpis.ur2?.status || 'yellow'}
               reason={summary.kpis.ur2?.reason}
               isInformative
+              tooltip="Usage antes de Rebill 2 = % de clientes que usaron el producto antes de su segundo pago. Indica engagement real con el producto."
             />
             <KpiCard
               title="Payback 30d"
@@ -275,14 +283,16 @@ export function Executive({ websiteId }: ExecutiveProps) {
               status={summary.kpis.paybackRatio?.status || 'yellow'}
               reason="Proxy histórico"
               isInformative
+              tooltip="Proxy de Payback usando LTV histórico de 30 días dividido por CPFR actual. No es tan preciso como Payback M1 Cohorte."
             />
             <KpiCard
               title="Payback 51d"
               value={`${summary.kpis.payback51d?.value?.toFixed(2) || '0.00'}x`}
-              subtitle="R2 completo"
+              subtitle="Incluye R2 completo"
               status={summary.kpis.payback51d?.status || 'yellow'}
               reason={summary.kpis.payback51d?.reason}
               isInformative
+              tooltip="Payback incluyendo hasta el segundo rebill (día 51). Si es mayor que Payback M1, indica retención saludable."
             />
           </div>
         </div>
@@ -290,7 +300,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
         {/* Executive Charts */}
         <div className="mb-6">
           <div className="text-sm text-gray-400 uppercase tracking-wide mb-3">
-            Visual Analytics
+            Gráficos Ejecutivos
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Payback by Website Chart */}
@@ -326,16 +336,16 @@ export function Executive({ websiteId }: ExecutiveProps) {
           <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
             {snapshots.length > 1 ? (
               <>
-                <TrendChart snapshots={snapshots} metric="frr" title="FRR Trend" />
-                <TrendChart snapshots={snapshots} metric="srr" title="SRR Trend" />
-                <TrendChart snapshots={snapshots} metric="net_roas" title="Net ROAS Trend" />
-                <TrendChart snapshots={snapshots} metric="cpfr" title="CPFR Trend" />
-                <TrendChart snapshots={snapshots} metric="ltv_30d" title="LTV 30d Trend" />
+                <TrendChart snapshots={snapshots} metric="frr" title="Tendencia FRR" />
+                <TrendChart snapshots={snapshots} metric="srr" title="Tendencia SRR" />
+                <TrendChart snapshots={snapshots} metric="net_roas" title="Tendencia Net ROAS" />
+                <TrendChart snapshots={snapshots} metric="cpfr" title="Tendencia CPFR" />
+                <TrendChart snapshots={snapshots} metric="ltv_30d" title="Tendencia LTV 30d" />
               </>
             ) : (
               <div className="md:col-span-2 bg-gray-900 rounded-lg p-8 text-center text-gray-500">
                 <div className="text-lg mb-2">Sin datos históricos</div>
-                <div className="text-sm">Los gráficos aparecerán cuando haya más de un snapshot</div>
+                <div className="text-sm">Las tendencias aparecerán cuando haya más de un snapshot</div>
               </div>
             )}
           </div>
@@ -352,7 +362,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
                 ))
               ) : (
                 <div className="bg-gray-900 rounded-lg p-6 text-center text-gray-500">
-                  No hay acciones pendientes
+                  Sin acciones pendientes
                 </div>
               )}
             </div>
