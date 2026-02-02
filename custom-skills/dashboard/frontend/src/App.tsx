@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2, Key, Search, Users, LogOut, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2, Key, Search, Users, LogOut, Loader2, MessageSquare } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { Login } from './pages/Login';
 import { Executive } from './pages/Executive';
@@ -8,9 +8,10 @@ import { Campaigns } from './pages/Campaigns';
 import { BusinessViews } from './pages/BusinessViews';
 import { Keywords } from './pages/Keywords';
 import { SearchTerms } from './pages/SearchTerms';
+import { Chat } from './pages/Chat';
 import { AdminUsers } from './components/AdminUsers';
 
-type Page = 'executive' | 'kanban' | 'campaigns' | 'keywords' | 'search-terms' | 'business' | 'users';
+type Page = 'executive' | 'kanban' | 'campaigns' | 'keywords' | 'search-terms' | 'business' | 'users' | 'chat';
 
 function App() {
   const { user, isLoading, isAdmin, logout } = useAuth();
@@ -114,6 +115,19 @@ function App() {
               </button>
               {isAdmin && (
                 <button
+                  onClick={() => setPage('chat')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                    page === 'chat'
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Chat
+                </button>
+              )}
+              {isAdmin && (
+                <button
                   onClick={() => setPage('users')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
                     page === 'users'
@@ -151,6 +165,7 @@ function App() {
         {page === 'search-terms' && <SearchTerms />}
         {page === 'business' && <BusinessViews />}
         {page === 'users' && isAdmin && <AdminUsers />}
+        {page === 'chat' && isAdmin && <Chat />}
       </main>
     </div>
   );

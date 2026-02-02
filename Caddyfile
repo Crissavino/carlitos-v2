@@ -4,9 +4,17 @@ carlitos-bot.com {
         reverse_proxy openclaw:3001
     }
 
-    # Todo el resto del tráfico (UI, WebSocket, etc.) -> puerto 18789
-    handle {
+    # Gateway con token (para redirects desde dashboard)
+    handle /__openclaw__/* {
         reverse_proxy openclaw:18789
+    }
+    handle /ws {
+        reverse_proxy openclaw:18789
+    }
+
+    # Root redirect al dashboard
+    handle {
+        redir https://dashboard.carlitos-bot.com/chat permanent
     }
 }
 

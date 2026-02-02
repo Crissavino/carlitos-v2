@@ -407,6 +407,16 @@ app.post("/api/admin/users", adminAuth, async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/chat/token - Get gateway token (admin only)
+app.get("/api/chat/token", adminAuth, (req: Request, res: Response) => {
+  const token = process.env.OPENCLAW_GATEWAY_TOKEN;
+  if (!token) {
+    res.status(500).json({ error: "Gateway token not configured" });
+    return;
+  }
+  res.json({ success: true, data: { token } });
+});
+
 // GET /api/admin/users - List all users (admin only)
 app.get("/api/admin/users", adminAuth, async (req: Request, res: Response) => {
   try {
