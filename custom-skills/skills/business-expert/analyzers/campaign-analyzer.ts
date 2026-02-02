@@ -120,7 +120,12 @@ export async function getCampaignPerformance(): Promise<CampaignPerformanceResul
   const attributionData = await getAttributionData();
 
   // 3. Determine currency from first campaign (should all be same)
-  const currency = spendData[0]?.currency || 'EUR';
+  // HARDENING: No silent fallback - fail if currency missing
+  const currency = spendData[0]?.currency;
+  if (!currency) {
+    console.error("[CampaignAnalyzer] CRITICAL: First campaign has no currency. Data integrity issue.");
+    throw new Error("Campaign data missing currency - cannot process without currency information");
+  }
   const dateRange = spendData[0]?.dateRange || '7d';
 
   // 4. Combine both sources
@@ -139,10 +144,25 @@ export async function getCampaignPerformance(): Promise<CampaignPerformanceResul
       ltv21d: 0,
       ltv51d: 0,
       campaignAgeDays: 0,
+      expectedCurrency: null,
+      websiteId: null,
     };
 
     // Convert spend to EUR if needed (use campaign's own currency, not global)
-    const campaignCurrency = sc.currency || 'EUR';
+    // HARDENING: No silent fallback - skip campaign if currency missing
+    if (!sc.currency) {
+      console.error(`[CampaignAnalyzer] Campaign ${campaignId} missing currency - skipping`);
+      continue;
+    }
+    const campaignCurrency = sc.currency;
+
+    // HARDENING: Validate script currency against avocodebo.campaigns.currency_id
+    if (attr.expectedCurrency && attr.expectedCurrency !== campaignCurrency) {
+      console.error(`[CampaignAnalyzer] CURRENCY MISMATCH: Campaign ${campaignId} ` +
+        `script=${campaignCurrency} vs avocodebo=${attr.expectedCurrency}`);
+      // Log but don't skip - use script currency as it's what was actually spent
+    }
+
     const spendEur = CurrencyConverter.toEur(sc.cost, campaignCurrency);
 
     // Calculate CPFR (spend / first rebills)
@@ -227,6 +247,9 @@ interface AttributionDataMap {
     ltv21d: number;
     ltv51d: number;
     campaignAgeDays: number;
+    // HARDENING: Expected currency from avocodebo.campaigns.currency_id
+    expectedCurrency: string | null;
+    websiteId: number | null;
   };
 }
 
@@ -258,6 +281,9 @@ async function getAttributionData(): Promise<AttributionDataMap> {
       ltv21d: parseFloat(row.ltv_21d) || 0,
       ltv51d: parseFloat(row.ltv_51d) || 0,
       campaignAgeDays: parseInt(row.campaign_age_days) || 0,
+      // HARDENING: Include expected currency from avocodebo for validation
+      expectedCurrency: row.expected_currency || null,
+      websiteId: row.website_id ? parseInt(row.website_id) : null,
     };
   }
 

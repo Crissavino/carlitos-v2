@@ -136,7 +136,12 @@ export async function getKeywordPerformance(): Promise<KeywordPerformanceResult 
   console.log(`[KeywordsAnalyzer] Found ${spendData.length} keywords from Google Ads Script`);
 
   // Determine currency from first keyword
-  const currency = spendData[0]?.currency || 'EUR';
+  // HARDENING: No silent fallback - fail if currency missing
+  const currency = spendData[0]?.currency;
+  if (!currency) {
+    console.error("[KeywordsAnalyzer] CRITICAL: First keyword has no currency. Data integrity issue.");
+    throw new Error("Keyword data missing currency - cannot process without currency information");
+  }
   const dateRange = spendData[0]?.dateRange || '7d';
 
   // Transform to performance data
@@ -145,7 +150,12 @@ export async function getKeywordPerformance(): Promise<KeywordPerformanceResult 
 
   for (const kw of spendData) {
     // Use keyword's own currency, not global (fixes mixed EUR/RON accounts)
-    const kwCurrency = kw.currency || 'EUR';
+    // HARDENING: No silent fallback - skip keyword if currency missing
+    if (!kw.currency) {
+      console.error(`[KeywordsAnalyzer] Keyword ${kw.keywordId} missing currency - skipping`);
+      continue;
+    }
+    const kwCurrency = kw.currency;
     const spendEur = CurrencyConverter.toEur(kw.cost, kwCurrency);
     totalSpend += spendEur;
 

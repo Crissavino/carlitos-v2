@@ -148,7 +148,12 @@ export async function getSearchTermPerformance(): Promise<SearchTermPerformanceR
   console.log(`[SearchTermsAnalyzer] Found ${spendData.length} search terms from Google Ads Script`);
 
   // Determine currency from first search term
-  const currency = spendData[0]?.currency || 'EUR';
+  // HARDENING: No silent fallback - fail if currency missing
+  const currency = spendData[0]?.currency;
+  if (!currency) {
+    console.error("[SearchTermsAnalyzer] CRITICAL: First search term has no currency. Data integrity issue.");
+    throw new Error("Search term data missing currency - cannot process without currency information");
+  }
   const dateRange = spendData[0]?.dateRange || '7d';
 
   // Transform to performance data
@@ -157,8 +162,13 @@ export async function getSearchTermPerformance(): Promise<SearchTermPerformanceR
 
   for (const st of spendData) {
     // Use search term's own currency, not global (fixes mixed EUR/RON accounts)
-    const stCurrency = st.currency || 'EUR';
-    const spendEur = CurrencyConverter.toEur(stCurrency === 'EUR' ? st.cost : st.cost, stCurrency);
+    // HARDENING: No silent fallback - skip search term if currency missing
+    if (!st.currency) {
+      console.error(`[SearchTermsAnalyzer] Search term "${st.searchTerm}" missing currency - skipping`);
+      continue;
+    }
+    const stCurrency = st.currency;
+    const spendEur = CurrencyConverter.toEur(st.cost, stCurrency);
     totalSpend += spendEur;
 
     const { status, recommendation } = getSearchTermStatusAndRecommendation(

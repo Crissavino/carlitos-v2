@@ -48,6 +48,12 @@ const VALID_DATE_RANGES: DateRangeType[] = ['LAST_7_DAYS', 'LAST_30_DAYS', 'TODA
 const VALID_MATCH_TYPES: KeywordMatchType[] = ['EXACT', 'PHRASE', 'BROAD'];
 const VALID_MATCH_TYPES_LOWERCASE = ['exact', 'phrase', 'broad'];
 
+// HARDENING: Account → Currency mapping (source of truth)
+const ACCOUNT_CURRENCY_MAP: Record<string, string> = {
+  '338-426-8994': 'EUR',  // Jackcode
+  '502-581-1084': 'RON',  // KiwiKode
+};
+
 export interface KeywordsDataSource {
   readonly type: 'ads-script-keywords';
   readonly name: string;
@@ -90,6 +96,16 @@ export class AdsScriptKeywordsSource implements KeywordsDataSource {
 
     if (!data.currency || typeof data.currency !== 'string') {
       errors.push('Missing or invalid currency');
+    } else {
+      // HARDENING: Validate currency matches expected for this account
+      const accountId = data.accountId as string;
+      const expectedCurrency = ACCOUNT_CURRENCY_MAP[accountId];
+      if (expectedCurrency && data.currency !== expectedCurrency) {
+        errors.push(`Currency mismatch: account ${accountId} should use ${expectedCurrency}, got ${data.currency}`);
+      }
+      if (!expectedCurrency) {
+        warnings.push(`Unknown account ${accountId} - currency ${data.currency} not validated against source of truth`);
+      }
     }
 
     if (!data.dateRange || !VALID_DATE_RANGES.includes(data.dateRange as DateRangeType)) {

@@ -45,6 +45,13 @@ export const campaignPerformanceQuery: QueryDefinition = {
       camp.website_id,
       camp.country_id,
       camp.company_id,
+      camp.currency_id,
+      -- HARDENING: Currency lookup for validation (2=EUR, 4=RON)
+      CASE camp.currency_id
+        WHEN 2 THEN 'EUR'
+        WHEN 4 THEN 'RON'
+        ELSE 'UNKNOWN'
+      END as expected_currency,
       camp.active,
       camp.started_at,
       DATEDIFF(CURDATE(), camp.started_at) as campaign_age_days,
