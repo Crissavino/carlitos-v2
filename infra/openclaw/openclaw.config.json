@@ -1,9 +1,5 @@
 {
   "agents": {
-    "main": {
-      "maxConcurrent": 4,
-      "workspace": "/root/.openclaw/workspace"
-    },
     "defaults": {
       "maxConcurrent": 4,
       "workspace": "/root/.openclaw/workspace"
