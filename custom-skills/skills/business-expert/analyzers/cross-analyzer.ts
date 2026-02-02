@@ -59,7 +59,7 @@ interface MetricsCacheEntry {
   cachedAt: number;
 }
 
-const METRICS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const METRICS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour (data updates daily from Google Ads)
 // HARDENING: Cache per website_id, not global
 const metricsCache: Map<number, MetricsCacheEntry> = new Map();
 
