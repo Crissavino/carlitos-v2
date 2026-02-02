@@ -59,11 +59,11 @@ export function BusinessViews() {
   }, []);
 
   const tabs: { id: ViewTab; label: string; icon: typeof Building2; count?: number }[] = [
-    { id: 'companies', label: 'Companies', icon: Building2, count: companies?.companies.length },
-    { id: 'websites', label: 'Websites', icon: Globe, count: websites?.totalWebsites },
-    { id: 'countries', label: 'Countries', icon: MapPin, count: countries?.totalCountries },
-    { id: 'services', label: 'Services', icon: Layers, count: services?.totalServices },
-    { id: 'recommendations', label: 'Recommendations', icon: TrendingUp, count: recommendations?.summary.totalRecommendations },
+    { id: 'companies', label: 'Empresas', icon: Building2, count: companies?.companies.length },
+    { id: 'websites', label: 'Sitios Web', icon: Globe, count: websites?.totalWebsites },
+    { id: 'countries', label: 'Países', icon: MapPin, count: countries?.totalCountries },
+    { id: 'services', label: 'Servicios', icon: Layers, count: services?.totalServices },
+    { id: 'recommendations', label: 'Recomendaciones', icon: TrendingUp, count: recommendations?.summary.totalRecommendations },
   ];
 
   if (loading && !companies) {
@@ -84,7 +84,7 @@ export function BusinessViews() {
             onClick={loadData}
             className="mt-4 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg hover:bg-gray-700"
           >
-            Retry
+            Reintentar
           </button>
         </div>
       </div>
@@ -99,16 +99,16 @@ export function BusinessViews() {
           <div>
             <h1 className="text-2xl font-bold text-gray-100 flex items-center gap-2">
               <Building2 className="w-7 h-7 text-blue-400" />
-              Business Views
+              Vista de Negocio
             </h1>
-            <p className="text-sm text-gray-400 mt-1">
-              Aggregated metrics by dimension - SUM-based calculations
+            <p className="text-sm text-gray-400 mt-1" title="Los países se obtienen de los datos de campañas de Google Ads, no de la base de datos de clientes">
+              Métricas agregadas por dimensión - Últimos 7 días de campañas activas
             </p>
           </div>
           <div className="flex items-center gap-4">
             {lastUpdate && (
               <span className="text-xs text-gray-500">
-                Updated {lastUpdate.toLocaleTimeString()}
+                Actualizado {lastUpdate.toLocaleTimeString()}
               </span>
             )}
             <button
@@ -117,7 +117,7 @@ export function BusinessViews() {
               className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+              Actualizar
             </button>
           </div>
         </div>
@@ -128,19 +128,19 @@ export function BusinessViews() {
             <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp className="w-4 h-4 text-green-400" />
-                <span className="text-xs text-green-400 uppercase">Scale</span>
+                <span className="text-xs text-green-400 uppercase">Escalar</span>
               </div>
               <div className="text-2xl font-bold text-green-400">
                 {recommendations.summary.byType.SCALE_FOCUS}
               </div>
               <div className="text-xs text-gray-400">
-                €{recommendations.summary.potentialImpact.spendToScale.toLocaleString()} spend
+                €{recommendations.summary.potentialImpact.spendToScale.toLocaleString()} gasto
               </div>
             </div>
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Minus className="w-4 h-4 text-yellow-400" />
-                <span className="text-xs text-yellow-400 uppercase">Maintain</span>
+                <span className="text-xs text-yellow-400 uppercase">Mantener</span>
               </div>
               <div className="text-2xl font-bold text-yellow-400">
                 {recommendations.summary.byType.MAINTAIN}
@@ -149,19 +149,19 @@ export function BusinessViews() {
             <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingDown className="w-4 h-4 text-red-400" />
-                <span className="text-xs text-red-400 uppercase">Reduce</span>
+                <span className="text-xs text-red-400 uppercase">Reducir</span>
               </div>
               <div className="text-2xl font-bold text-red-400">
                 {recommendations.summary.byType.REDUCE_EXPOSURE}
               </div>
               <div className="text-xs text-gray-400">
-                €{recommendations.summary.potentialImpact.spendToReduce.toLocaleString()} spend
+                €{recommendations.summary.potentialImpact.spendToReduce.toLocaleString()} gasto
               </div>
             </div>
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-1">
                 <RefreshCw className="w-4 h-4 text-blue-400" />
-                <span className="text-xs text-blue-400 uppercase">Rebalance</span>
+                <span className="text-xs text-blue-400 uppercase">Rebalancear</span>
               </div>
               <div className="text-2xl font-bold text-blue-400">
                 {recommendations.summary.byType.REBALANCE}
@@ -170,7 +170,7 @@ export function BusinessViews() {
             <div className="bg-gray-500/10 border border-gray-500/30 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-1">
                 <AlertTriangle className="w-4 h-4 text-gray-400" />
-                <span className="text-xs text-gray-400 uppercase">Monitor</span>
+                <span className="text-xs text-gray-400 uppercase">Monitorear</span>
               </div>
               <div className="text-2xl font-bold text-gray-400">
                 {recommendations.summary.byType.MONITOR}
@@ -228,7 +228,7 @@ export function BusinessViews() {
                     company.spendConcentration.isConcentrated && (
                       <div className="mt-2 text-xs text-yellow-400 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
-                        Spend concentrated ({company.spendConcentration.topWebsiteSpendPct}% in top website)
+                        Gasto concentrado ({company.spendConcentration.topWebsiteSpendPct}% en top website)
                       </div>
                     )
                   }
@@ -292,7 +292,7 @@ export function BusinessViews() {
                     key={service.serviceCategory}
                     type="service"
                     name={service.serviceName}
-                    subtitle={`${service.classification.confidence} confidence`}
+                    subtitle={`Confianza: ${service.classification.confidence}`}
                     spend7d={service.spend7d}
                     spend30d={service.spend30d}
                     totalAcquisitions={service.totalAcquisitions}
@@ -337,7 +337,7 @@ export function BusinessViews() {
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-gray-300">
-                        €{rec.metrics.spend7d.toLocaleString()} spend
+                        €{rec.metrics.spend7d.toLocaleString()} gasto
                       </div>
                       <div className={`text-xs ${
                         rec.metrics.payback51dAgg >= 1.5 ? 'text-green-400' :
@@ -355,7 +355,7 @@ export function BusinessViews() {
                     {!rec.isActionable && rec.blockers && (
                       <div className="flex items-center gap-1 text-yellow-400">
                         <AlertTriangle className="w-3 h-3" />
-                        <span>Blocked: {rec.blockers[0]}</span>
+                        <span>Bloqueado: {rec.blockers[0]}</span>
                       </div>
                     )}
                   </div>
