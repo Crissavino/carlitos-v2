@@ -121,69 +121,111 @@ export function Executive({ websiteId }: ExecutiveProps) {
           </div>
         </div>
 
-        {/* KPIs Grid - Core Metrics (Decisores) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* P1 HEADLINE - Payback M1 (Utility Model) */}
+        <div className="mb-6">
           <KpiCard
-            title="FRR"
-            value={`${summary.kpis.frr.percentage}%`}
-            subtitle="First Rebill Rate"
-            status={summary.kpis.frr.status}
-            reason={summary.kpis.frr.reason}
-          />
-          <KpiCard
-            title="CPFR"
-            value={`€${summary.kpis.cpfr.value.toFixed(0)}`}
-            subtitle="Cost Per First Rebill"
-            status={summary.kpis.cpfr.status}
-            reason={summary.kpis.cpfr.reason}
-          />
-          <KpiCard
-            title="SRR"
-            value={`${summary.kpis.srr.percentage}%`}
-            subtitle="Second Rebill Rate"
-            status={summary.kpis.srr.status}
-            reason={summary.kpis.srr.reason}
-          />
-          <KpiCard
-            title="Net ROAS"
-            value={`${summary.kpis.netRoas.value.toFixed(2)}x`}
-            subtitle="Return on Ad Spend"
-            status={summary.kpis.netRoas.status}
-            reason={summary.kpis.netRoas.reason}
+            title="Payback M1"
+            value={`${summary.kpis.paybackM1?.value?.toFixed(2) || '0.00'}x`}
+            subtitle="El negocio se gana o pierde en M1"
+            status={summary.kpis.paybackM1?.status || 'yellow'}
+            reason={summary.kpis.paybackM1?.reason || 'Payback primer mes'}
+            badge="HEADLINE"
+            size="large"
           />
         </div>
 
-        {/* Payback Analysis - Decisor de Ads */}
+        {/* P2 - KPIs Accionables */}
         <div className="mb-6">
           <div className="text-sm text-gray-400 uppercase tracking-wide mb-3">
-            Análisis de Payback
+            KPIs Accionables
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <KpiCard
-              title="Payback 21d"
-              value={`${summary.kpis.payback21d?.value?.toFixed(2) || '0.00'}x`}
-              subtitle="Warning temprano (R1)"
-              status={summary.kpis.payback21d?.status || 'yellow'}
-              reason={summary.kpis.payback21d?.reason || 'Solo warning, no decisor'}
-              badge="WARNING"
+              title="FRR"
+              value={`${summary.kpis.frr.percentage}%`}
+              subtitle="First Rebill Rate"
+              status={summary.kpis.frr.status}
+              reason={summary.kpis.frr.reason}
+            />
+            <KpiCard
+              title="CPFR"
+              value={`€${summary.kpis.cpfr.value.toFixed(0)}`}
+              subtitle="Cost Per First Rebill"
+              status={summary.kpis.cpfr.status}
+              reason={summary.kpis.cpfr.reason}
+            />
+            <KpiCard
+              title="Refund M1"
+              value={`${((summary.kpis.refundRateM1?.value || 0) * 100).toFixed(1)}%`}
+              subtitle="Refund Rate antes de M2"
+              status={summary.kpis.refundRateM1?.status || 'yellow'}
+              reason={summary.kpis.refundRateM1?.reason}
+            />
+          </div>
+        </div>
+
+        {/* P3 - KPIs de Contexto */}
+        <div className="mb-6">
+          <div className="text-sm text-gray-400 uppercase tracking-wide mb-3">
+            Contexto
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <KpiCard
+              title="Net ROAS"
+              value={`${summary.kpis.netRoas.value.toFixed(2)}x`}
+              subtitle="Return on Ad Spend"
+              status={summary.kpis.netRoas.status}
+              reason={summary.kpis.netRoas.reason}
+            />
+            <KpiCard
+              title="CPT"
+              value={`€${summary.kpis.cpt?.value?.toFixed(0) || '0'}`}
+              subtitle="Cost Per Trial"
+              status={summary.kpis.cpt?.status || 'yellow'}
+              reason={summary.kpis.cpt?.reason}
+            />
+          </div>
+        </div>
+
+        {/* Informativos (sin alertas) */}
+        <div className="mb-6">
+          <div className="text-sm text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+            Informativos
+            <span className="text-xs text-gray-600 normal-case">(Modelo utility: M2+ bajo es normal)</span>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              title="SRR"
+              value={`${summary.kpis.srr.percentage}%`}
+              subtitle="Second Rebill Rate"
+              status={summary.kpis.srr.status}
+              reason={summary.kpis.srr.reason}
+              isInformative
+            />
+            <KpiCard
+              title="U-R2"
+              value={`${((summary.kpis.ur2?.value || 0) * 100).toFixed(1)}%`}
+              subtitle="Usage antes de R2"
+              status={summary.kpis.ur2?.status || 'yellow'}
+              reason={summary.kpis.ur2?.reason}
+              isInformative
+            />
+            <KpiCard
+              title="Payback 30d"
+              value={`${summary.kpis.paybackRatio?.value?.toFixed(2) || '0.00'}x`}
+              subtitle="LTV 30d / CPFR"
+              status={summary.kpis.paybackRatio?.status || 'yellow'}
+              reason="Proxy histórico"
+              isInformative
             />
             <KpiCard
               title="Payback 51d"
               value={`${summary.kpis.payback51d?.value?.toFixed(2) || '0.00'}x`}
-              subtitle="Decisor (R2 completo)"
+              subtitle="R2 completo"
               status={summary.kpis.payback51d?.status || 'yellow'}
-              reason={summary.kpis.payback51d?.reason || 'Base para pause/scale'}
-              badge="DECISOR"
+              reason={summary.kpis.payback51d?.reason}
+              isInformative
             />
-            <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
-              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Referencia</div>
-              <div className="text-lg font-medium text-gray-400">
-                LTV 30d: €{summary.kpis.ltv30d?.value?.toFixed(0) || '0'}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                Proxy histórico (no decisor)
-              </div>
-            </div>
           </div>
         </div>
 

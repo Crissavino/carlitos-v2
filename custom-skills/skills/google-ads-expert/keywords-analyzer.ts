@@ -110,18 +110,22 @@ const THRESHOLDS = {
 
 /**
  * Get all keywords with performance metrics
+ * @param campaignId - Optional campaign ID to filter results at SQL level
  */
-export async function getKeywordPerformance(): Promise<KeywordPerformanceResult | null> {
-  // Check cache
-  if (keywordCache && Date.now() - keywordCache.cachedAt < CACHE_TTL_MS) {
+export async function getKeywordPerformance(campaignId?: string): Promise<KeywordPerformanceResult | null> {
+  // Cache key includes campaignId for filtered queries
+  const cacheKey = campaignId ? `campaign:${campaignId}` : 'all';
+
+  // Check cache (only use cache for non-filtered queries to avoid stale data)
+  if (!campaignId && keywordCache && Date.now() - keywordCache.cachedAt < CACHE_TTL_MS) {
     console.log("[KeywordsAnalyzer] Cache hit");
     return keywordCache.data;
   }
 
-  console.log("[KeywordsAnalyzer] Cache miss - fetching data...");
+  console.log(`[KeywordsAnalyzer] Cache miss - fetching data...${campaignId ? ` (campaign: ${campaignId})` : ''}`);
 
-  // Get keyword data from database (7d window)
-  const spendData = await getKeywordSpend('7d');
+  // Get keyword data from database (7d window), optionally filtered by campaign
+  const spendData = await getKeywordSpend('7d', campaignId);
 
   if (spendData.length === 0) {
     const hasData = await hasKeywordData();
@@ -199,8 +203,10 @@ export async function getKeywordPerformance(): Promise<KeywordPerformanceResult 
     keywords,
   };
 
-  // Cache result
-  keywordCache = { data: result, cachedAt: Date.now() };
+  // Cache result (only cache non-filtered queries)
+  if (!campaignId) {
+    keywordCache = { data: result, cachedAt: Date.now() };
+  }
 
   return result;
 }

@@ -20,6 +20,7 @@ export interface KpiResult {
   value: number;
   status: KpiStatus;
   shortReason: string;
+  isInformative?: boolean;  // If true, KPI does not trigger alerts (context only)
 }
 
 export interface CoreKpis {
@@ -117,6 +118,31 @@ export interface CoreKpis {
    * Payback 81d = LTV_81d / CPFR - opcional
    */
   payback81d?: KpiResult;
+
+  // ============================================================================
+  // UTILITY MODEL KPIs (Phase 9)
+  // El negocio se gana o pierde en M1
+  // ============================================================================
+
+  /**
+   * P1 HEADLINE - Payback M1
+   * PaybackM1 = (Trial_Revenue + First_Rebill_Revenue - Refunds_M1) / CPFR
+   * KPI principal del modelo utility.
+   */
+  paybackM1: KpiResult;
+
+  /**
+   * P2 - Refund Rate M1
+   * RefundRateM1 = Refunds_before_M2 / First_Rebills
+   */
+  refundRateM1: KpiResult;
+
+  /**
+   * P3 - CPT (Cost Per Trial)
+   * CPT = Ad_Spend / Trials
+   * Contexto, no genera alertas fuertes.
+   */
+  cpt: KpiResult;
 }
 
 // ============================================================================
@@ -172,6 +198,26 @@ export const THRESHOLDS = {
   // Minimum cohort age for decisions
   MIN_AGE_WARNING: 21,      // Días mínimos para warning
   MIN_AGE_DECISION: 51,     // Días mínimos para decisiones fuertes
+
+  // ============================================================================
+  // PAYBACK M1 (Utility Model - Phase 9)
+  // El negocio se gana o pierde en M1
+  // ============================================================================
+
+  // Payback M1 = (Trial Revenue + First Rebill Revenue - Refunds M1) / CPFR
+  PAYBACK_M1_GREEN: 1.20,   // >= 1.20x es verde (rentable en M1)
+  PAYBACK_M1_YELLOW: 0.90,  // 0.90 - 1.19x es amarillo
+  // < 0.90x es rojo
+
+  // Refund Rate M1 = Refunds before M2 / First Rebills
+  REFUND_RATE_M1_GREEN: 0.05,   // <= 5% es verde
+  REFUND_RATE_M1_YELLOW: 0.10,  // 5% - 10% es amarillo
+  // > 10% es rojo
+
+  // CPT = Ad Spend / Trials (contexto, no alertas fuertes)
+  CPT_GREEN: 30,    // <= €30 es verde
+  CPT_YELLOW: 50,   // €30 - €50 es amarillo
+  // > €50 es rojo
 } as const;
 
 // Derived thresholds for CPFR
@@ -214,13 +260,18 @@ export interface RawMetrics {
   ltv51dCohortSize: number;
   ltv81d?: number;          // Ventana R3 completa (opcional)
   ltv81dCohortSize?: number;
+
+  // Utility Model (Phase 9)
+  trialRevenueEur: number;        // SUM(invoices) WHERE invoice_type_id = 1
+  firstRebillRevenueEur: number;  // SUM(invoices) WHERE invoice_type_id = 2 AND es primer rebill
+  refundsM1Eur: number;           // SUM(refunds) WHERE fecha_refund < fecha_R2 del customer
 }
 
 // ============================================================================
 // ALERTS (SOLO 2 - U-R2 es diagnóstica)
 // ============================================================================
 
-export type AlertType = "frr_red" | "cpfr_red" | "payback_red";
+export type AlertType = "frr_red" | "cpfr_red" | "payback_red" | "refund_m1_red";
 
 export interface Alert {
   type: AlertType;

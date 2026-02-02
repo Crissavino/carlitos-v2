@@ -122,18 +122,19 @@ const INTENT_MISMATCH_PATTERNS = [
 
 /**
  * Get all search terms with performance metrics
+ * @param campaignId - Optional campaign ID to filter results at SQL level
  */
-export async function getSearchTermPerformance(): Promise<SearchTermPerformanceResult | null> {
-  // Check cache
-  if (searchTermCache && Date.now() - searchTermCache.cachedAt < CACHE_TTL_MS) {
+export async function getSearchTermPerformance(campaignId?: string): Promise<SearchTermPerformanceResult | null> {
+  // Check cache (only use cache for non-filtered queries to avoid stale data)
+  if (!campaignId && searchTermCache && Date.now() - searchTermCache.cachedAt < CACHE_TTL_MS) {
     console.log("[SearchTermsAnalyzer] Cache hit");
     return searchTermCache.data;
   }
 
-  console.log("[SearchTermsAnalyzer] Cache miss - fetching data...");
+  console.log(`[SearchTermsAnalyzer] Cache miss - fetching data...${campaignId ? ` (campaign: ${campaignId})` : ''}`);
 
-  // Get search term data from database (7d window)
-  const spendData = await getSearchTermSpend('7d');
+  // Get search term data from database (7d window), optionally filtered by campaign
+  const spendData = await getSearchTermSpend('7d', campaignId);
 
   if (spendData.length === 0) {
     const hasData = await hasSearchTermData();
@@ -210,8 +211,10 @@ export async function getSearchTermPerformance(): Promise<SearchTermPerformanceR
     searchTerms,
   };
 
-  // Cache result
-  searchTermCache = { data: result, cachedAt: Date.now() };
+  // Cache result (only cache non-filtered queries)
+  if (!campaignId) {
+    searchTermCache = { data: result, cachedAt: Date.now() };
+  }
 
   return result;
 }

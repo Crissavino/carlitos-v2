@@ -598,8 +598,18 @@ export interface KeywordSpendData {
 /**
  * Get latest keyword metrics for a specific date range (7d or 30d)
  */
-export async function getKeywordSpend(dateRange: '7d' | '30d' = '7d'): Promise<KeywordSpendData[]> {
+export async function getKeywordSpend(dateRange: '7d' | '30d' = '7d', campaignId?: string): Promise<KeywordSpendData[]> {
   const pool = getPool();
+
+  // Build params array
+  const params: any[] = [dateRange];
+
+  // Optional campaign filter
+  let campaignFilter = '';
+  if (campaignId) {
+    campaignFilter = 'AND m1.campaign_id = ?';
+    params.push(campaignId);
+  }
 
   // Get the most recent metrics for each keyword for the specified date_range
   // Using the composite key for identity
@@ -627,6 +637,7 @@ export async function getKeywordSpend(dateRange: '7d' | '30d' = '7d'): Promise<K
       ingested_at as ingestedAt
     FROM google_ads_keyword_metrics m1
     WHERE date_range = ?
+      ${campaignFilter}
       AND ingested_at = (
         SELECT MAX(ingested_at)
         FROM google_ads_keyword_metrics m2
@@ -640,7 +651,7 @@ export async function getKeywordSpend(dateRange: '7d' | '30d' = '7d'): Promise<K
   `;
 
   try {
-    const [rows] = await pool.execute(sql, [dateRange]) as any;
+    const [rows] = await pool.execute(sql, params) as any;
     return rows.map((row: any) => ({
       ...row,
       cost: parseFloat(row.cost) || 0,
@@ -922,8 +933,18 @@ export interface SearchTermSpendData {
 /**
  * Get search terms for a specific date range (7d or 30d)
  */
-export async function getSearchTermSpend(dateRange: '7d' | '30d' = '7d'): Promise<SearchTermSpendData[]> {
+export async function getSearchTermSpend(dateRange: '7d' | '30d' = '7d', campaignId?: string): Promise<SearchTermSpendData[]> {
   const pool = getPool();
+
+  // Build params array
+  const params: any[] = [dateRange];
+
+  // Optional campaign filter
+  let campaignFilter = '';
+  if (campaignId) {
+    campaignFilter = 'AND campaign_id = ?';
+    params.push(campaignId);
+  }
 
   const sql = `
     SELECT
@@ -948,11 +969,12 @@ export async function getSearchTermSpend(dateRange: '7d' | '30d' = '7d'): Promis
       ingested_at as ingestedAt
     FROM google_ads_search_terms
     WHERE date_range = ?
+      ${campaignFilter}
     ORDER BY cost DESC
   `;
 
   try {
-    const [rows] = await pool.execute(sql, [dateRange]) as any;
+    const [rows] = await pool.execute(sql, params) as any;
     return rows.map((row: any) => ({
       ...row,
       cost: parseFloat(row.cost) || 0,

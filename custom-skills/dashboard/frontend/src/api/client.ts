@@ -44,6 +44,7 @@ export interface KpiValue {
   percentage?: number;
   status: string;
   reason?: string;
+  isInformative?: boolean;  // If true, KPI does not trigger alerts (context only)
 }
 
 export interface BusinessSummary {
@@ -52,20 +53,25 @@ export interface BusinessSummary {
   period: { start: string; end: string };
   financials: { netRevenueEur: number; adSpendEur: number };
   kpis: {
-    // Core KPIs (decisores)
+    // P1 HEADLINE - Utility Model (el negocio se gana o pierde en M1)
+    paybackM1: KpiValue;
+    // P2 - Accionables
     frr: KpiValue;
     cpfr: KpiValue;
-    srr: KpiValue;
+    refundRateM1: KpiValue;
+    // P3 - Contexto
     netRoas: KpiValue;
-    // Payback Windows (Phase 6.1)
-    payback21d: KpiValue;  // Warning temprano (R1)
-    payback51d: KpiValue;  // Decisor (R2 completo)
-    // LTV Windows
+    cpt: KpiValue;
+    // Informativos (no generan alertas)
+    srr: KpiValue;
+    ur2: KpiValue;
+    // Payback Windows (Phase 6.1) - informativos
+    payback21d: KpiValue;
+    payback51d: KpiValue;
+    // LTV Windows - informativos
     ltv21d: KpiValue;
     ltv51d: KpiValue;
-    // Diagnóstico (no decisor)
-    ur2: KpiValue & { isDiagnostic: boolean };
-    // Legacy (referencia histórica)
+    // Legacy (referencia histórica) - informativos
     ltv30d: KpiValue;
     paybackRatio: KpiValue;
   };

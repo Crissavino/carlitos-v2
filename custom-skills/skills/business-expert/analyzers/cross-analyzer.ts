@@ -29,6 +29,10 @@ import {
   getLtv21dData,
   getLtv51dData,
   getLtv81dData,
+  // Utility Model (Phase 9)
+  getTrialRevenueData,
+  getFirstRebillRevenueData,
+  getRefundsM1Data,
 } from "./revenue-analyzer.js";
 import {
   RawMetrics,
@@ -107,6 +111,10 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
     ltv21dData,
     ltv51dData,
     ltv81dData,
+    // Utility Model (Phase 9)
+    trialRevenueData,
+    firstRebillRevenueData,
+    refundsM1Data,
   ] = await Promise.all([
     getRevenueData(websiteId),
     getTrialsData(websiteId),
@@ -120,6 +128,10 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
     getLtv21dData(websiteId),
     getLtv51dData(websiteId),
     getLtv81dData(websiteId),
+    // Utility Model (Phase 9)
+    getTrialRevenueData(websiteId),
+    getFirstRebillRevenueData(websiteId),
+    getRefundsM1Data(websiteId),
   ]);
 
   if (!revenueData || !trialsData) {
@@ -154,6 +166,11 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
     ltv51dCohortSize: ltv51dData?.cohortSize ?? 0,
     ltv81d: ltv81dData?.ltv ?? 0,
     ltv81dCohortSize: ltv81dData?.cohortSize ?? 0,
+
+    // Utility Model (Phase 9)
+    trialRevenueEur: trialRevenueData?.totalEur ?? 0,
+    firstRebillRevenueEur: firstRebillRevenueData?.totalEur ?? 0,
+    refundsM1Eur: refundsM1Data?.totalEur ?? 0,
   };
 
   // Cache the result for this website
@@ -454,6 +471,107 @@ function calculatePayback81d(ltv81d: number, cpfr: number): KpiResult {
   };
 }
 
+// ============================================================================
+// UTILITY MODEL KPIs (Phase 9)
+// El negocio se gana o pierde en M1
+// ============================================================================
+
+/**
+ * Payback M1 - P1 HEADLINE
+ * PaybackM1 = (Trial_Revenue + First_Rebill_Revenue - Refunds_M1) / CPFR
+ * Thresholds: ≥1.20 green, 0.90-1.19 yellow, <0.90 red
+ */
+function calculatePaybackM1(
+  trialRevenueEur: number,
+  firstRebillRevenueEur: number,
+  refundsM1Eur: number,
+  cpfr: number
+): KpiResult {
+  if (cpfr === 0 || cpfr === Infinity) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos de CPFR" };
+  }
+
+  const m1Revenue = trialRevenueEur + firstRebillRevenueEur - refundsM1Eur;
+  const paybackM1 = m1Revenue / cpfr;
+
+  let status: KpiStatus;
+  let shortReason: string;
+
+  if (paybackM1 >= THRESHOLDS.PAYBACK_M1_GREEN) {
+    status = "green";
+    shortReason = `${paybackM1.toFixed(2)}x - Rentable en M1`;
+  } else if (paybackM1 >= THRESHOLDS.PAYBACK_M1_YELLOW) {
+    status = "yellow";
+    shortReason = `${paybackM1.toFixed(2)}x - Break-even en M1`;
+  } else {
+    status = "red";
+    shortReason = `${paybackM1.toFixed(2)}x - Pérdida en M1`;
+  }
+
+  return { value: Math.round(paybackM1 * 100) / 100, status, shortReason };
+}
+
+/**
+ * Refund Rate M1 - P2
+ * RefundRateM1 = Refunds_before_M2 / First_Rebills
+ * Thresholds: ≤5% green, 5-10% yellow, >10% red
+ */
+function calculateRefundRateM1(refundsM1Eur: number, firstRebillRevenueEur: number): KpiResult {
+  if (firstRebillRevenueEur === 0) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos de first rebills" };
+  }
+
+  // Calculate as % of first rebill revenue (more meaningful than count)
+  const refundRate = refundsM1Eur / firstRebillRevenueEur;
+
+  let status: KpiStatus;
+  let shortReason: string;
+
+  if (refundRate <= THRESHOLDS.REFUND_RATE_M1_GREEN) {
+    status = "green";
+    shortReason = `${(refundRate * 100).toFixed(1)}% - Refunds controlados`;
+  } else if (refundRate <= THRESHOLDS.REFUND_RATE_M1_YELLOW) {
+    status = "yellow";
+    shortReason = `${(refundRate * 100).toFixed(1)}% - Refunds elevados`;
+  } else {
+    status = "red";
+    shortReason = `${(refundRate * 100).toFixed(1)}% - Refunds críticos`;
+  }
+
+  return { value: Math.round(refundRate * 1000) / 1000, status, shortReason };
+}
+
+/**
+ * CPT - Cost Per Trial - P3 (contexto, alertas suaves)
+ * CPT = Ad_Spend / Trials
+ * Thresholds: ≤€30 green, €30-€50 yellow, >€50 red
+ */
+function calculateCPT(totalAdSpend: number, trials: number): KpiResult {
+  if (trials === 0) {
+    if (totalAdSpend === 0) {
+      return { value: 0, status: "green", shortReason: "Sin gasto en ads" };
+    }
+    return { value: Infinity, status: "red", shortReason: "Gasto sin trials" };
+  }
+
+  const cpt = totalAdSpend / trials;
+  let status: KpiStatus;
+  let shortReason: string;
+
+  if (cpt <= THRESHOLDS.CPT_GREEN) {
+    status = "green";
+    shortReason = `€${cpt.toFixed(0)} - CPT eficiente`;
+  } else if (cpt <= THRESHOLDS.CPT_YELLOW) {
+    status = "yellow";
+    shortReason = `€${cpt.toFixed(0)} - CPT en zona límite`;
+  } else {
+    status = "red";
+    shortReason = `€${cpt.toFixed(0)} - CPT muy alto`;
+  }
+
+  return { value: Math.round(cpt * 100) / 100, status, shortReason };
+}
+
 export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
   const cpfr = calculateCPFR(raw.totalAdSpendEur, raw.firstRebills);
   const ltv30d = calculateLtv30d(raw.ltv30d, raw.ltv30dSampleSize);
@@ -465,26 +583,55 @@ export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
     ? calculateLtv81d(raw.ltv81d, raw.ltv81dCohortSize ?? 0)
     : undefined;
 
+  // SRR y U-R2 son informativos (no generan alertas)
+  const srr = calculateSRR(raw.secondRebills, raw.firstRebillsCohorte30d);
+  srr.isInformative = true; // Modelo utility: M2+ bajo es normal
+
+  const ur2 = calculateUR2(raw.usersWithUsageBeforeRebill2, raw.firstRebillsCohorte30d);
+  ur2.isInformative = true; // Diagnóstica, no alerta
+
+  // Payback legacy también es informativo
+  const paybackRatio = calculatePaybackRatio(raw.ltv30d, cpfr.value);
+  paybackRatio.isInformative = true; // Reemplazado por Payback M1
+
+  // Payback windows son informativos
+  const payback21d = calculatePayback21d(raw.ltv21d, cpfr.value);
+  payback21d.isInformative = true;
+  const payback51d = calculatePayback51d(raw.ltv51d, cpfr.value);
+  payback51d.isInformative = true;
+  const payback81d = raw.ltv81d !== undefined
+    ? calculatePayback81d(raw.ltv81d, cpfr.value)
+    : undefined;
+  if (payback81d) payback81d.isInformative = true;
+
   return {
     frr: calculateFRR(raw.firstRebills, raw.trials),
     cpfr,
-    srr: calculateSRR(raw.secondRebills, raw.firstRebillsCohorte30d),
-    ur2: calculateUR2(raw.usersWithUsageBeforeRebill2, raw.firstRebillsCohorte30d),
+    srr,
+    ur2,
     netRoas: calculateNetRoas(raw.netRevenueEur, raw.totalAdSpendEur),
 
-    // LTV 30d (proxy intermedio)
-    ltv30d,
-    paybackRatio: calculatePaybackRatio(raw.ltv30d, cpfr.value),
+    // LTV 30d (proxy intermedio, informativo)
+    ltv30d: { ...ltv30d, isInformative: true },
+    paybackRatio,
 
-    // LTV/Payback ventanas correctas (Phase 6.1)
-    ltv21d,
-    payback21d: calculatePayback21d(raw.ltv21d, cpfr.value),
-    ltv51d,
-    payback51d: calculatePayback51d(raw.ltv51d, cpfr.value),
-    ltv81d,
-    payback81d: raw.ltv81d !== undefined
-      ? calculatePayback81d(raw.ltv81d, cpfr.value)
-      : undefined,
+    // LTV/Payback ventanas correctas (Phase 6.1) - informativos
+    ltv21d: { ...ltv21d, isInformative: true },
+    payback21d,
+    ltv51d: { ...ltv51d, isInformative: true },
+    payback51d,
+    ltv81d: ltv81d ? { ...ltv81d, isInformative: true } : undefined,
+    payback81d,
+
+    // Utility Model KPIs (Phase 9)
+    paybackM1: calculatePaybackM1(
+      raw.trialRevenueEur,
+      raw.firstRebillRevenueEur,
+      raw.refundsM1Eur,
+      cpfr.value
+    ),
+    refundRateM1: calculateRefundRateM1(raw.refundsM1Eur, raw.firstRebillRevenueEur),
+    cpt: calculateCPT(raw.totalAdSpendEur, raw.trials),
   };
 }
 
@@ -493,42 +640,49 @@ export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
 // ============================================================================
 
 export function determineBusinessStatus(kpis: CoreKpis): BusinessStatus {
-  // P1: FRR drives main status
+  // P1 HEADLINE: Payback M1 is the main decision driver for utility model
+  if (kpis.paybackM1.status === "red") {
+    return "CRÍTICO";
+  }
+
+  // P2: FRR en rojo también es crítico
   if (kpis.frr.status === "red") {
     return "CRÍTICO";
   }
 
-  // P2: CPFR can make it critical
+  // P2: CPFR en rojo es crítico
   if (kpis.cpfr.status === "red") {
     return "CRÍTICO";
   }
 
-  // Payback < 1.0 es crítico (perdiendo dinero en adquisición)
-  if (kpis.paybackRatio.status === "red") {
+  // P2: Refund Rate M1 alto es crítico
+  if (kpis.refundRateM1.status === "red") {
     return "CRÍTICO";
   }
 
-  // P3: SRR red puts in risk
-  if (kpis.srr.status === "red") {
+  // Payback M1 amarillo es riesgo
+  if (kpis.paybackM1.status === "yellow") {
     return "EN RIESGO";
   }
 
-  // P1-P2 yellow also means risk
+  // FRR o CPFR amarillo es riesgo
   if (kpis.frr.status === "yellow" || kpis.cpfr.status === "yellow") {
     return "EN RIESGO";
   }
 
-  // Payback yellow (break-even) is also risk
-  if (kpis.paybackRatio.status === "yellow") {
+  // Refund Rate M1 amarillo es riesgo
+  if (kpis.refundRateM1.status === "yellow") {
     return "EN RIESGO";
   }
 
-  // P5: ROAS red is also risk (but lower priority)
+  // Net ROAS red is risk (contexto)
   if (kpis.netRoas.status === "red") {
     return "EN RIESGO";
   }
 
-  // P3-P5 yellow but P1-P2 green = still stable
+  // SRR y U-R2 son informativos, no afectan el estado
+  // (modelo utility: M2+ bajo es normal)
+
   return "ESTABLE";
 }
 
@@ -539,7 +693,16 @@ export function determineBusinessStatus(kpis: CoreKpis): BusinessStatus {
 export function generateAlerts(kpis: CoreKpis): Alert[] {
   const alerts: Alert[] = [];
 
-  // ALERTA 1: FRR en rojo
+  // ALERTA 1: Payback M1 en rojo (HEADLINE - modelo utility)
+  if (kpis.paybackM1.status === "red") {
+    alerts.push({
+      type: "payback_red",
+      severity: "critical",
+      message: `Payback M1 ${kpis.paybackM1.value.toFixed(2)}x: Pérdida en primer mes. Revisar adquisición urgente.`,
+    });
+  }
+
+  // ALERTA 2: FRR en rojo
   if (kpis.frr.status === "red") {
     alerts.push({
       type: "frr_red",
@@ -548,7 +711,7 @@ export function generateAlerts(kpis: CoreKpis): Alert[] {
     });
   }
 
-  // ALERTA 2: CPFR en rojo
+  // ALERTA 3: CPFR en rojo
   if (kpis.cpfr.status === "red") {
     alerts.push({
       type: "cpfr_red",
@@ -557,14 +720,16 @@ export function generateAlerts(kpis: CoreKpis): Alert[] {
     });
   }
 
-  // ALERTA 3: Payback Ratio en rojo (LTV < CPFR)
-  if (kpis.paybackRatio.status === "red") {
+  // ALERTA 4: Refund Rate M1 alto
+  if (kpis.refundRateM1.status === "red") {
     alerts.push({
-      type: "payback_red",
+      type: "refund_m1_red",
       severity: "critical",
-      message: `Payback ${kpis.paybackRatio.value.toFixed(2)}x: LTV < CPFR. Cada adquisición genera pérdida.`,
+      message: `Refund Rate M1 ${(kpis.refundRateM1.value * 100).toFixed(1)}%: Refunds críticos. Revisar calidad de producto/tráfico.`,
     });
   }
+
+  // NOTA: SRR, U-R2, y Payback legacy NO generan alertas (isInformative = true)
 
   return alerts;
 }

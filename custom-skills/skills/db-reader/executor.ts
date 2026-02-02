@@ -183,6 +183,36 @@ function formatResults(queryId: AllowedQueryId, rows: unknown[]): unknown {
         byCurrency,
       };
     }
+    case "trial-revenue-7d":
+    case "first-rebill-revenue-7d":
+    case "refunds-m1-7d": {
+      // Utility model queries - aggregate by currency and convert to EUR
+      let totalEur = 0;
+      let totalCount = 0;
+      const byCurrency: any[] = [];
+
+      for (const r of rows as any[]) {
+        const currencyCode = r.currency_code || 'EUR';
+        const amount = parseFloat(r.total_amount || r.total_refunds) || 0;
+        const amountEur = CurrencyConverter.toEur(amount, currencyCode);
+        const count = parseInt(r.trial_count || r.first_rebill_count || r.refund_count) || 0;
+
+        totalEur += amountEur;
+        totalCount += count;
+        byCurrency.push({
+          currency: currencyCode,
+          original: Math.round(amount * 100) / 100,
+          eur: amountEur,
+          count,
+        });
+      }
+
+      return {
+        totalEur: Math.round(totalEur * 100) / 100,
+        totalCount,
+        byCurrency,
+      };
+    }
     case "daily-revenue-7d": {
       const byDay: Record<string, {
         date: string;

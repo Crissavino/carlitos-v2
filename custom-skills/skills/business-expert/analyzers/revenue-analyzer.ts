@@ -296,3 +296,65 @@ export async function getLtv81dData(websiteId: number): Promise<LtvWindowData | 
   setCachedLtv("ltv-81d", websiteId, ltvData);
   return ltvData;
 }
+
+// ============================================================================
+// UTILITY MODEL KPIs (Phase 9)
+// El negocio se gana o pierde en M1
+// ============================================================================
+
+export interface TrialRevenueData {
+  totalEur: number;
+  totalCount: number;
+}
+
+export async function getTrialRevenueData(websiteId: number): Promise<TrialRevenueData | null> {
+  const result = await executeQuery("trial-revenue-7d", websiteId);
+
+  if (result.status !== "success" || !result.results) {
+    return null;
+  }
+
+  const data = result.results as any;
+  return {
+    totalEur: data.totalEur || 0,
+    totalCount: data.totalCount || 0,
+  };
+}
+
+export interface FirstRebillRevenueData {
+  totalEur: number;
+  totalCount: number;
+}
+
+export async function getFirstRebillRevenueData(websiteId: number): Promise<FirstRebillRevenueData | null> {
+  const result = await executeQuery("first-rebill-revenue-7d", websiteId);
+
+  if (result.status !== "success" || !result.results) {
+    return null;
+  }
+
+  const data = result.results as any;
+  return {
+    totalEur: data.totalEur || 0,
+    totalCount: data.totalCount || 0,
+  };
+}
+
+export interface RefundsM1Data {
+  totalEur: number;
+  totalCount: number;
+}
+
+export async function getRefundsM1Data(websiteId: number): Promise<RefundsM1Data | null> {
+  const result = await executeQuery("refunds-m1-7d", websiteId);
+
+  if (result.status !== "success" || !result.results) {
+    return null;
+  }
+
+  const data = result.results as any;
+  return {
+    totalEur: data.totalEur || 0,
+    totalCount: data.totalCount || 0,
+  };
+}

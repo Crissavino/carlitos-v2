@@ -21,7 +21,11 @@ export type AllowedQueryId =
   | "business-by-website"   // Aggregation by website
   | "business-by-company"   // Aggregation by company
   | "business-by-country"   // Aggregation by country
-  | "campaigns-for-service-classification";  // Campaign list for service pattern matching
+  | "campaigns-for-service-classification"  // Campaign list for service pattern matching
+  // Phase 9: Utility Model KPIs
+  | "trial-revenue-7d"       // Trial revenue for Payback M1
+  | "first-rebill-revenue-7d" // First rebill revenue for Payback M1
+  | "refunds-m1-7d";          // Refunds before M2 for Payback M1
 
 export interface DBReaderRequest {
   query: AllowedQueryId;

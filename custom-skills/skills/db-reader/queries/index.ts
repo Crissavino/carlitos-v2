@@ -15,6 +15,11 @@ import {
   countryAggregationQuery,
   campaignListForServiceQuery,
 } from "./business-aggregations.js";
+import {
+  trialRevenue7dQuery,
+  firstRebillRevenue7dQuery,
+  refundsM1Query,
+} from "./utility-model.js";
 
 // Query builders that support websiteId filtering
 export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
@@ -41,6 +46,10 @@ export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
   "business-by-company": companyAggregationQuery,
   "business-by-country": countryAggregationQuery,
   "campaigns-for-service-classification": campaignListForServiceQuery,
+  // Phase 9: Utility Model KPIs
+  "trial-revenue-7d": trialRevenue7dQuery,
+  "first-rebill-revenue-7d": firstRebillRevenue7dQuery,
+  "refunds-m1-7d": refundsM1Query,
 };
 
 /**
@@ -81,4 +90,8 @@ export {
   companyAggregationQuery,
   countryAggregationQuery,
   campaignListForServiceQuery,
+  // Phase 9: Utility Model
+  trialRevenue7dQuery,
+  firstRebillRevenue7dQuery,
+  refundsM1Query,
 };

@@ -501,18 +501,25 @@ app.get("/api/business/summary", async (req: Request, res: Response) => {
           adSpendEur: summary.adSpendEur,
         },
         kpis: {
+          // P1 HEADLINE - Utility Model
+          paybackM1: { value: summary.kpis.paybackM1.value, status: summary.kpis.paybackM1.status, reason: summary.kpis.paybackM1.shortReason },
+          // P2 - Accionables
           frr: { value: summary.kpis.frr.value, percentage: Math.round(summary.kpis.frr.value * 1000) / 10, status: summary.kpis.frr.status, reason: summary.kpis.frr.shortReason },
           cpfr: { value: summary.kpis.cpfr.value, status: summary.kpis.cpfr.status, reason: summary.kpis.cpfr.shortReason },
-          srr: { value: summary.kpis.srr.value, percentage: Math.round(summary.kpis.srr.value * 1000) / 10, status: summary.kpis.srr.status, reason: summary.kpis.srr.shortReason },
-          ur2: { value: summary.kpis.ur2.value, percentage: Math.round(summary.kpis.ur2.value * 1000) / 10, status: summary.kpis.ur2.status, reason: summary.kpis.ur2.shortReason, isDiagnostic: true },
+          refundRateM1: { value: summary.kpis.refundRateM1.value, percentage: Math.round(summary.kpis.refundRateM1.value * 1000) / 10, status: summary.kpis.refundRateM1.status, reason: summary.kpis.refundRateM1.shortReason },
+          // P3 - Contexto
           netRoas: { value: summary.kpis.netRoas.value, status: summary.kpis.netRoas.status, reason: summary.kpis.netRoas.shortReason },
-          ltv30d: { value: summary.kpis.ltv30d.value, status: summary.kpis.ltv30d.status, reason: summary.kpis.ltv30d.shortReason },
-          paybackRatio: { value: summary.kpis.paybackRatio.value, status: summary.kpis.paybackRatio.status, reason: summary.kpis.paybackRatio.shortReason },
-          // Phase 6.1: Ventanas correctas
-          ltv21d: { value: summary.kpis.ltv21d.value, status: summary.kpis.ltv21d.status, reason: summary.kpis.ltv21d.shortReason },
-          payback21d: { value: summary.kpis.payback21d.value, status: summary.kpis.payback21d.status, reason: summary.kpis.payback21d.shortReason },
-          ltv51d: { value: summary.kpis.ltv51d.value, status: summary.kpis.ltv51d.status, reason: summary.kpis.ltv51d.shortReason },
-          payback51d: { value: summary.kpis.payback51d.value, status: summary.kpis.payback51d.status, reason: summary.kpis.payback51d.shortReason },
+          cpt: { value: summary.kpis.cpt.value, status: summary.kpis.cpt.status, reason: summary.kpis.cpt.shortReason },
+          // Informativos (no alertas)
+          srr: { value: summary.kpis.srr.value, percentage: Math.round(summary.kpis.srr.value * 1000) / 10, status: summary.kpis.srr.status, reason: summary.kpis.srr.shortReason, isInformative: true },
+          ur2: { value: summary.kpis.ur2.value, percentage: Math.round(summary.kpis.ur2.value * 1000) / 10, status: summary.kpis.ur2.status, reason: summary.kpis.ur2.shortReason, isInformative: true },
+          ltv30d: { value: summary.kpis.ltv30d.value, status: summary.kpis.ltv30d.status, reason: summary.kpis.ltv30d.shortReason, isInformative: true },
+          paybackRatio: { value: summary.kpis.paybackRatio.value, status: summary.kpis.paybackRatio.status, reason: summary.kpis.paybackRatio.shortReason, isInformative: true },
+          // Phase 6.1: Ventanas correctas (informativas)
+          ltv21d: { value: summary.kpis.ltv21d.value, status: summary.kpis.ltv21d.status, reason: summary.kpis.ltv21d.shortReason, isInformative: true },
+          payback21d: { value: summary.kpis.payback21d.value, status: summary.kpis.payback21d.status, reason: summary.kpis.payback21d.shortReason, isInformative: true },
+          ltv51d: { value: summary.kpis.ltv51d.value, status: summary.kpis.ltv51d.status, reason: summary.kpis.ltv51d.shortReason, isInformative: true },
+          payback51d: { value: summary.kpis.payback51d.value, status: summary.kpis.payback51d.status, reason: summary.kpis.payback51d.shortReason, isInformative: true },
         },
         alerts: summary.alerts,
         summaryText: summary.summaryText,
@@ -954,16 +961,10 @@ app.get("/api/campaigns/decisions/urgent", async (req: Request, res: Response) =
 //   limit: number (default 50, max 200)
 //   minSpend: number (default 0) - minimum spend in EUR
 //   hasSpend: boolean (default true) - only show keywords with spend > 0
-//   campaign: string - filter by campaign ID
+//   campaign: string - filter by campaign ID (filtered at SQL level)
 //   matchType: string - filter by match type (EXACT, PHRASE, BROAD)
 app.get("/api/keywords", async (req: Request, res: Response) => {
   try {
-    const data = await getKeywordPerformance();
-    if (!data) {
-      res.status(500).json({ error: "No keyword data available" });
-      return;
-    }
-
     // Parse query params
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
@@ -972,7 +973,14 @@ app.get("/api/keywords", async (req: Request, res: Response) => {
     const campaignFilter = req.query.campaign as string || '';
     const matchTypeFilter = req.query.matchType as string || '';
 
-    // Filter keywords
+    // Get data - pass campaignId to filter at SQL level (not in memory)
+    const data = await getKeywordPerformance(campaignFilter || undefined);
+    if (!data) {
+      res.status(500).json({ error: "No keyword data available" });
+      return;
+    }
+
+    // Filter keywords (only non-campaign filters, campaign is done at SQL level)
     let filtered = data.keywords;
 
     // Filter by spend
@@ -981,11 +989,6 @@ app.get("/api/keywords", async (req: Request, res: Response) => {
     }
     if (minSpend > 0) {
       filtered = filtered.filter(k => k.spend7d >= minSpend);
-    }
-
-    // Filter by campaign
-    if (campaignFilter) {
-      filtered = filtered.filter(k => k.campaignId === campaignFilter);
     }
 
     // Filter by match type
@@ -999,12 +1002,19 @@ app.get("/api/keywords", async (req: Request, res: Response) => {
     const offset = (page - 1) * limit;
     const paginatedKeywords = filtered.slice(offset, offset + limit);
 
+    // Recalculate totals for filtered dataset
+    const filteredTotalSpend = filtered.reduce((sum, k) => sum + k.spend7d, 0);
+
     res.json({
       success: true,
       data: {
-        ...data,
+        fetchedAt: data.fetchedAt,
+        dateRange: data.dateRange,
+        currency: data.currency,
+        // Use filtered totals when campaign filter is applied
+        totalKeywords: campaignFilter ? data.totalKeywords : data.totalKeywords,
+        totalSpend: campaignFilter ? Math.round(filteredTotalSpend * 100) / 100 : data.totalSpend,
         keywords: paginatedKeywords,
-        totalKeywords: data.totalKeywords,
         filteredCount: totalFiltered,
         pagination: {
           page,
@@ -1137,16 +1147,10 @@ app.get("/api/keywords/by-campaign/:id", async (req: Request, res: Response) => 
 //   limit: number (default 50, max 200)
 //   minSpend: number (default 0) - minimum spend in EUR
 //   hasSpend: boolean (default true) - only show search terms with spend > 0
-//   campaign: string - filter by campaign ID
+//   campaign: string - filter by campaign ID (filtered at SQL level)
 //   status: string - filter by performance status (good, warning, poor)
 app.get("/api/search-terms", async (req: Request, res: Response) => {
   try {
-    const data = await getSearchTermPerformance();
-    if (!data) {
-      res.status(500).json({ error: "No search term data available" });
-      return;
-    }
-
     // Parse query params
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
@@ -1155,7 +1159,14 @@ app.get("/api/search-terms", async (req: Request, res: Response) => {
     const campaignFilter = req.query.campaign as string || '';
     const statusFilter = req.query.status as string || '';
 
-    // Filter search terms
+    // Get data - pass campaignId to filter at SQL level (not in memory)
+    const data = await getSearchTermPerformance(campaignFilter || undefined);
+    if (!data) {
+      res.status(500).json({ error: "No search term data available" });
+      return;
+    }
+
+    // Filter search terms (only non-campaign filters, campaign is done at SQL level)
     let filtered = data.searchTerms;
 
     // Filter by spend
@@ -1164,11 +1175,6 @@ app.get("/api/search-terms", async (req: Request, res: Response) => {
     }
     if (minSpend > 0) {
       filtered = filtered.filter(st => st.spend >= minSpend);
-    }
-
-    // Filter by campaign
-    if (campaignFilter) {
-      filtered = filtered.filter(st => st.campaignId === campaignFilter);
     }
 
     // Filter by status
@@ -1182,14 +1188,18 @@ app.get("/api/search-terms", async (req: Request, res: Response) => {
     const offset = (page - 1) * limit;
     const paginatedSearchTerms = filtered.slice(offset, offset + limit);
 
+    // Recalculate totals for filtered dataset
+    const filteredTotalSpend = filtered.reduce((sum, st) => sum + st.spend, 0);
+
     res.json({
       success: true,
       data: {
         fetchedAt: data.fetchedAt,
         dateRange: data.dateRange,
         currency: data.currency,
-        totalSearchTerms: data.totalSearchTerms,
-        totalSpend: data.totalSpend,
+        // Use filtered totals when campaign filter is applied
+        totalSearchTerms: campaignFilter ? data.totalSearchTerms : data.totalSearchTerms,
+        totalSpend: campaignFilter ? Math.round(filteredTotalSpend * 100) / 100 : data.totalSpend,
         searchTerms: paginatedSearchTerms,
         filteredCount: totalFiltered,
         pagination: {
