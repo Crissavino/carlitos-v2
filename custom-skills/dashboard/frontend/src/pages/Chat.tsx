@@ -9,7 +9,8 @@ export function Chat() {
   const [gatewayToken, setGatewayToken] = useState<string | null>(null);
 
   const openChat = useCallback((token: string) => {
-    window.open(`https://carlitos-bot.com/__openclaw__/?token=${encodeURIComponent(token)}`, '_blank');
+    // Always use agent=main to load production config with custom skills
+    window.open(`https://carlitos-bot.com/__openclaw__/?token=${encodeURIComponent(token)}&agent=main`, '_blank');
   }, []);
 
   useEffect(() => {
