@@ -508,6 +508,10 @@ app.get("/api/business/summary", async (req: Request, res: Response) => {
           netRevenueEur: summary.netRevenueEur,
           adSpendEur: summary.adSpendEur,
         },
+        acquisitionData: summary.acquisitionData,
+        refundsM1: {
+          total: summary.refundsM1Total,
+        },
         kpis: {
           // P1 HEADLINE - Utility Model
           paybackM1: { value: summary.kpis.paybackM1.value, status: summary.kpis.paybackM1.status, reason: summary.kpis.paybackM1.shortReason },
@@ -621,6 +625,44 @@ app.get("/api/business/daily", sessionAuth, async (req: Request, res: Response) 
           today: firstRebillsToday,
           weekAgo: firstRebills7dAgo,
         },
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: msg });
+  }
+});
+
+// GET /api/business/all-websites-payback
+// Returns Payback M1 for all websites (for comparison chart)
+app.get("/api/business/all-websites-payback", sessionAuth, async (req: Request, res: Response) => {
+  try {
+    // Fetch metrics for all websites in parallel
+    const results = await Promise.all(
+      VALID_WEBSITE_IDS.map(async (websiteId) => {
+        const websiteConfig = getWebsiteConfig(websiteId);
+        const raw = await fetchRawMetrics(websiteId);
+        if (!raw) return null;
+
+        const kpis = calculateCoreKpis(raw);
+        const paybackM1 = kpis.paybackM1?.value || 0;
+        const status = kpis.paybackM1?.status || 'yellow';
+
+        return {
+          websiteId,
+          name: websiteConfig.name,
+          paybackM1,
+          status,
+        };
+      })
+    );
+
+    const validResults = results.filter(r => r !== null);
+
+    res.json({
+      success: true,
+      data: {
+        websites: validResults,
       },
     });
   } catch (err) {

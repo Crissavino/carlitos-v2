@@ -52,6 +52,8 @@ export interface BusinessSummary {
   generatedAt: string;
   period: { start: string; end: string };
   financials: { grossRevenueEur: number; netRevenueEur: number; adSpendEur: number };
+  acquisitionData: { trials: number; firstRebills: number };
+  refundsM1: { total: number };
   kpis: {
     // P1 HEADLINE - Utility Model (el negocio se gana o pierde en M1)
     paybackM1: KpiValue;
@@ -118,6 +120,18 @@ export interface DailyComparison {
   cpfr: { today: number; weekAgo: number; change: number };
   adSpend: { today: number; weekAgo: number };
   firstRebills: { today: number; weekAgo: number };
+}
+
+// All Websites Payback (for comparison chart)
+export interface WebsitePaybackData {
+  websiteId: number;
+  name: string;
+  paybackM1: number;
+  status: 'green' | 'yellow' | 'red';
+}
+
+export interface AllWebsitesPayback {
+  websites: WebsitePaybackData[];
 }
 
 // ============================================================================
@@ -312,6 +326,7 @@ export const api = {
   getSnapshots: (websiteId: number, days = 30) => fetchAPI<{ count: number; snapshots: Snapshot[] }>(`/snapshots?websiteId=${websiteId}&days=${days}`),
   getDecisions: (websiteId: number) => fetchAPI<DecisionCurrent>(`/decision/current?websiteId=${websiteId}`),
   getDailyComparison: (websiteId: number) => fetchAPI<DailyComparison>(`/business/daily?websiteId=${websiteId}`),
+  getAllWebsitesPayback: () => fetchAPI<AllWebsitesPayback>(`/business/all-websites-payback`),
 
   // Tasks
   getTasks: (status?: string) => {

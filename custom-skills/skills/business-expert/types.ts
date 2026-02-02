@@ -295,6 +295,15 @@ export interface ExecutiveSummary {
   netRevenueEur: number;
   adSpendEur: number;
 
+  // Acquisition data (for funnel visualization)
+  acquisitionData: {
+    trials: number;
+    firstRebills: number;
+  };
+
+  // Refunds M1 (for funnel visualization)
+  refundsM1Total: number;
+
   // 5 KPIs CORE
   kpis: CoreKpis;
 

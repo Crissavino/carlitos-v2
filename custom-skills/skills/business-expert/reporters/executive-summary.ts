@@ -53,6 +53,11 @@ export async function generateExecutiveSummary(websiteId: number): Promise<Execu
       grossRevenueEur: raw.subscriptionEur,
       netRevenueEur: raw.netRevenueEur,
       adSpendEur: raw.totalAdSpendEur,
+      acquisitionData: {
+        trials: raw.trials,
+        firstRebills: raw.firstRebills,
+      },
+      refundsM1Total: raw.refundsEur,
       kpis,
       alerts,
       summaryText: buildSummaryText(raw, kpis, businessStatus),

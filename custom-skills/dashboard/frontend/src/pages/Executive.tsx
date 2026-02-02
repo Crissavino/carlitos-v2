@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw, Clock } from 'lucide-react';
-import { api, type BusinessSummary, type Snapshot, type DecisionCurrent, type DailyComparison, type WebsiteId } from '../api/client';
+import { api, type BusinessSummary, type Snapshot, type DecisionCurrent, type DailyComparison, type WebsiteId, type AllWebsitesPayback } from '../api/client';
 import { StatusBadge } from '../components/StatusBadge';
 import { KpiCard } from '../components/KpiCard';
 import { TrendChart } from '../components/TrendChart';
 import { ActionCard } from '../components/ActionCard';
+import { PaybackByWebsiteChart } from '../components/PaybackByWebsiteChart';
+import { DailyMarginChart } from '../components/DailyMarginChart';
+import { ConversionFunnel } from '../components/ConversionFunnel';
 
 interface ExecutiveProps {
   websiteId: WebsiteId;
@@ -15,6 +18,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [decisions, setDecisions] = useState<DecisionCurrent | null>(null);
   const [daily, setDaily] = useState<DailyComparison | null>(null);
+  const [allWebsitesPayback, setAllWebsitesPayback] = useState<AllWebsitesPayback | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -23,16 +27,18 @@ export function Executive({ websiteId }: ExecutiveProps) {
     setLoading(true);
     setError(null);
     try {
-      const [summaryData, snapshotsData, decisionsData, dailyData] = await Promise.all([
+      const [summaryData, snapshotsData, decisionsData, dailyData, paybackData] = await Promise.all([
         api.getSummary(websiteId),
         api.getSnapshots(websiteId, 14),
         api.getDecisions(websiteId),
         api.getDailyComparison(websiteId),
+        api.getAllWebsitesPayback(),
       ]);
       setSummary(summaryData);
       setSnapshots(snapshotsData.snapshots);
       setDecisions(decisionsData);
       setDaily(dailyData);
+      setAllWebsitesPayback(paybackData);
       setLastUpdate(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error loading data');
@@ -47,6 +53,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
     setSnapshots([]);
     setDecisions(null);
     setDaily(null);
+    setAllWebsitesPayback(null);
     setError(null);
 
     loadData();
@@ -277,6 +284,39 @@ export function Executive({ websiteId }: ExecutiveProps) {
               reason={summary.kpis.payback51d?.reason}
               isInformative
             />
+          </div>
+        </div>
+
+        {/* Executive Charts */}
+        <div className="mb-6">
+          <div className="text-sm text-gray-400 uppercase tracking-wide mb-3">
+            Visual Analytics
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Payback by Website Chart */}
+            {allWebsitesPayback && allWebsitesPayback.websites.length > 0 && (
+              <PaybackByWebsiteChart data={allWebsitesPayback.websites} />
+            )}
+
+            {/* Daily Margin Chart */}
+            {snapshots.length > 1 && (
+              <DailyMarginChart snapshots={snapshots} />
+            )}
+
+            {/* Conversion Funnel */}
+            {summary && (
+              <div className="lg:col-span-2">
+                <ConversionFunnel
+                  data={{
+                    adSpend: summary.financials.adSpendEur,
+                    trials: summary.acquisitionData?.trials || 0,
+                    firstRebills: summary.acquisitionData?.firstRebills || 0,
+                    revenueM1: summary.financials.netRevenueEur,
+                    refunds: summary.refundsM1?.total || 0,
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
 
