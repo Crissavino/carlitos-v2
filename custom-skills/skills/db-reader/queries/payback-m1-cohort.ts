@@ -7,7 +7,8 @@ import { buildCurrencyRateCase } from "../../../core/currency.js";
  * MODELO CORRECTO: Payback M1 por COHORTE, no cashflow.
  *
  * Cohorte: Clientes adquiridos 30-60 días atrás (M1 ya completado)
- * Fórmula: (Trial_Revenue + First_Rebill_Revenue - Refunds_M1) / Ad_Spend_Cohorte
+ * Fórmula: (Trial_Revenue + M1_Subscription_Revenue - Refunds_M1) / Ad_Spend_Cohorte
+ * M1_Subscription_Revenue = ALL type_id=2 invoices within 30 days of acquisition
  *
  * TODOS los componentes deben pertenecer a la MISMA cohorte de adquisición.
  * PROHIBIDO mezclar revenue histórico con gasto reciente.
@@ -32,7 +33,7 @@ const RATE_CASE_ZI = buildCurrencyRateCase('inv.currency_code');
  * Returns:
  * - cohort_size: Number of customers in cohort
  * - trial_revenue_eur: Trial invoices for cohort
- * - first_rebill_revenue_eur: First rebill invoices for cohort
+ * - first_rebill_revenue_eur: ALL subscription revenue in M1 (all type_id=2 invoices within 30d)
  * - refunds_m1_eur: Refunds within 30 days of acquisition
  * - m1_net_revenue_eur: Trial + First Rebill - Refunds
  * - ad_spend_eur: Ad spend for the cohort period
@@ -98,16 +99,15 @@ export const paybackM1CohortQuery: QueryBuilder = (websiteId?: number): QueryDef
                AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY))
           ), 0), 2) as trial_revenue_eur,
 
-          -- First rebill revenue (first invoice_type_id = 2 per customer)
+          -- ALL subscription revenue in M1 (all type_id=2 invoices within 30 days, not just first)
+          -- This captures the total subscription revenue in M1, regardless of number of invoices
           ROUND(COALESCE(SUM(
-            (SELECT i.amount / ${RATE_CASE}
+            (SELECT SUM(i.amount / ${RATE_CASE})
              FROM avocode.invoices i
              WHERE i.customer_id = c.id
                AND i.invoice_type_id = 2
                AND i.invoice_status_id = 1
-               AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY)
-             ORDER BY i.id ASC
-             LIMIT 1)
+               AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY))
           ), 0), 2) as first_rebill_revenue_eur,
 
           -- Refunds M1 (within 30 days of acquisition)
@@ -150,16 +150,14 @@ export const paybackM1CohortQuery: QueryBuilder = (websiteId?: number): QueryDef
                   AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY)
               ), 0)
               +
-              -- First Rebill
+              -- ALL subscription revenue in M1
               COALESCE((
-                SELECT i.amount / ${RATE_CASE}
+                SELECT SUM(i.amount / ${RATE_CASE})
                 FROM avocode.invoices i
                 WHERE i.customer_id = c.id
                   AND i.invoice_type_id = 2
                   AND i.invoice_status_id = 1
                   AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY)
-                ORDER BY i.id ASC
-                LIMIT 1
               ), 0)
               -
               -- Refunds
