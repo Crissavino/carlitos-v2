@@ -1,3 +1,8 @@
+---
+name: decision-engine
+description: Decision engine that translates KPIs into concrete actions. Use when asked about what actions to take, weekly decisions, recommendations, or what to do based on current business status.
+---
+
 # decision-engine
 
 Motor de decisiones que traduce KPIs en acciones concretas. Read-only, explicable, reversible.

@@ -1,3 +1,8 @@
+---
+name: business-expert
+description: Business governance dashboard. Calculates 5 CORE KPIs from DB to make ad investment decisions. Use when asked about business status, KPIs, FRR, CPFR, SRR, ROAS, or executive summary.
+---
+
 # business-expert
 
 Tablero de gobierno del negocio. Calcula 5 KPIs CORE desde la DB para tomar decisiones de inversión en ads.
