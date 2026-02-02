@@ -120,20 +120,26 @@ export interface CoreKpis {
   payback81d?: KpiResult;
 
   // ============================================================================
-  // UTILITY MODEL KPIs (Phase 9)
+  // UTILITY MODEL KPIs (Phase 9 + Phase 11 FIX)
   // El negocio se gana o pierde en M1
   // ============================================================================
 
   /**
-   * P1 HEADLINE - Payback M1
-   * PaybackM1 = (Trial_Revenue + First_Rebill_Revenue - Refunds_M1) / CPFR
-   * KPI principal del modelo utility.
+   * P1 HEADLINE - Payback M1 (COHORT-BASED)
+   *
+   * Phase 11 FIX: Ahora usa datos de COHORTE, no cashflow.
+   * Cohorte: Clientes adquiridos 30-60 días atrás.
+   *
+   * PaybackM1 = (Trial_Revenue + First_Rebill_Revenue - Refunds_M1) / Ad_Spend
+   * TODOS los componentes de la MISMA cohorte de adquisición.
+   *
+   * PROHIBIDO mezclar revenue histórico con gasto reciente.
    */
   paybackM1: KpiResult;
 
   /**
-   * P2 - Refund Rate M1
-   * RefundRateM1 = Refunds_before_M2 / First_Rebills
+   * P2 - Refund Rate M1 (COHORT-BASED)
+   * RefundRateM1 = Refunds_M1 / First_Rebill_Revenue (de la cohorte)
    */
   refundRateM1: KpiResult;
 
@@ -143,6 +149,17 @@ export interface CoreKpis {
    * Contexto, no genera alertas fuertes.
    */
   cpt: KpiResult;
+
+  /**
+   * INFORMATIVO - Cashflow Coverage 7d (ex-Payback M1 cashflow)
+   *
+   * DEPRECATED para decisiones. Solo informativo.
+   * Calcula: (Trial_Revenue + First_Rebill - Refunds) / CPFR
+   * PERO mezcla ventanas incompatibles (cualquier cohorte).
+   *
+   * NO usar para business status ni alertas.
+   */
+  cashflowCoverage7d?: KpiResult;
 }
 
 // ============================================================================
@@ -261,10 +278,24 @@ export interface RawMetrics {
   ltv81d?: number;          // Ventana R3 completa (opcional)
   ltv81dCohortSize?: number;
 
-  // Utility Model (Phase 9)
-  trialRevenueEur: number;        // SUM(invoices) WHERE invoice_type_id = 1
-  firstRebillRevenueEur: number;  // SUM(invoices) WHERE invoice_type_id = 2 AND es primer rebill
-  refundsM1Eur: number;           // SUM(refunds) WHERE fecha_refund < fecha_R2 del customer
+  // Utility Model (Phase 9) - DEPRECATED for Payback M1, used for Cashflow Coverage only
+  trialRevenueEur: number;        // SUM(invoices) WHERE invoice_type_id = 1 (CASHFLOW - last 7d)
+  firstRebillRevenueEur: number;  // SUM(invoices) WHERE invoice_type_id = 2 AND es primer rebill (CASHFLOW)
+  refundsM1Eur: number;           // SUM(refunds) WHERE fecha_refund < fecha_R2 (CASHFLOW)
+
+  // Phase 11: Payback M1 Cohort (FIX - real cohort-based calculation)
+  // Cohorte 30-60 días atrás (M1 completado)
+  paybackM1Cohort?: {
+    cohortSize: number;           // Customers en la cohorte
+    firstRebills: number;         // First rebills de la cohorte
+    trialRevenueEur: number;      // Trial revenue de la cohorte
+    firstRebillRevenueEur: number; // First rebill revenue de la cohorte
+    refundsM1Eur: number;         // Refunds M1 de la cohorte
+    m1NetRevenueEur: number;      // Trial + FirstRebill - Refunds de la cohorte
+    adSpendEur: number;           // Ad spend de la misma ventana (30-60d ago)
+    paybackM1: number;            // m1NetRevenueEur / adSpendEur
+    cpfrCohort: number;           // adSpendEur / firstRebills
+  };
 }
 
 // ============================================================================

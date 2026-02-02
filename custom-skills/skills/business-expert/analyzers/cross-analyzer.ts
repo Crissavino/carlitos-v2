@@ -29,10 +29,12 @@ import {
   getLtv21dData,
   getLtv51dData,
   getLtv81dData,
-  // Utility Model (Phase 9)
+  // Utility Model (Phase 9) - DEPRECATED: Used for cashflow coverage only
   getTrialRevenueData,
   getFirstRebillRevenueData,
   getRefundsM1Data,
+  // Phase 11: Payback M1 Cohort (FIX)
+  getPaybackM1CohortData,
 } from "./revenue-analyzer.js";
 import {
   RawMetrics,
@@ -111,10 +113,12 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
     ltv21dData,
     ltv51dData,
     ltv81dData,
-    // Utility Model (Phase 9)
+    // Utility Model (Phase 9) - DEPRECATED for Payback M1, kept for Cashflow Coverage
     trialRevenueData,
     firstRebillRevenueData,
     refundsM1Data,
+    // Phase 11: Payback M1 Cohort (FIX - real cohort-based calculation)
+    paybackM1CohortData,
   ] = await Promise.all([
     getRevenueData(websiteId),
     getTrialsData(websiteId),
@@ -128,10 +132,12 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
     getLtv21dData(websiteId),
     getLtv51dData(websiteId),
     getLtv81dData(websiteId),
-    // Utility Model (Phase 9)
+    // Utility Model (Phase 9) - DEPRECATED for Payback M1
     getTrialRevenueData(websiteId),
     getFirstRebillRevenueData(websiteId),
     getRefundsM1Data(websiteId),
+    // Phase 11: Payback M1 Cohort (FIX)
+    getPaybackM1CohortData(websiteId),
   ]);
 
   if (!revenueData || !trialsData) {
@@ -167,10 +173,23 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
     ltv81d: ltv81dData?.ltv ?? 0,
     ltv81dCohortSize: ltv81dData?.cohortSize ?? 0,
 
-    // Utility Model (Phase 9)
+    // Utility Model (Phase 9) - DEPRECATED for Payback M1, used for Cashflow Coverage
     trialRevenueEur: trialRevenueData?.totalEur ?? 0,
     firstRebillRevenueEur: firstRebillRevenueData?.totalEur ?? 0,
     refundsM1Eur: refundsM1Data?.totalEur ?? 0,
+
+    // Phase 11: Payback M1 Cohort (FIX - real cohort-based calculation)
+    paybackM1Cohort: paybackM1CohortData ? {
+      cohortSize: paybackM1CohortData.cohortSize,
+      firstRebills: paybackM1CohortData.firstRebills,
+      trialRevenueEur: paybackM1CohortData.trialRevenueEur,
+      firstRebillRevenueEur: paybackM1CohortData.firstRebillRevenueEur,
+      refundsM1Eur: paybackM1CohortData.refundsM1Eur,
+      m1NetRevenueEur: paybackM1CohortData.m1NetRevenueEur,
+      adSpendEur: paybackM1CohortData.adSpendEur,
+      paybackM1: paybackM1CohortData.paybackM1,
+      cpfrCohort: paybackM1CohortData.cpfrCohort,
+    } : undefined,
   };
 
   // Cache the result for this website
@@ -472,70 +491,119 @@ function calculatePayback81d(ltv81d: number, cpfr: number): KpiResult {
 }
 
 // ============================================================================
-// UTILITY MODEL KPIs (Phase 9)
+// UTILITY MODEL KPIs (Phase 9 + Phase 11 FIX)
 // El negocio se gana o pierde en M1
 // ============================================================================
 
 /**
- * Payback M1 - P1 HEADLINE
- * PaybackM1 = (Trial_Revenue + First_Rebill_Revenue - Refunds_M1) / CPFR
+ * Payback M1 - P1 HEADLINE (COHORT-BASED)
+ *
+ * Phase 11 FIX: Usa datos de COHORTE (30-60 días atrás), no cashflow.
+ * Fórmula: M1_Net_Revenue_Cohort / Ad_Spend_Cohort
+ *
+ * TODOS los componentes de la MISMA cohorte de adquisición.
  * Thresholds: ≥1.20 green, 0.90-1.19 yellow, <0.90 red
  */
-function calculatePaybackM1(
-  trialRevenueEur: number,
-  firstRebillRevenueEur: number,
-  refundsM1Eur: number,
-  cpfr: number
+function calculatePaybackM1Cohort(
+  cohortData?: {
+    paybackM1: number;
+    cohortSize: number;
+    m1NetRevenueEur: number;
+    adSpendEur: number;
+  }
 ): KpiResult {
-  if (cpfr === 0 || cpfr === Infinity) {
-    return { value: 0, status: "yellow", shortReason: "Sin datos de CPFR" };
+  if (!cohortData || cohortData.cohortSize === 0) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos de cohorte" };
   }
 
-  const m1Revenue = trialRevenueEur + firstRebillRevenueEur - refundsM1Eur;
-  const paybackM1 = m1Revenue / cpfr;
+  if (cohortData.adSpendEur === 0) {
+    return { value: 0, status: "yellow", shortReason: "Sin ad spend en cohorte" };
+  }
+
+  const paybackM1 = cohortData.paybackM1;
 
   let status: KpiStatus;
   let shortReason: string;
 
   if (paybackM1 >= THRESHOLDS.PAYBACK_M1_GREEN) {
     status = "green";
-    shortReason = `${paybackM1.toFixed(2)}x - Rentable en M1`;
+    shortReason = `${paybackM1.toFixed(2)}x (cohorte) - Rentable en M1`;
   } else if (paybackM1 >= THRESHOLDS.PAYBACK_M1_YELLOW) {
     status = "yellow";
-    shortReason = `${paybackM1.toFixed(2)}x - Break-even en M1`;
+    shortReason = `${paybackM1.toFixed(2)}x (cohorte) - Break-even M1`;
   } else {
     status = "red";
-    shortReason = `${paybackM1.toFixed(2)}x - Pérdida en M1`;
+    shortReason = `${paybackM1.toFixed(2)}x (cohorte) - Pérdida en M1`;
   }
 
   return { value: Math.round(paybackM1 * 100) / 100, status, shortReason };
 }
 
 /**
- * Refund Rate M1 - P2
- * RefundRateM1 = Refunds_before_M2 / First_Rebills
- * Thresholds: ≤5% green, 5-10% yellow, >10% red
+ * Cashflow Coverage 7d - INFORMATIVO (ex-Payback M1 cashflow)
+ *
+ * DEPRECATED para decisiones. Solo informativo.
+ * Mezcla ventanas incompatibles (revenue de cualquier cohorte / CPFR 7d)
+ *
+ * NO afecta business status ni genera alertas.
  */
-function calculateRefundRateM1(refundsM1Eur: number, firstRebillRevenueEur: number): KpiResult {
-  if (firstRebillRevenueEur === 0) {
-    return { value: 0, status: "yellow", shortReason: "Sin datos de first rebills" };
+function calculateCashflowCoverage7d(
+  trialRevenueEur: number,
+  firstRebillRevenueEur: number,
+  refundsM1Eur: number,
+  cpfr: number
+): KpiResult {
+  if (cpfr === 0 || cpfr === Infinity) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos", isInformative: true };
   }
 
-  // Calculate as % of first rebill revenue (more meaningful than count)
-  const refundRate = refundsM1Eur / firstRebillRevenueEur;
+  const m1Revenue = trialRevenueEur + firstRebillRevenueEur - refundsM1Eur;
+  const coverage = m1Revenue / cpfr;
+
+  // Siempre informativo, no afecta semáforos del negocio
+  return {
+    value: Math.round(coverage * 100) / 100,
+    status: "yellow", // Siempre amarillo - es solo informativo
+    shortReason: `${coverage.toFixed(2)}x cashflow (no cohorte)`,
+    isInformative: true,
+  };
+}
+
+/**
+ * Refund Rate M1 - P2 (COHORT-BASED)
+ * RefundRateM1 = Refunds_M1 / First_Rebill_Revenue (de la cohorte)
+ * Thresholds: ≤5% green, 5-10% yellow, >10% red
+ */
+function calculateRefundRateM1Cohort(
+  cohortData?: {
+    refundsM1Eur: number;
+    firstRebillRevenueEur: number;
+    cohortSize: number;
+  }
+): KpiResult {
+  if (!cohortData || cohortData.cohortSize === 0) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos de cohorte" };
+  }
+
+  if (cohortData.firstRebillRevenueEur === 0) {
+    return { value: 0, status: "yellow", shortReason: "Sin first rebills en cohorte" };
+  }
+
+  // Calculate as % of first rebill revenue
+  const refundRate = cohortData.refundsM1Eur / cohortData.firstRebillRevenueEur;
 
   let status: KpiStatus;
   let shortReason: string;
 
   if (refundRate <= THRESHOLDS.REFUND_RATE_M1_GREEN) {
     status = "green";
-    shortReason = `${(refundRate * 100).toFixed(1)}% - Refunds controlados`;
+    shortReason = `${(refundRate * 100).toFixed(1)}% (cohorte) - Controlados`;
   } else if (refundRate <= THRESHOLDS.REFUND_RATE_M1_YELLOW) {
     status = "yellow";
-    shortReason = `${(refundRate * 100).toFixed(1)}% - Refunds elevados`;
+    shortReason = `${(refundRate * 100).toFixed(1)}% (cohorte) - Elevados`;
   } else {
     status = "red";
-    shortReason = `${(refundRate * 100).toFixed(1)}% - Refunds críticos`;
+    shortReason = `${(refundRate * 100).toFixed(1)}% (cohorte) - Críticos`;
   }
 
   return { value: Math.round(refundRate * 1000) / 1000, status, shortReason };
@@ -623,15 +691,20 @@ export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
     ltv81d: ltv81d ? { ...ltv81d, isInformative: true } : undefined,
     payback81d,
 
-    // Utility Model KPIs (Phase 9)
-    paybackM1: calculatePaybackM1(
+    // Utility Model KPIs (Phase 9 + Phase 11 FIX)
+    // Payback M1 ahora usa datos de COHORTE, no cashflow
+    paybackM1: calculatePaybackM1Cohort(raw.paybackM1Cohort),
+    refundRateM1: calculateRefundRateM1Cohort(raw.paybackM1Cohort),
+    cpt: calculateCPT(raw.totalAdSpendEur, raw.trials),
+
+    // Cashflow Coverage 7d - INFORMATIVO (ex-Payback M1 cashflow)
+    // Mantenido solo para referencia histórica, NO afecta decisiones
+    cashflowCoverage7d: calculateCashflowCoverage7d(
       raw.trialRevenueEur,
       raw.firstRebillRevenueEur,
       raw.refundsM1Eur,
       cpfr.value
     ),
-    refundRateM1: calculateRefundRateM1(raw.refundsM1Eur, raw.firstRebillRevenueEur),
-    cpt: calculateCPT(raw.totalAdSpendEur, raw.trials),
   };
 }
 

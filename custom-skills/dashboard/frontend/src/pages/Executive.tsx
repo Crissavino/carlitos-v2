@@ -179,14 +179,14 @@ export function Executive({ websiteId }: ExecutiveProps) {
           </div>
         )}
 
-        {/* P1 HEADLINE - Payback M1 (Utility Model) */}
+        {/* P1 HEADLINE - Payback M1 (Cohorte 30-60d) */}
         <div className="mb-6">
           <KpiCard
-            title="Payback M1"
+            title="Payback M1 (Cohorte)"
             value={`${summary.kpis.paybackM1?.value?.toFixed(2) || '0.00'}x`}
-            subtitle="El negocio se gana o pierde en M1"
+            subtitle="Cohorte 30-60d atrás - M1 completado"
             status={summary.kpis.paybackM1?.status || 'yellow'}
-            reason={summary.kpis.paybackM1?.reason || 'Payback primer mes'}
+            reason={summary.kpis.paybackM1?.reason || 'Payback cohorte M1'}
             badge="HEADLINE"
             size="large"
           />
@@ -215,7 +215,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
             <KpiCard
               title="Refund M1"
               value={`${((summary.kpis.refundRateM1?.value || 0) * 100).toFixed(1)}%`}
-              subtitle="Refund Rate antes de M2"
+              subtitle="Refunds de cohorte antes de M2"
               status={summary.kpis.refundRateM1?.status || 'yellow'}
               reason={summary.kpis.refundRateM1?.reason}
             />

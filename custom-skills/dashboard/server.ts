@@ -513,7 +513,7 @@ app.get("/api/business/summary", async (req: Request, res: Response) => {
           total: summary.refundsM1Total,
         },
         kpis: {
-          // P1 HEADLINE - Utility Model
+          // P1 HEADLINE - Utility Model (COHORT-BASED - Phase 11 FIX)
           paybackM1: { value: summary.kpis.paybackM1.value, status: summary.kpis.paybackM1.status, reason: summary.kpis.paybackM1.shortReason },
           // P2 - Accionables
           frr: { value: summary.kpis.frr.value, percentage: Math.round(summary.kpis.frr.value * 1000) / 10, status: summary.kpis.frr.status, reason: summary.kpis.frr.shortReason },
@@ -532,6 +532,8 @@ app.get("/api/business/summary", async (req: Request, res: Response) => {
           payback21d: { value: summary.kpis.payback21d.value, status: summary.kpis.payback21d.status, reason: summary.kpis.payback21d.shortReason, isInformative: true },
           ltv51d: { value: summary.kpis.ltv51d.value, status: summary.kpis.ltv51d.status, reason: summary.kpis.ltv51d.shortReason, isInformative: true },
           payback51d: { value: summary.kpis.payback51d.value, status: summary.kpis.payback51d.status, reason: summary.kpis.payback51d.shortReason, isInformative: true },
+          // Cashflow Coverage 7d (ex-Payback M1 cashflow - DEPRECATED, solo informativo)
+          cashflowCoverage7d: summary.kpis.cashflowCoverage7d ? { value: summary.kpis.cashflowCoverage7d.value, status: 'yellow', reason: summary.kpis.cashflowCoverage7d.shortReason, isInformative: true } : undefined,
         },
         alerts: summary.alerts,
         summaryText: summary.summaryText,

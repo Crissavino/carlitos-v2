@@ -28,6 +28,7 @@ import {
   adSpendTodayQuery,
   adSpend7dAgoQuery,
 } from "./daily-comparison.js";
+import { paybackM1CohortQuery } from "./payback-m1-cohort.js";
 
 // Query builders that support websiteId filtering
 export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
@@ -65,6 +66,8 @@ export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
   "first-rebills-7d-ago": firstRebills7dAgoQuery,
   "ad-spend-today": adSpendTodayQuery,
   "ad-spend-7d-ago": adSpend7dAgoQuery,
+  // Phase 11: Payback M1 Cohort (FIX - real cohort-based calculation)
+  "payback-m1-cohort": paybackM1CohortQuery,
 };
 
 /**

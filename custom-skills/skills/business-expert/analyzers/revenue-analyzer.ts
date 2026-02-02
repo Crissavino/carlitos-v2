@@ -358,3 +358,54 @@ export async function getRefundsM1Data(websiteId: number): Promise<RefundsM1Data
     totalCount: data.totalCount || 0,
   };
 }
+
+// ============================================================================
+// PAYBACK M1 COHORT (Phase 11 - FIX)
+// El Payback M1 real por cohorte, NO cashflow
+// ============================================================================
+
+export interface PaybackM1CohortData {
+  cohortSize: number;
+  firstRebills: number;
+  trialRevenueEur: number;
+  firstRebillRevenueEur: number;
+  refundsM1Eur: number;
+  m1NetRevenueEur: number;
+  adSpendEur: number;
+  paybackM1: number;
+  cpfrCohort: number;
+}
+
+export async function getPaybackM1CohortData(websiteId: number): Promise<PaybackM1CohortData | null> {
+  const cached = getCachedLtv<PaybackM1CohortData>("payback-m1-cohort", websiteId);
+  if (cached) {
+    console.log(`[LtvCache] Hit: payback-m1-cohort for website ${websiteId}`);
+    return cached;
+  }
+
+  console.log(`[LtvCache] Miss: payback-m1-cohort for website ${websiteId}, executing query...`);
+  const result = await executeQuery("payback-m1-cohort", websiteId);
+
+  if (result.status !== "success" || !result.results) {
+    console.error(`[PaybackM1Cohort] Query failed for website ${websiteId}:`, result.error);
+    return null;
+  }
+
+  const data = result.results as any;
+  const row = Array.isArray(data) ? data[0] : data;
+
+  const cohortData: PaybackM1CohortData = {
+    cohortSize: parseInt(row.cohort_size) || 0,
+    firstRebills: parseInt(row.first_rebills) || 0,
+    trialRevenueEur: parseFloat(row.trial_revenue_eur) || 0,
+    firstRebillRevenueEur: parseFloat(row.first_rebill_revenue_eur) || 0,
+    refundsM1Eur: parseFloat(row.refunds_m1_eur) || 0,
+    m1NetRevenueEur: parseFloat(row.m1_net_revenue_eur) || 0,
+    adSpendEur: parseFloat(row.ad_spend_eur) || 0,
+    paybackM1: parseFloat(row.payback_m1) || 0,
+    cpfrCohort: parseFloat(row.cpfr_cohort) || 0,
+  };
+
+  setCachedLtv("payback-m1-cohort", websiteId, cohortData);
+  return cohortData;
+}

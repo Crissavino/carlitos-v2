@@ -32,7 +32,9 @@ export type AllowedQueryId =
   | "first-rebills-today"    // First rebills today
   | "first-rebills-7d-ago"   // First rebills 7 days ago
   | "ad-spend-today"         // Ad spend today
-  | "ad-spend-7d-ago";       // Ad spend 7 days ago
+  | "ad-spend-7d-ago"        // Ad spend 7 days ago
+  // Phase 11: Payback M1 Cohort (FIX - real cohort-based calculation)
+  | "payback-m1-cohort";     // Payback M1 real por cohorte 30-60d
 
 export interface DBReaderRequest {
   query: AllowedQueryId;
