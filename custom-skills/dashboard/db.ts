@@ -56,6 +56,7 @@ export async function closePool(): Promise<void> {
 export interface KpiSnapshot {
   id?: number;
   snapshot_date: string;  // YYYY-MM-DD
+  website_id: number;     // REQUIRED - no global KPIs allowed
   business_status: string;
   frr: number;
   cpfr: number;
@@ -69,18 +70,24 @@ export interface KpiSnapshot {
   second_rebills: number;
   active_subscriptions: number;
   ad_spend_eur: number;
+  baseline_post_reset?: boolean;
   net_revenue_eur: number;
   created_at?: string;
 }
 
 export async function saveSnapshot(snapshot: Omit<KpiSnapshot, "id" | "created_at">): Promise<number> {
+  // HARDENING: Reject snapshots without website_id
+  if (!snapshot.website_id) {
+    throw new Error('WEBSITE_ID_REQUIRED: Cannot save snapshot without website_id. Global KPIs are disabled.');
+  }
+
   const db = getPool();
   const [result] = await db.execute<ResultSetHeader>(
     `INSERT INTO kpi_snapshots
-      (snapshot_date, business_status, frr, cpfr, srr, ur2, net_roas, ltv_30d,
+      (snapshot_date, website_id, business_status, frr, cpfr, srr, ur2, net_roas, ltv_30d,
        trials, first_rebills, first_rebills_cohorte_30d, second_rebills,
        active_subscriptions, ad_spend_eur, net_revenue_eur)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        business_status = VALUES(business_status),
        frr = VALUES(frr),
@@ -98,6 +105,7 @@ export async function saveSnapshot(snapshot: Omit<KpiSnapshot, "id" | "created_a
        net_revenue_eur = VALUES(net_revenue_eur)`,
     [
       snapshot.snapshot_date,
+      snapshot.website_id,
       snapshot.business_status,
       snapshot.frr,
       snapshot.cpfr,
@@ -117,19 +125,26 @@ export async function saveSnapshot(snapshot: Omit<KpiSnapshot, "id" | "created_a
   return result.insertId || result.affectedRows;
 }
 
-export async function getSnapshots(days: number = 30): Promise<KpiSnapshot[]> {
+export async function getSnapshots(websiteId: number, days: number = 30): Promise<KpiSnapshot[]> {
+  // HARDENING: Require website_id
+  if (!websiteId) {
+    throw new Error('WEBSITE_ID_REQUIRED: Cannot get snapshots without website_id. Global KPIs are disabled.');
+  }
+
   const db = getPool();
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT * FROM kpi_snapshots
-     WHERE snapshot_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+     WHERE website_id = ?
+       AND snapshot_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
      ORDER BY snapshot_date ASC`,
-    [days]
+    [websiteId, days]
   );
   return rows.map(row => ({
     ...row,
     snapshot_date: row.snapshot_date instanceof Date
       ? row.snapshot_date.toISOString().split("T")[0]
       : String(row.snapshot_date),
+    website_id: row.website_id,
     frr: parseFloat(row.frr) || 0,
     cpfr: parseFloat(row.cpfr) || 0,
     srr: parseFloat(row.srr) || 0,
@@ -138,6 +153,7 @@ export async function getSnapshots(days: number = 30): Promise<KpiSnapshot[]> {
     ltv_30d: parseFloat(row.ltv_30d) || 0,
     ad_spend_eur: parseFloat(row.ad_spend_eur) || 0,
     net_revenue_eur: parseFloat(row.net_revenue_eur) || 0,
+    baseline_post_reset: row.baseline_post_reset === 1,
   })) as KpiSnapshot[];
 }
 

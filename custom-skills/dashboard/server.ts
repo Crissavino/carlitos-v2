@@ -77,6 +77,7 @@ import {
   type UserScope,
 } from "./db.js";
 import { CurrencyConverter } from "../core/currency.js";
+import { validateWebsiteId, VALID_WEBSITE_IDS, getWebsiteConfig } from "../core/websites.js";
 
 const app = express();
 const PORT = parseInt(process.env.DASHBOARD_PORT || "3002", 10);
@@ -198,15 +199,17 @@ async function adminAuth(req: Request, res: Response, next: NextFunction): Promi
 app.get("/api", (req: Request, res: Response) => {
   res.json({
     name: "OpenClaw Dashboard API",
-    version: "2.0.0",
+    version: "2.1.0",
+    note: "HARDENING: All KPI endpoints require websiteId parameter. Global KPIs are disabled.",
+    validWebsiteIds: VALID_WEBSITE_IDS,
     endpoints: {
-      // Business Expert
-      summary: "GET /api/business/summary",
-      kpis: "GET /api/business/kpis",
-      raw: "GET /api/business/raw",
-      // Decision Engine
-      weeklyReport: "GET /api/decision/weekly-report",
-      decisions: "GET /api/decision/current",
+      // Business Expert (all require websiteId)
+      summary: "GET /api/business/summary?websiteId=1",
+      kpis: "GET /api/business/kpis?websiteId=1",
+      raw: "GET /api/business/raw?websiteId=1",
+      // Decision Engine (all require websiteId)
+      weeklyReport: "GET /api/decision/weekly-report?websiteId=1",
+      decisions: "GET /api/decision/current?websiteId=1",
       rules: "GET /api/decision/rules",
       // Campaigns (Phase 7)
       campaignsList: "GET /api/campaigns",
@@ -228,16 +231,16 @@ app.get("/api", (req: Request, res: Response) => {
       searchTermsWaste: "GET /api/search-terms/waste",
       searchTermsByCampaign: "GET /api/search-terms/by-campaign/:id",
       searchTermsByKeyword: "GET /api/search-terms/by-keyword?keyword=...",
-      // Snapshots (Historical)
-      snapshotCreate: "POST /api/snapshots",
-      snapshotList: "GET /api/snapshots?days=30",
+      // Snapshots (Historical) - require websiteId
+      snapshotCreate: "POST /api/snapshots (body: {websiteId: 1})",
+      snapshotList: "GET /api/snapshots?websiteId=1&days=30",
       // Tasks (Kanban)
       taskList: "GET /api/tasks?status=todo,in_progress",
       taskGet: "GET /api/tasks/:id",
       taskCreate: "POST /api/tasks",
       taskUpdate: "PATCH /api/tasks/:id",
       taskDelete: "DELETE /api/tasks/:id",
-      taskGenerate: "POST /api/tasks/generate",
+      taskGenerate: "POST /api/tasks/generate (body: {websiteId: 1})",
       // Discrepancy Log (Phase 8C)
       discrepancyList: "GET /api/discrepancies",
       discrepancySummary: "GET /api/discrepancies/summary",
@@ -460,10 +463,24 @@ app.post("/api/currency/refresh", sessionAuth, async (req: Request, res: Respons
 
 app.use("/api", sessionAuth);
 
-// GET /api/business/summary
+// GET /api/business/summary?websiteId=1
+// HARDENING: websiteId is REQUIRED - no global summaries
 app.get("/api/business/summary", async (req: Request, res: Response) => {
   try {
-    const summary = await generateExecutiveSummary();
+    const websiteIdParam = req.query.websiteId as string;
+    if (!websiteIdParam) {
+      res.status(400).json({
+        error: "WEBSITE_ID_REQUIRED",
+        message: "websiteId query parameter is required. Global KPIs are disabled.",
+        validWebsiteIds: VALID_WEBSITE_IDS,
+      });
+      return;
+    }
+
+    const websiteId = validateWebsiteId(parseInt(websiteIdParam, 10));
+    const websiteConfig = getWebsiteConfig(websiteId);
+
+    const summary = await generateExecutiveSummary(websiteId);
     if (!summary) {
       res.status(500).json({ error: "Failed to generate summary" });
       return;
@@ -471,6 +488,11 @@ app.get("/api/business/summary", async (req: Request, res: Response) => {
     res.json({
       success: true,
       data: {
+        website: {
+          id: websiteId,
+          name: websiteConfig.name,
+          currency: websiteConfig.currency,
+        },
         businessStatus: summary.businessStatus,
         generatedAt: summary.generatedAt,
         period: summary.period,
@@ -497,14 +519,33 @@ app.get("/api/business/summary", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    if (msg.includes('WEBSITE_ID_REQUIRED') || msg.includes('INVALID_WEBSITE_ID')) {
+      res.status(400).json({ error: msg, validWebsiteIds: VALID_WEBSITE_IDS });
+    } else {
+      res.status(500).json({ error: msg });
+    }
   }
 });
 
-// GET /api/business/kpis
+// GET /api/business/kpis?websiteId=1
+// HARDENING: websiteId is REQUIRED - no global KPIs
 app.get("/api/business/kpis", async (req: Request, res: Response) => {
   try {
-    const raw = await fetchRawMetrics();
+    const websiteIdParam = req.query.websiteId as string;
+    if (!websiteIdParam) {
+      res.status(400).json({
+        error: "WEBSITE_ID_REQUIRED",
+        message: "websiteId query parameter is required. Global KPIs are disabled.",
+        validWebsiteIds: VALID_WEBSITE_IDS,
+      });
+      return;
+    }
+
+    const websiteId = validateWebsiteId(parseInt(websiteIdParam, 10));
+    const websiteConfig = getWebsiteConfig(websiteId);
+
+    const raw = await fetchRawMetrics(websiteId);
     if (!raw) {
       res.status(500).json({ error: "Failed to fetch metrics" });
       return;
@@ -515,6 +556,11 @@ app.get("/api/business/kpis", async (req: Request, res: Response) => {
     res.json({
       success: true,
       data: {
+        website: {
+          id: websiteId,
+          name: websiteConfig.name,
+          currency: websiteConfig.currency,
+        },
         businessStatus,
         generatedAt: raw.generatedAt,
         period: raw.period,
@@ -605,28 +651,76 @@ app.get("/api/business/kpis", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    if (msg.includes('WEBSITE_ID_REQUIRED') || msg.includes('INVALID_WEBSITE_ID')) {
+      res.status(400).json({ error: msg, validWebsiteIds: VALID_WEBSITE_IDS });
+    } else {
+      res.status(500).json({ error: msg });
+    }
   }
 });
 
-// GET /api/business/raw
+// GET /api/business/raw?websiteId=1
+// HARDENING: websiteId is REQUIRED - no global raw metrics
 app.get("/api/business/raw", async (req: Request, res: Response) => {
   try {
-    const raw = await fetchRawMetrics();
+    const websiteIdParam = req.query.websiteId as string;
+    if (!websiteIdParam) {
+      res.status(400).json({
+        error: "WEBSITE_ID_REQUIRED",
+        message: "websiteId query parameter is required. Global KPIs are disabled.",
+        validWebsiteIds: VALID_WEBSITE_IDS,
+      });
+      return;
+    }
+
+    const websiteId = validateWebsiteId(parseInt(websiteIdParam, 10));
+    const websiteConfig = getWebsiteConfig(websiteId);
+
+    const raw = await fetchRawMetrics(websiteId);
     if (!raw) {
       res.status(500).json({ error: "Failed to fetch raw metrics" });
       return;
     }
-    res.json({ success: true, data: raw });
+    res.json({
+      success: true,
+      data: {
+        website: {
+          id: websiteId,
+          name: websiteConfig.name,
+          currency: websiteConfig.currency,
+        },
+        ...raw,
+      },
+    });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    if (msg.includes('WEBSITE_ID_REQUIRED') || msg.includes('INVALID_WEBSITE_ID')) {
+      res.status(400).json({ error: msg, validWebsiteIds: VALID_WEBSITE_IDS });
+    } else {
+      res.status(500).json({ error: msg });
+    }
   }
 });
 
-// GET /api/decision/weekly-report
+// GET /api/decision/weekly-report?websiteId=1
+// HARDENING: websiteId is REQUIRED
 app.get("/api/decision/weekly-report", async (req: Request, res: Response) => {
   try {
-    const report = await generateWeeklyReport();
+    const websiteIdParam = req.query.websiteId as string;
+    if (!websiteIdParam) {
+      res.status(400).json({
+        error: "WEBSITE_ID_REQUIRED",
+        message: "websiteId query parameter is required. Global reports are disabled.",
+        validWebsiteIds: VALID_WEBSITE_IDS,
+      });
+      return;
+    }
+
+    const websiteId = validateWebsiteId(parseInt(websiteIdParam, 10));
+    const websiteConfig = getWebsiteConfig(websiteId);
+
+    const report = await generateWeeklyReport(websiteId);
     if (!report) {
       res.status(500).json({ error: "Failed to generate weekly report" });
       return;
@@ -634,6 +728,11 @@ app.get("/api/decision/weekly-report", async (req: Request, res: Response) => {
     res.json({
       success: true,
       data: {
+        website: {
+          id: websiteId,
+          name: websiteConfig.name,
+          currency: websiteConfig.currency,
+        },
         weekNumber: report.weekNumber,
         year: report.year,
         generatedAt: report.generatedAt,
@@ -645,14 +744,33 @@ app.get("/api/decision/weekly-report", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    if (msg.includes('WEBSITE_ID_REQUIRED') || msg.includes('INVALID_WEBSITE_ID')) {
+      res.status(400).json({ error: msg, validWebsiteIds: VALID_WEBSITE_IDS });
+    } else {
+      res.status(500).json({ error: msg });
+    }
   }
 });
 
-// GET /api/decision/current
+// GET /api/decision/current?websiteId=1
+// HARDENING: websiteId is REQUIRED
 app.get("/api/decision/current", async (req: Request, res: Response) => {
   try {
-    const raw = await fetchRawMetrics();
+    const websiteIdParam = req.query.websiteId as string;
+    if (!websiteIdParam) {
+      res.status(400).json({
+        error: "WEBSITE_ID_REQUIRED",
+        message: "websiteId query parameter is required. Global decisions are disabled.",
+        validWebsiteIds: VALID_WEBSITE_IDS,
+      });
+      return;
+    }
+
+    const websiteId = validateWebsiteId(parseInt(websiteIdParam, 10));
+    const websiteConfig = getWebsiteConfig(websiteId);
+
+    const raw = await fetchRawMetrics(websiteId);
     if (!raw) {
       res.status(500).json({ error: "Failed to fetch metrics" });
       return;
@@ -664,12 +782,22 @@ app.get("/api/decision/current", async (req: Request, res: Response) => {
     res.json({
       success: true,
       data: {
+        website: {
+          id: websiteId,
+          name: websiteConfig.name,
+          currency: websiteConfig.currency,
+        },
         allDecisions: decisions.length,
         topActions,
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    if (msg.includes('WEBSITE_ID_REQUIRED') || msg.includes('INVALID_WEBSITE_ID')) {
+      res.status(400).json({ error: msg, validWebsiteIds: VALID_WEBSITE_IDS });
+    } else {
+      res.status(500).json({ error: msg });
+    }
   }
 });
 
@@ -1283,10 +1411,25 @@ app.get("/api/business/recommendations", async (req: Request, res: Response) => 
 // ============================================================================
 
 // POST /api/snapshots - Save daily snapshot (called by cron)
+// HARDENING: websiteId is REQUIRED in body
 app.post("/api/snapshots", async (req: Request, res: Response) => {
   try {
+    const { websiteId: websiteIdBody, baseline_post_reset } = req.body;
+
+    if (!websiteIdBody) {
+      res.status(400).json({
+        error: "WEBSITE_ID_REQUIRED",
+        message: "websiteId is required in request body. Global snapshots are disabled.",
+        validWebsiteIds: VALID_WEBSITE_IDS,
+      });
+      return;
+    }
+
+    const websiteId = validateWebsiteId(websiteIdBody);
+    const websiteConfig = getWebsiteConfig(websiteId);
+
     // Fetch current metrics and calculate KPIs
-    const raw = await fetchRawMetrics();
+    const raw = await fetchRawMetrics(websiteId);
     if (!raw) {
       res.status(500).json({ error: "Failed to fetch metrics for snapshot" });
       return;
@@ -1297,6 +1440,7 @@ app.post("/api/snapshots", async (req: Request, res: Response) => {
 
     const snapshot: Omit<KpiSnapshot, "id" | "created_at"> = {
       snapshot_date: new Date().toISOString().split("T")[0],
+      website_id: websiteId,
       business_status: businessStatus,
       frr: kpis.frr.value,
       cpfr: kpis.cpfr.value,
@@ -1311,6 +1455,7 @@ app.post("/api/snapshots", async (req: Request, res: Response) => {
       active_subscriptions: raw.activeSubscriptions,
       ad_spend_eur: raw.totalAdSpendEur,
       net_revenue_eur: raw.netRevenueEur,
+      baseline_post_reset: baseline_post_reset || false,
     };
 
     const result = await saveSnapshot(snapshot);
@@ -1319,33 +1464,67 @@ app.post("/api/snapshots", async (req: Request, res: Response) => {
       success: true,
       data: {
         message: "Snapshot saved",
+        website: {
+          id: websiteId,
+          name: websiteConfig.name,
+        },
         date: snapshot.snapshot_date,
         businessStatus: snapshot.business_status,
+        baselinePostReset: snapshot.baseline_post_reset,
         affected: result,
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    if (msg.includes('WEBSITE_ID_REQUIRED') || msg.includes('INVALID_WEBSITE_ID')) {
+      res.status(400).json({ error: msg, validWebsiteIds: VALID_WEBSITE_IDS });
+    } else {
+      res.status(500).json({ error: msg });
+    }
   }
 });
 
-// GET /api/snapshots - Get historical snapshots
+// GET /api/snapshots?websiteId=1&days=30
+// HARDENING: websiteId is REQUIRED
 app.get("/api/snapshots", async (req: Request, res: Response) => {
   try {
+    const websiteIdParam = req.query.websiteId as string;
+    if (!websiteIdParam) {
+      res.status(400).json({
+        error: "WEBSITE_ID_REQUIRED",
+        message: "websiteId query parameter is required. Global snapshots are disabled.",
+        validWebsiteIds: VALID_WEBSITE_IDS,
+      });
+      return;
+    }
+
+    const websiteId = validateWebsiteId(parseInt(websiteIdParam, 10));
+    const websiteConfig = getWebsiteConfig(websiteId);
+
     const days = parseInt(req.query.days as string) || 30;
     const maxDays = 365; // Limit to 1 year
-    const snapshots = await getSnapshots(Math.min(days, maxDays));
+    const snapshots = await getSnapshots(websiteId, Math.min(days, maxDays));
 
     res.json({
       success: true,
       data: {
+        website: {
+          id: websiteId,
+          name: websiteConfig.name,
+          currency: websiteConfig.currency,
+        },
         count: snapshots.length,
         days: Math.min(days, maxDays),
         snapshots,
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    if (msg.includes('WEBSITE_ID_REQUIRED') || msg.includes('INVALID_WEBSITE_ID')) {
+      res.status(400).json({ error: msg, validWebsiteIds: VALID_WEBSITE_IDS });
+    } else {
+      res.status(500).json({ error: msg });
+    }
   }
 });
 
@@ -1498,11 +1677,24 @@ app.delete("/api/tasks/:id", async (req: Request, res: Response) => {
 });
 
 // POST /api/tasks/generate - Generate tasks from DecisionEngine (with dedupe)
+// HARDENING: websiteId is REQUIRED in body
 app.post("/api/tasks/generate", async (req: Request, res: Response) => {
   try {
-    const { triggerType = "manual" } = req.body;
+    const { triggerType = "manual", websiteId: websiteIdBody } = req.body;
 
-    const raw = await fetchRawMetrics();
+    if (!websiteIdBody) {
+      res.status(400).json({
+        error: "WEBSITE_ID_REQUIRED",
+        message: "websiteId is required in request body. Global task generation is disabled.",
+        validWebsiteIds: VALID_WEBSITE_IDS,
+      });
+      return;
+    }
+
+    const websiteId = validateWebsiteId(websiteIdBody);
+    const websiteConfig = getWebsiteConfig(websiteId);
+
+    const raw = await fetchRawMetrics(websiteId);
     if (!raw) {
       res.status(500).json({ error: "Failed to fetch metrics" });
       return;
@@ -1518,11 +1710,12 @@ app.post("/api/tasks/generate", async (req: Request, res: Response) => {
     let skipped = 0;
 
     for (const action of topActions) {
-      const dedupeKey = generateDedupeKey(action.ruleId, week, year);
+      // Include websiteId in dedupe key to separate tasks per website
+      const dedupeKey = generateDedupeKey(`${websiteId}-${action.ruleId}`, week, year);
 
       const newTask: Omit<Task, "id" | "created_at" | "updated_at"> = {
-        title: action.action,
-        description: `**Auto-generated from DecisionEngine**\n\n**Rule:** ${action.ruleName}\n\n**Rationale:** ${action.rationale}\n\n**Week:** ${year}-W${week.toString().padStart(2, "0")}`,
+        title: `[${websiteConfig.name}] ${action.action}`,
+        description: `**Auto-generated from DecisionEngine**\n\n**Website:** ${websiteConfig.name} (ID: ${websiteId})\n\n**Rule:** ${action.ruleName}\n\n**Rationale:** ${action.rationale}\n\n**Week:** ${year}-W${week.toString().padStart(2, "0")}`,
         status: "backlog",
         priority: action.priority as Task["priority"],
         source: "decision_engine",
@@ -1553,6 +1746,10 @@ app.post("/api/tasks/generate", async (req: Request, res: Response) => {
     res.json({
       success: true,
       data: {
+        website: {
+          id: websiteId,
+          name: websiteConfig.name,
+        },
         week: `${year}-W${week.toString().padStart(2, "0")}`,
         businessStatus,
         evaluated: decisions.length,
@@ -1563,7 +1760,12 @@ app.post("/api/tasks/generate", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    if (msg.includes('WEBSITE_ID_REQUIRED') || msg.includes('INVALID_WEBSITE_ID')) {
+      res.status(400).json({ error: msg, validWebsiteIds: VALID_WEBSITE_IDS });
+    } else {
+      res.status(500).json({ error: msg });
+    }
   }
 });
 

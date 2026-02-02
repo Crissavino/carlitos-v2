@@ -11,22 +11,27 @@ import { evaluateRules, getTopActions } from "../rules/evaluator.js";
 import { audit } from "../../../core/audit.js";
 
 /**
- * Genera el reporte semanal de decisiones
+ * Genera el reporte semanal de decisiones para un website específico
+ * HARDENING: websiteId es REQUERIDO - no hay reportes globales
  */
-export async function generateWeeklyReport(): Promise<WeeklyDecisionReport | null> {
+export async function generateWeeklyReport(websiteId: number): Promise<WeeklyDecisionReport | null> {
+  if (!websiteId) {
+    throw new Error('WEBSITE_ID_REQUIRED: generateWeeklyReport requires websiteId. Global reports are disabled.');
+  }
+
   const startTime = Date.now();
 
   await audit.log({
     skill: "decision-engine",
     action: "report_start",
-    input: { type: "weekly-report" },
+    input: { type: "weekly-report", websiteId },
     output: null,
     queries: [],
   });
 
   try {
-    // Obtener métricas de BusinessExpert
-    const raw = await fetchRawMetrics();
+    // Obtener métricas de BusinessExpert para este website
+    const raw = await fetchRawMetrics(websiteId);
     if (!raw) {
       await audit.log({
         skill: "decision-engine",

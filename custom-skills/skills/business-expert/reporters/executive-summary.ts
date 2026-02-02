@@ -9,19 +9,27 @@ import { fetchRawMetrics, calculateCoreKpis, determineBusinessStatus, generateAl
 import { ExecutiveSummary, CoreKpis, BusinessStatus, KpiStatus } from "../types.js";
 import { audit } from "../../../core/audit.js";
 
-export async function generateExecutiveSummary(): Promise<ExecutiveSummary | null> {
+/**
+ * Generate executive summary for a specific website
+ * HARDENING: websiteId is REQUIRED - no global summaries allowed
+ */
+export async function generateExecutiveSummary(websiteId: number): Promise<ExecutiveSummary | null> {
+  if (!websiteId) {
+    throw new Error('WEBSITE_ID_REQUIRED: generateExecutiveSummary requires websiteId. Global summaries are disabled.');
+  }
+
   const startTime = Date.now();
 
   await audit.log({
     skill: "business-expert",
     action: "summary_start",
-    input: { type: "executive-summary" },
+    input: { type: "executive-summary", websiteId },
     output: null,
     queries: [],
   });
 
   try {
-    const raw = await fetchRawMetrics();
+    const raw = await fetchRawMetrics(websiteId);
 
     if (!raw) {
       await audit.log({

@@ -2,7 +2,9 @@
  * Decision Engine CLI
  *
  * Entry point for OpenClaw skill invocation.
- * Usage: node cli.js [command]
+ * Usage: node cli.js <websiteId> [command]
+ *
+ * HARDENING: websiteId is REQUIRED - no global decisions allowed
  *
  * Commands:
  *   report   - Generate weekly decision report (default)
@@ -15,13 +17,40 @@ import { evaluateRules, getTopActions } from "./rules/evaluator.js";
 import { getDecisionRules } from "./rules/decision-matrix.js";
 import { fetchRawMetrics, calculateCoreKpis } from "../business-expert/analyzers/cross-analyzer.js";
 import { DECISION_ICONS, PRIORITY_ICONS } from "./types.js";
+import { validateWebsiteId, getWebsiteConfig, VALID_WEBSITE_IDS } from "../../core/websites.js";
 
 async function main() {
-  const command = process.argv[2] || "report";
+  const websiteIdArg = process.argv[2];
+  const command = process.argv[3] || "report";
+
+  // Rules command doesn't need websiteId
+  if (websiteIdArg === "rules" || command === "rules") {
+    showRules();
+    return;
+  }
+
+  // Show help if no websiteId provided
+  if (!websiteIdArg || websiteIdArg === "help") {
+    showHelp();
+    return;
+  }
+
+  // Validate websiteId
+  let websiteId: number;
+  try {
+    websiteId = validateWebsiteId(parseInt(websiteIdArg, 10));
+  } catch (error) {
+    console.error(`Error: ${(error as Error).message}`);
+    console.error(`Valid website IDs: ${VALID_WEBSITE_IDS.join(", ")}`);
+    process.exit(1);
+  }
+
+  const websiteConfig = getWebsiteConfig(websiteId);
+  console.log(`Website: ${websiteConfig.name} (ID: ${websiteId})\n`);
 
   switch (command) {
     case "report": {
-      const report = await generateWeeklyReport();
+      const report = await generateWeeklyReport(websiteId);
       if (!report) {
         console.error("Error: No se pudo generar el reporte de decisiones");
         process.exit(1);
@@ -30,28 +59,8 @@ async function main() {
       break;
     }
 
-    case "rules": {
-      const rules = getDecisionRules();
-      console.log("MATRIZ DE DECISIONES");
-      console.log("═══════════════════════════════════════════════════");
-      console.log("");
-      for (const rule of rules) {
-        const icon = DECISION_ICONS[rule.decision.type];
-        const priorityIcon = PRIORITY_ICONS[rule.decision.priority];
-        console.log(`${icon} ${rule.name}`);
-        console.log(`   ID: ${rule.id}`);
-        console.log(`   Prioridad: ${priorityIcon} ${rule.decision.priority}`);
-        console.log(`   Área: ${rule.decision.area}`);
-        console.log(`   KPIs: ${rule.triggerKpis.join(", ")}`);
-        console.log(`   Acción: ${rule.decision.action}`);
-        console.log("");
-      }
-      console.log(`Total: ${rules.length} reglas`);
-      break;
-    }
-
     case "evaluate": {
-      const raw = await fetchRawMetrics();
+      const raw = await fetchRawMetrics(websiteId);
       if (!raw) {
         console.error("Error: No se pudieron obtener las métricas");
         process.exit(1);
@@ -84,8 +93,42 @@ async function main() {
 
     case "help":
     default:
-      console.log(`
+      showHelp();
+      break;
+  }
+}
+
+function showRules() {
+  const rules = getDecisionRules();
+  console.log("MATRIZ DE DECISIONES");
+  console.log("═══════════════════════════════════════════════════");
+  console.log("");
+  for (const rule of rules) {
+    const icon = DECISION_ICONS[rule.decision.type];
+    const priorityIcon = PRIORITY_ICONS[rule.decision.priority];
+    console.log(`${icon} ${rule.name}`);
+    console.log(`   ID: ${rule.id}`);
+    console.log(`   Prioridad: ${priorityIcon} ${rule.decision.priority}`);
+    console.log(`   Área: ${rule.decision.area}`);
+    console.log(`   KPIs: ${rule.triggerKpis.join(", ")}`);
+    console.log(`   Acción: ${rule.decision.action}`);
+    console.log("");
+  }
+  console.log(`Total: ${rules.length} reglas`);
+}
+
+function showHelp() {
+  console.log(`
 Decision Engine - KPI to Actions
+
+HARDENING: websiteId is REQUIRED for report/evaluate commands
+
+Uso:
+  node cli.js <websiteId> [command]
+  node cli.js rules              # No requiere websiteId
+
+websiteId:
+  ${VALID_WEBSITE_IDS.join(", ")} (required for report/evaluate)
 
 Comandos:
   report    Reporte semanal de decisiones (default)
@@ -93,10 +136,10 @@ Comandos:
   evaluate  Evaluar reglas contra KPIs actuales
 
 Ejemplo:
-  node cli.js report
+  node cli.js 1 report    # Jackcode
+  node cli.js 3 evaluate  # KiwiKode
+  node cli.js rules       # Ver reglas (no necesita websiteId)
 `);
-      break;
-  }
 }
 
 main().catch((error) => {

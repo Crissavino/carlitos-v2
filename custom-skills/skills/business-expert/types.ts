@@ -186,6 +186,9 @@ export interface RawMetrics {
   period: Period;
   generatedAt: string;
 
+  // HARDENING: Required website_id - no global metrics
+  websiteId: number;
+
   // From DBReader
   trials: number;
   firstRebills: number;

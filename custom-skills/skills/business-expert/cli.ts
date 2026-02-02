@@ -2,7 +2,9 @@
  * BusinessExpert CLI
  *
  * Entry point for OpenClaw skill invocation.
- * Usage: node cli.js [command]
+ * Usage: node cli.js <websiteId> [command]
+ *
+ * HARDENING: websiteId is REQUIRED - no global metrics allowed
  *
  * Commands:
  *   summary   - Generate executive summary (default)
@@ -12,13 +14,34 @@
 
 import { generateExecutiveSummary, formatSummaryAsText } from "./reporters/executive-summary.js";
 import { fetchRawMetrics, calculateCoreKpis, generateAlerts } from "./analyzers/cross-analyzer.js";
+import { validateWebsiteId, getWebsiteConfig, VALID_WEBSITE_IDS } from "../../core/websites.js";
 
 async function main() {
-  const command = process.argv[2] || "summary";
+  const websiteIdArg = process.argv[2];
+  const command = process.argv[3] || "summary";
+
+  // Show help if no websiteId provided
+  if (!websiteIdArg || websiteIdArg === "help") {
+    showHelp();
+    return;
+  }
+
+  // Validate websiteId
+  let websiteId: number;
+  try {
+    websiteId = validateWebsiteId(parseInt(websiteIdArg, 10));
+  } catch (error) {
+    console.error(`Error: ${(error as Error).message}`);
+    console.error(`Valid website IDs: ${VALID_WEBSITE_IDS.join(", ")}`);
+    process.exit(1);
+  }
+
+  const websiteConfig = getWebsiteConfig(websiteId);
+  console.log(`Website: ${websiteConfig.name} (ID: ${websiteId})\n`);
 
   switch (command) {
     case "summary": {
-      const summary = await generateExecutiveSummary();
+      const summary = await generateExecutiveSummary(websiteId);
       if (!summary) {
         console.error("Error: No se pudo generar el resumen ejecutivo");
         process.exit(1);
@@ -28,7 +51,7 @@ async function main() {
     }
 
     case "kpis": {
-      const raw = await fetchRawMetrics();
+      const raw = await fetchRawMetrics(websiteId);
       if (!raw) {
         console.error("Error: No se pudieron obtener las métricas");
         process.exit(1);
@@ -50,7 +73,7 @@ async function main() {
     }
 
     case "alerts": {
-      const raw = await fetchRawMetrics();
+      const raw = await fetchRawMetrics(websiteId);
       if (!raw) {
         console.error("Error: No se pudieron obtener las métricas");
         process.exit(1);
@@ -70,8 +93,22 @@ async function main() {
 
     case "help":
     default:
-      console.log(`
+      showHelp();
+      break;
+  }
+}
+
+function showHelp() {
+  console.log(`
 BusinessExpert - KPI Governance Tool
+
+HARDENING: websiteId is REQUIRED - no global metrics allowed
+
+Uso:
+  node cli.js <websiteId> [command]
+
+websiteId:
+  ${VALID_WEBSITE_IDS.join(", ")} (required)
 
 Comandos:
   summary   Resumen ejecutivo tipo CFO (default)
@@ -86,10 +123,9 @@ Comandos:
   P5 - Net ROAS Revenue / Ad Spend
 
 Ejemplo:
-  node cli.js summary
+  node cli.js 1 summary   # Jackcode
+  node cli.js 3 kpis      # KiwiKode
 `);
-      break;
-  }
 }
 
 main().catch((error) => {

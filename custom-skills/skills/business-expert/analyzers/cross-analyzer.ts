@@ -56,25 +56,45 @@ interface MetricsCacheEntry {
 }
 
 const METRICS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-let metricsCache: MetricsCacheEntry | null = null;
+// HARDENING: Cache per website_id, not global
+const metricsCache: Map<number, MetricsCacheEntry> = new Map();
 
-export function clearMetricsCache(): void {
-  metricsCache = null;
-  console.log("[MetricsCache] Cache cleared");
+export function clearMetricsCache(websiteId?: number): void {
+  if (websiteId) {
+    metricsCache.delete(websiteId);
+    console.log(`[MetricsCache] Cache cleared for website_id=${websiteId}`);
+  } else {
+    metricsCache.clear();
+    console.log("[MetricsCache] All caches cleared");
+  }
 }
 
 // ============================================================================
 // DATA FETCHING
 // ============================================================================
 
-export async function fetchRawMetrics(): Promise<RawMetrics | null> {
-  // Check cache first
-  if (metricsCache && Date.now() - metricsCache.cachedAt < METRICS_CACHE_TTL_MS) {
-    console.log("[MetricsCache] Hit - returning cached metrics");
-    return metricsCache.data;
+/**
+ * Fetch raw metrics for a specific website
+ * HARDENING: websiteId is REQUIRED - no global metrics allowed
+ */
+export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | null> {
+  // HARDENING: Reject requests without websiteId
+  if (!websiteId) {
+    console.error("[MetricsCache] REJECTED: fetchRawMetrics called without websiteId");
+    throw new Error('WEBSITE_ID_REQUIRED: fetchRawMetrics requires websiteId. Global KPIs are disabled.');
   }
 
-  console.log("[MetricsCache] Miss - fetching fresh metrics...");
+  // Check cache for this specific website
+  const cached = metricsCache.get(websiteId);
+  if (cached && Date.now() - cached.cachedAt < METRICS_CACHE_TTL_MS) {
+    console.log(`[MetricsCache] Hit for website_id=${websiteId} - returning cached metrics`);
+    return cached.data;
+  }
+
+  console.log(`[MetricsCache] Miss for website_id=${websiteId} - fetching fresh metrics...`);
+
+  // TODO: Pass websiteId to all get*Data functions once queries support filtering
+  // For now, we fetch all data but this should be filtered by websiteId
   const [
     revenueData,
     trialsData,
@@ -110,6 +130,7 @@ export async function fetchRawMetrics(): Promise<RawMetrics | null> {
   const metrics: RawMetrics = {
     period: "LAST_7_DAYS",
     generatedAt: new Date().toISOString(),
+    websiteId, // HARDENING: Include websiteId in metrics
 
     trials: trialsData.total,
     firstRebills: firstRebills ?? 0,
@@ -136,9 +157,9 @@ export async function fetchRawMetrics(): Promise<RawMetrics | null> {
     ltv81dCohortSize: ltv81dData?.cohortSize ?? 0,
   };
 
-  // Cache the result
-  metricsCache = { data: metrics, cachedAt: Date.now() };
-  console.log("[MetricsCache] Cached fresh metrics");
+  // Cache the result for this website
+  metricsCache.set(websiteId, { data: metrics, cachedAt: Date.now() });
+  console.log(`[MetricsCache] Cached fresh metrics for website_id=${websiteId}`);
 
   return metrics;
 }
