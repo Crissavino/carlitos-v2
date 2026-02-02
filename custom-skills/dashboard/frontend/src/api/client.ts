@@ -51,7 +51,7 @@ export interface BusinessSummary {
   businessStatus: string;
   generatedAt: string;
   period: { start: string; end: string };
-  financials: { netRevenueEur: number; adSpendEur: number };
+  financials: { grossRevenueEur: number; netRevenueEur: number; adSpendEur: number };
   kpis: {
     // P1 HEADLINE - Utility Model (el negocio se gana o pierde en M1)
     paybackM1: KpiValue;

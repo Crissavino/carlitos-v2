@@ -501,6 +501,7 @@ app.get("/api/business/summary", async (req: Request, res: Response) => {
         generatedAt: summary.generatedAt,
         period: summary.period,
         financials: {
+          grossRevenueEur: summary.grossRevenueEur,
           netRevenueEur: summary.netRevenueEur,
           adSpendEur: summary.adSpendEur,
         },

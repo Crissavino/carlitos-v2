@@ -50,6 +50,7 @@ export async function generateExecutiveSummary(websiteId: number): Promise<Execu
       period: raw.period,
       generatedAt: raw.generatedAt,
       businessStatus,
+      grossRevenueEur: raw.subscriptionEur,
       netRevenueEur: raw.netRevenueEur,
       adSpendEur: raw.totalAdSpendEur,
       kpis,

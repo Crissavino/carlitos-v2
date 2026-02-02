@@ -291,6 +291,7 @@ export interface ExecutiveSummary {
   businessStatus: BusinessStatus;
 
   // Datos clave
+  grossRevenueEur: number;
   netRevenueEur: number;
   adSpendEur: number;
 
