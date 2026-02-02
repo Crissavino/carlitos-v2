@@ -30,8 +30,8 @@ export function Chat() {
 
         const { data } = await response.json();
 
-        // Redirect to gateway with token
-        window.location.href = `https://carlitos-bot.com/?token=${encodeURIComponent(data.token)}`;
+        // Redirect to gateway UI with token
+        window.location.href = `https://carlitos-bot.com/__openclaw__/?token=${encodeURIComponent(data.token)}`;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
         setIsRedirecting(false);
