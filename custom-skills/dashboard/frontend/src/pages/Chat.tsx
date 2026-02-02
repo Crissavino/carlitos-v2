@@ -9,8 +9,9 @@ export function Chat() {
   const [gatewayToken, setGatewayToken] = useState<string | null>(null);
 
   const openChat = useCallback((token: string) => {
-    // Always use agent=main to load production config with custom skills
-    window.open(`https://carlitos-bot.com/__openclaw__/?token=${encodeURIComponent(token)}&agent=main`, '_blank');
+    // Open chat without specifying agent - gateway now defaults to 'main' (no --dev flag)
+    // This creates session key 'agent:main' instead of 'agent:main:main'
+    window.open(`https://carlitos-bot.com/__openclaw__/chat?token=${encodeURIComponent(token)}`, '_blank');
   }, []);
 
   useEffect(() => {
