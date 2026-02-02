@@ -44,6 +44,51 @@ mkdir -p "$OPENCLAW_HOME/devices"
 mkdir -p "$OPENCLAW_HOME/identity"
 mkdir -p "$OPENCLAW_HOME/canvas"
 mkdir -p "$OPENCLAW_HOME/cron"
+mkdir -p "$OPENCLAW_HOME/gh"
+mkdir -p "$OPENCLAW_HOME/ssh"
+
+# ==============================================================================
+# GITHUB CLI PERSISTENCE
+# ==============================================================================
+
+# Symlink gh config to persistent storage
+if [ ! -L "/root/.config/gh" ]; then
+    mkdir -p /root/.config
+    rm -rf /root/.config/gh 2>/dev/null
+    ln -sf "$OPENCLAW_HOME/gh" /root/.config/gh
+fi
+
+# Symlink SSH to persistent storage (for git SSH keys)
+if [ ! -L "/root/.ssh" ]; then
+    rm -rf /root/.ssh 2>/dev/null
+    ln -sf "$OPENCLAW_HOME/ssh" /root/.ssh
+fi
+
+# Auto-authenticate GitHub CLI if token provided
+if [ -n "$GITHUB_TOKEN" ]; then
+    # Check if already authenticated
+    if ! gh auth status &>/dev/null; then
+        echo "→ Authenticating GitHub CLI with token..."
+        echo "$GITHUB_TOKEN" | gh auth login --with-token
+        echo "✓ GitHub CLI authenticated"
+    else
+        echo "✓ GitHub CLI already authenticated"
+    fi
+fi
+
+# Set up git config if not exists
+if [ ! -f "$OPENCLAW_HOME/gitconfig" ]; then
+    cat > "$OPENCLAW_HOME/gitconfig" << 'GITCFG'
+[user]
+    name = OpenClaw Bot
+    email = openclaw@carlitos-bot.com
+[credential "https://github.com"]
+    helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+    helper = !gh auth git-credential
+GITCFG
+fi
+ln -sf "$OPENCLAW_HOME/gitconfig" /root/.gitconfig
 
 # ==============================================================================
 # CODE SYMLINKS (always updated - code comes from image)

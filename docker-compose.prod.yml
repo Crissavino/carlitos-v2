@@ -88,6 +88,8 @@ services:
       # Dashboard
       - DASHBOARD_PORT=3002
       - DASHBOARD_TOKEN=${DASHBOARD_TOKEN}
+      # GitHub Access (for git clone/push private repos)
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
     expose:
       - "18789"
       - "3001"
