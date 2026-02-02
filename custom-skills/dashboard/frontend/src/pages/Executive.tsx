@@ -39,6 +39,12 @@ export function Executive({ websiteId }: ExecutiveProps) {
   };
 
   useEffect(() => {
+    // Clear old data when website changes to show loading state
+    setSummary(null);
+    setSnapshots([]);
+    setDecisions(null);
+    setError(null);
+
     loadData();
     const interval = setInterval(loadData, 60000); // Refresh every minute
     return () => clearInterval(interval);
