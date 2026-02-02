@@ -1,0 +1,90 @@
+{
+  "version": "1.0",
+  "description": "OpenClaw Browser Context - Domain Allowlist",
+  "lastUpdated": "2026-02-02",
+
+  "domains": [
+    {
+      "pattern": "carlitos-bot.com",
+      "access": ["dom", "tables", "screenshot"],
+      "description": "Producto propio"
+    },
+    {
+      "pattern": "avocode-bo.online",
+      "access": ["dom", "tables", "screenshot"],
+      "description": "Producto propio"
+    },
+    {
+      "pattern": "conversie-pdf.com",
+      "access": ["dom", "tables", "screenshot"],
+      "description": "Producto propio"
+    },
+    {
+      "pattern": "convierte-pdf.com",
+      "access": ["dom", "tables", "screenshot"],
+      "description": "Producto propio"
+    },
+    {
+      "pattern": "device-finder.com",
+      "access": ["dom", "tables", "screenshot"],
+      "description": "Producto propio"
+    },
+    {
+      "pattern": "noxtools.com",
+      "access": ["dom", "tables", "screenshot"],
+      "description": "Producto propio"
+    },
+    {
+      "pattern": "github.com/crissavino/",
+      "access": ["dom", "tables"],
+      "description": "GitHub - solo repos de crissavino"
+    },
+    {
+      "pattern": "localhost",
+      "access": ["dom", "tables", "screenshot"],
+      "description": "Desarrollo local"
+    },
+    {
+      "pattern": "127.0.0.1",
+      "access": ["dom", "tables", "screenshot"],
+      "description": "Desarrollo local"
+    }
+  ],
+
+  "blocked": [
+    {
+      "pattern": "ads.google.com",
+      "reason": "Google Ads UI - prohibido"
+    },
+    {
+      "pattern": "adwords.google.com",
+      "reason": "Google Ads UI - prohibido"
+    },
+    {
+      "pattern": "mail.google.com",
+      "reason": "Email - privacidad"
+    },
+    {
+      "pattern": ".bank.",
+      "reason": "Banking - seguridad"
+    },
+    {
+      "pattern": ".banking.",
+      "reason": "Banking - seguridad"
+    },
+    {
+      "pattern": "paypal.com",
+      "reason": "Pagos - seguridad"
+    },
+    {
+      "pattern": "stripe.com/dashboard",
+      "reason": "Pagos - seguridad"
+    }
+  ],
+
+  "defaults": {
+    "ttlMinutes": 30,
+    "maxContentLength": 100000,
+    "screenshotQuality": 0.8
+  }
+}
