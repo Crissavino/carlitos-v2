@@ -1,6 +1,20 @@
 FROM ubuntu:24.04
 
-# Instalar Node.js 22 y dependencias
+# ==============================================================================
+# OpenClaw Production Dockerfile
+#
+# Architecture:
+#   - Code lives in /app/ (from image, updated on rebuild)
+#   - State lives in /root/.openclaw/ (volume, persists across rebuilds)
+#   - Entrypoint creates symlinks: state dir -> code dir
+#
+# This ensures:
+#   ✅ Code updates on docker build
+#   ✅ State persists across rebuilds
+#   ✅ No data loss (sessions, chats, browser pairing)
+# ==============================================================================
+
+# Install Node.js 22 and dependencies
 RUN apt-get update && apt-get install -y \
     curl \
     git \
@@ -12,44 +26,47 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Crear directorio de trabajo
+# Create app directory (CODE - from image)
 WORKDIR /app
 
-# Instalar openclaw globalmente
+# Install openclaw globally
 RUN npm install -g openclaw@latest
 
-# Crear directorios para OpenClaw
-RUN mkdir -p /root/.openclaw/skills /root/.openclaw/custom-skills
+# ==============================================================================
+# CODE: Lives in /app/ (rebuilt with image)
+# ==============================================================================
 
-# Copiar custom-skills (código TypeScript)
-COPY custom-skills/ /root/.openclaw/custom-skills/
+# Copy custom-skills source
+COPY custom-skills/ /app/custom-skills/
 
-# Copiar skills (SKILL.md para OpenClaw)
-COPY skills/ /root/.openclaw/skills/
+# Copy skills definitions
+COPY skills/ /app/skills/
 
-# Instalar dependencias y compilar custom-skills (backend)
-WORKDIR /root/.openclaw/custom-skills
+# Build custom-skills (backend TypeScript)
+WORKDIR /app/custom-skills
 RUN npm install && npx tsc --build
 
 # Build frontend dashboard
-WORKDIR /root/.openclaw/custom-skills/dashboard/frontend
+WORKDIR /app/custom-skills/dashboard/frontend
 RUN npm install && npm run build
 
-# Volver al directorio de trabajo
+# Copy config template
 WORKDIR /app
-
-# Copiar infra config template
 COPY infra/openclaw/openclaw.config.json /app/openclaw.config.json
 
-# Copiar script de inicio
+# Copy entrypoint
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# Exponer puerto para el gateway
-EXPOSE 18789
+# ==============================================================================
+# STATE: Lives in /root/.openclaw/ (volume, persists)
+# ==============================================================================
 
-# Volumen para persistir configuración y datos
-VOLUME ["/root/.openclaw/data", "/root/.openclaw/workspace"]
+# Do NOT create /root/.openclaw/* here - it will be created by volume mount
+# The entrypoint handles initialization
 
-# Comando por defecto
+# Expose ports
+EXPOSE 18789 3001 3002
+
+# Default command
 CMD ["/app/entrypoint.sh"]

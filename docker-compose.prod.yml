@@ -1,5 +1,29 @@
-# Production config with Caddy SSL
+# ==============================================================================
+# OpenClaw Production Docker Compose
+#
+# PERSISTENCE ARCHITECTURE:
+#   - Code: Lives in Docker image (/app/), updated on rebuild
+#   - State: Lives in Docker volume (openclaw_home), persists across rebuilds
+#
+# WHAT PERSISTS (in openclaw_home volume):
+#   ✅ Chat sessions
+#   ✅ Browser pairing (devices/)
+#   ✅ Device identity (identity/)
+#   ✅ Configuration (openclaw.json)
+#   ✅ Audit logs (data/)
+#   ✅ Workspace files
+#
+# SAFE OPERATIONS:
+#   ✅ docker compose up -d --build     → Code updates, state preserved
+#   ✅ docker compose restart           → State preserved
+#   ✅ docker compose down && up -d     → State preserved
+#
+# DESTRUCTIVE OPERATIONS (will lose state):
+#   ⚠️ docker volume rm openclaw_home  → LOSES ALL STATE
+#   ⚠️ docker compose down -v          → LOSES ALL STATE
+#
 # Usage: docker compose -f docker-compose.prod.yml up -d --build
+# ==============================================================================
 
 services:
   # ==========================================================================
@@ -14,7 +38,7 @@ services:
       MYSQL_USER: openclaw_admin
       MYSQL_PASSWORD: ${DB_OPENCLAW_PASSWORD}
     volumes:
-      - mysql-data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
       - ./custom-skills/dashboard/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
     expose:
       - "3306"
@@ -37,10 +61,12 @@ services:
       mysql:
         condition: service_healthy
     volumes:
-      - openclaw-data:/root/.openclaw/data
-      - openclaw-workspace:/root/.openclaw/workspace
-      - openclaw-config:/root/.openclaw/config
-      - openclaw-identity:/root/.openclaw/identity
+      # ========================================================================
+      # SINGLE VOLUME FOR ALL STATE
+      # This is the ONLY volume that matters for OpenClaw persistence.
+      # Everything in /root/.openclaw/ is preserved across rebuilds.
+      # ========================================================================
+      - openclaw_home:/root/.openclaw
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -79,17 +105,23 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy-data:/data
-      - caddy-config:/config
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
       - openclaw
     restart: unless-stopped
 
+# ==============================================================================
+# VOLUMES
+# ==============================================================================
 volumes:
-  mysql-data:
-  openclaw-data:
-  openclaw-workspace:
-  openclaw-config:
-  openclaw-identity:
-  caddy-data:
-  caddy-config:
+  # MySQL data (dashboard DB)
+  mysql_data:
+
+  # OpenClaw home directory - ALL STATE LIVES HERE
+  # ⚠️ DO NOT DELETE unless you want a factory reset
+  openclaw_home:
+
+  # Caddy SSL certificates
+  caddy_data:
+  caddy_config:
