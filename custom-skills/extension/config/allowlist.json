@@ -32,7 +32,7 @@
     {
       "pattern": "noxtools.com",
       "access": ["dom", "tables", "screenshot"],
-      "description": "Producto propio"
+      "description": "Herramientas SEO/marketing de terceros"
     },
     {
       "pattern": "github.com/crissavino/",
