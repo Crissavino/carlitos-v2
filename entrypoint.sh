@@ -13,6 +13,9 @@ mkdir -p /root/.openclaw/config
 CONFIG_FILE="/root/.openclaw/openclaw.json"
 PERSISTED_CONFIG="/root/.openclaw/config/openclaw.json"
 
+# Use env var for token or generate random one
+TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$(head -c 24 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 48)}"
+
 if [ -f "$PERSISTED_CONFIG" ]; then
     echo "Using persisted config from $PERSISTED_CONFIG"
     ln -sf "$PERSISTED_CONFIG" "$CONFIG_FILE"
@@ -20,14 +23,11 @@ if [ -f "$PERSISTED_CONFIG" ]; then
     # Sync gateway token from env var if set
     if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
         echo "Syncing gateway token from environment..."
-        # Update token in config file using sed
-        sed -i "s/\"token\": \"[^\"]*\"/\"token\": \"$OPENCLAW_GATEWAY_TOKEN\"/" "$PERSISTED_CONFIG"
+        # Update all token occurrences in config file
+        sed -i "s/\"token\": \"[^\"]*\"/\"token\": \"$OPENCLAW_GATEWAY_TOKEN\"/g" "$PERSISTED_CONFIG"
     fi
-elif [ ! -f "$CONFIG_FILE" ]; then
+else
     echo "Creating default OpenClaw config..."
-
-    # Use env var for token or generate random one
-    TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$(head -c 24 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 48)}"
 
     cat > "$PERSISTED_CONFIG" << EOF
 {
@@ -41,6 +41,9 @@ elif [ ! -f "$CONFIG_FILE" ]; then
     "mode": "local",
     "auth": {
       "mode": "token",
+      "token": "$TOKEN"
+    },
+    "remote": {
       "token": "$TOKEN"
     },
     "port": 18789,
@@ -75,7 +78,7 @@ echo "=== Available Skills ==="
 openclaw skills list 2>/dev/null | grep -E "ready|db-reader|google-ads" || echo "Skills loading..."
 
 # Show dashboard URL with token
-TOKEN=$(grep -o '"token": "[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
+TOKEN=$(grep -o '"token": "[^"]*"' "$CONFIG_FILE" | head -1 | cut -d'"' -f4)
 echo ""
 echo "=== Starting Services ==="
 echo "Gateway:       http://localhost:18789/?token=$TOKEN"
