@@ -84,7 +84,7 @@ export function KeywordsTable({ keywords, wasteData, loading }: KeywordsTablePro
   if (loading) {
     return (
       <div className="bg-gray-800/50 rounded-xl p-8 text-center">
-        <div className="animate-pulse text-gray-500">Loading keywords...</div>
+        <div className="animate-pulse text-gray-500">Cargando keywords...</div>
       </div>
     );
   }
@@ -92,7 +92,7 @@ export function KeywordsTable({ keywords, wasteData, loading }: KeywordsTablePro
   if (keywords.length === 0) {
     return (
       <div className="bg-gray-800/50 rounded-xl p-8 text-center">
-        <div className="text-gray-500">No keywords found</div>
+        <div className="text-gray-500">No se encontraron keywords</div>
       </div>
     );
   }
@@ -118,7 +118,7 @@ export function KeywordsTable({ keywords, wasteData, loading }: KeywordsTablePro
                   onClick={() => handleSort('spend7d')}
                   className="hover:text-white transition"
                 >
-                  Spend
+                  Gasto
                   <SortIcon column="spend7d" />
                 </button>
               </th>
@@ -149,7 +149,7 @@ export function KeywordsTable({ keywords, wasteData, loading }: KeywordsTablePro
                   <SortIcon column="ctr" />
                 </button>
               </th>
-              <th className="px-3 py-3 text-right text-gray-400 font-medium">
+              <th className="px-3 py-3 text-right text-gray-400 font-medium" title="Conversiones reportadas por Google Ads (generalmente trials)">
                 <button
                   onClick={() => handleSort('conversions')}
                   className="hover:text-white transition"
@@ -158,7 +158,7 @@ export function KeywordsTable({ keywords, wasteData, loading }: KeywordsTablePro
                   <SortIcon column="conversions" />
                 </button>
               </th>
-              <th className="px-3 py-3 text-right text-gray-400 font-medium">
+              <th className="px-3 py-3 text-right text-gray-400 font-medium" title="Tasa de conversión (Conv / Clicks)">
                 <button
                   onClick={() => handleSort('conversionRate')}
                   className="hover:text-white transition"
@@ -167,8 +167,8 @@ export function KeywordsTable({ keywords, wasteData, loading }: KeywordsTablePro
                   <SortIcon column="conversionRate" />
                 </button>
               </th>
-              <th className="px-3 py-3 text-center text-gray-400 font-medium">Status</th>
-              <th className="px-3 py-3 text-left text-gray-400 font-medium">Flags</th>
+              <th className="px-3 py-3 text-center text-gray-400 font-medium">Estado</th>
+              <th className="px-3 py-3 text-left text-gray-400 font-medium">Alertas</th>
             </tr>
           </thead>
           <tbody>
@@ -243,9 +243,9 @@ export function KeywordsTable({ keywords, wasteData, loading }: KeywordsTablePro
                     <div className="flex items-center justify-center gap-1">
                       {kw.recommendation && RECOMMENDATION_ICONS[kw.recommendation]}
                       <span className={`text-xs ${STATUS_COLORS[kw.performanceStatus]}`}>
-                        {kw.performanceStatus === 'good' && 'Good'}
-                        {kw.performanceStatus === 'warning' && 'Watch'}
-                        {kw.performanceStatus === 'poor' && 'Poor'}
+                        {kw.performanceStatus === 'good' && 'Bien'}
+                        {kw.performanceStatus === 'warning' && 'Revisar'}
+                        {kw.performanceStatus === 'poor' && 'Mal'}
                       </span>
                     </div>
                   </td>
@@ -260,8 +260,8 @@ export function KeywordsTable({ keywords, wasteData, loading }: KeywordsTablePro
                             className={`px-1.5 py-0.5 rounded text-xs ${WASTE_FLAG_COLORS[flag]}`}
                             title={wasteInfo.rationale}
                           >
-                            {flag === 'HIGH_SPEND_ZERO_CONV' && 'No Conv'}
-                            {flag === 'HIGH_SPEND_LOW_CONV' && 'Low Conv'}
+                            {flag === 'HIGH_SPEND_ZERO_CONV' && 'Sin Conv'}
+                            {flag === 'HIGH_SPEND_LOW_CONV' && 'Baja Conv'}
                             {flag === 'SPEND_CONCENTRATION' && 'Conc.'}
                           </span>
                         ))}
@@ -277,7 +277,7 @@ export function KeywordsTable({ keywords, wasteData, loading }: KeywordsTablePro
 
       {/* Footer */}
       <div className="px-4 py-3 bg-gray-900/30 border-t border-gray-700 text-xs text-gray-500">
-        Showing {keywords.length} keywords | Sorted by {sortKey} ({sortDir})
+        Mostrando {keywords.length} keywords | Ordenado por {sortKey} ({sortDir === 'asc' ? 'asc' : 'desc'})
       </div>
     </div>
   );

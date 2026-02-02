@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, ArrowUpDown, HelpCircle } from 'lucide-react';
 import type { CampaignMetrics } from '../api/client';
 
 interface Props {
@@ -9,6 +9,17 @@ interface Props {
 
 type SortField = 'campaignName' | 'spend7d' | 'acquisitions' | 'firstRebills' | 'cpfr' | 'payback21d' | 'payback51d' | 'campaignAgeDays';
 type SortDir = 'asc' | 'desc';
+
+// Tooltips for column headers
+const COLUMN_TOOLTIPS: Record<string, string> = {
+  spend7d: 'Gasto en ads de los últimos 7 días (en EUR)',
+  acquisitions: 'Trials/Adquisiciones - clientes que iniciaron trial',
+  firstRebills: 'First Rebills - clientes que pagaron la primera subscripción',
+  cpfr: 'Cost Per First Rebill = Gasto Ads / First Rebills. Es el costo real de adquirir un cliente de pago.',
+  payback21d: 'Payback a 21 días = LTV_21d / CPFR. Indica recuperación temprana (solo R1). No usar para decisiones fuertes.',
+  payback51d: 'Payback a 51 días = LTV_51d / CPFR. Incluye R1+R2. ESTE es el KPI para decisiones de escalar/pausar.',
+  campaignAgeDays: 'Días desde que la campaña empezó a generar datos. Mínimo 51d para decisiones confiables.',
+};
 
 const statusColors: Record<string, string> = {
   green: 'bg-green-500',
@@ -52,13 +63,18 @@ export function CampaignsTable({ campaigns, loading }: Props) {
     }
   };
 
-  const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+  const SortHeader = ({ field, children, tooltip }: { field: SortField; children: React.ReactNode; tooltip?: string }) => (
     <th
       onClick={() => handleSort(field)}
       className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white transition group"
     >
       <div className="flex items-center gap-1">
         {children}
+        {tooltip && (
+          <span title={tooltip} className="cursor-help">
+            <HelpCircle className="w-3 h-3 text-gray-600 hover:text-gray-400" />
+          </span>
+        )}
         {sortField === field ? (
           sortDir === 'asc' ? (
             <ChevronUp className="w-4 h-4" />
@@ -98,18 +114,18 @@ export function CampaignsTable({ campaigns, loading }: Props) {
           <thead className="bg-gray-800/50">
             <tr>
               <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-8">
-                Status
+                Estado
               </th>
-              <SortHeader field="campaignName">Campaign</SortHeader>
-              <SortHeader field="spend7d">Spend 7d</SortHeader>
-              <SortHeader field="acquisitions">Acq</SortHeader>
-              <SortHeader field="firstRebills">FR</SortHeader>
-              <SortHeader field="cpfr">CPFR</SortHeader>
-              <SortHeader field="payback21d">PB 21d</SortHeader>
-              <SortHeader field="payback51d">PB 51d</SortHeader>
-              <SortHeader field="campaignAgeDays">Age</SortHeader>
+              <SortHeader field="campaignName">Campaña</SortHeader>
+              <SortHeader field="spend7d" tooltip={COLUMN_TOOLTIPS.spend7d}>Gasto 7d</SortHeader>
+              <SortHeader field="acquisitions" tooltip={COLUMN_TOOLTIPS.acquisitions}>Acq</SortHeader>
+              <SortHeader field="firstRebills" tooltip={COLUMN_TOOLTIPS.firstRebills}>R1</SortHeader>
+              <SortHeader field="cpfr" tooltip={COLUMN_TOOLTIPS.cpfr}>CPFR</SortHeader>
+              <SortHeader field="payback21d" tooltip={COLUMN_TOOLTIPS.payback21d}>PB 21d</SortHeader>
+              <SortHeader field="payback51d" tooltip={COLUMN_TOOLTIPS.payback51d}>PB 51d</SortHeader>
+              <SortHeader field="campaignAgeDays" tooltip={COLUMN_TOOLTIPS.campaignAgeDays}>Edad</SortHeader>
               <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Action
+                Acción
               </th>
             </tr>
           </thead>
@@ -135,7 +151,7 @@ export function CampaignsTable({ campaigns, loading }: Props) {
                     </div>
                     <div className="text-xs text-gray-500">
                       {campaign.status === 'ENABLED' ? (
-                        <span className="text-green-400">Active</span>
+                        <span className="text-green-400">Activa</span>
                       ) : (
                         <span className="text-gray-500">{campaign.status}</span>
                       )}
@@ -211,15 +227,15 @@ export function CampaignsTable({ campaigns, loading }: Props) {
       <div className="px-4 py-3 bg-gray-800/30 border-t border-gray-800 flex gap-6 text-sm">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-green-500" />
-          <span className="text-gray-400">Scale ({campaigns.filter(c => c.payback51dStatus === 'green').length})</span>
+          <span className="text-gray-400">Escalar ({campaigns.filter(c => c.payback51dStatus === 'green').length})</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-yellow-500" />
-          <span className="text-gray-400">Monitor ({campaigns.filter(c => c.payback51dStatus === 'yellow').length})</span>
+          <span className="text-gray-400">Monitorear ({campaigns.filter(c => c.payback51dStatus === 'yellow').length})</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-red-500" />
-          <span className="text-gray-400">Pause ({campaigns.filter(c => c.payback51dStatus === 'red').length})</span>
+          <span className="text-gray-400">Pausar ({campaigns.filter(c => c.payback51dStatus === 'red').length})</span>
         </div>
       </div>
     </div>

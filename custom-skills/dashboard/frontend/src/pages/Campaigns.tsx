@@ -84,10 +84,10 @@ export function Campaigns() {
           <div className="flex items-center gap-4">
             <span className="text-4xl">📊</span>
             <div>
-              <h1 className="text-2xl font-bold">Campaign Control</h1>
+              <h1 className="text-2xl font-bold">Control de Campañas</h1>
               <div className="text-sm text-gray-500 flex items-center gap-2">
                 <Clock className="w-3 h-3" />
-                {data?.dateRange || 'LAST_7_DAYS'} | {data?.totalCampaigns || 0} campaigns
+                {data?.dateRange || 'LAST_7_DAYS'} | {data?.totalCampaigns || 0} campañas
               </div>
             </div>
           </div>
@@ -118,13 +118,13 @@ export function Campaigns() {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-green-400">{actions.toScale.count}</div>
-                  <div className="text-sm text-green-400/70">Ready to Scale</div>
+                  <div className="text-sm text-green-400/70">Listas para Escalar</div>
                 </div>
               </div>
               {actions.toScale.count > 0 && (
                 <div className="mt-3 text-xs text-gray-400">
                   {actions.toScale.campaigns.slice(0, 2).map(c => c.campaignName).join(', ')}
-                  {actions.toScale.count > 2 && ` +${actions.toScale.count - 2} more`}
+                  {actions.toScale.count > 2 && ` +${actions.toScale.count - 2} más`}
                 </div>
               )}
             </div>
@@ -137,12 +137,12 @@ export function Campaigns() {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-yellow-400">{actions.toMonitor.count}</div>
-                  <div className="text-sm text-yellow-400/70">Need Monitoring</div>
+                  <div className="text-sm text-yellow-400/70">Necesitan Monitoreo</div>
                 </div>
               </div>
               {actions.toMonitor.count > 0 && (
                 <div className="mt-3 text-xs text-gray-400">
-                  Campaigns &lt;51d old, waiting for data
+                  Campañas &lt;51d, esperando datos
                 </div>
               )}
             </div>
@@ -155,12 +155,12 @@ export function Campaigns() {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-red-400">{actions.toPause.count}</div>
-                  <div className="text-sm text-red-400/70">Consider Pausing</div>
+                  <div className="text-sm text-red-400/70">Considerar Pausar</div>
                 </div>
               </div>
               {actions.toPause.count > 0 && (
                 <div className="mt-3 text-xs text-gray-400">
-                  Payback 51d &lt;0.7x, age &gt;51d
+                  Payback 51d &lt;0.7x, edad &gt;51d
                 </div>
               )}
             </div>
@@ -173,10 +173,10 @@ export function Campaigns() {
             <div className="flex items-center gap-2 mb-3">
               <Zap className="w-4 h-4 text-purple-400" />
               <span className="text-sm text-gray-400 uppercase tracking-wide">
-                DecisionEngine Actions
+                Acciones del Motor de Decisión
               </span>
               <span className="text-xs text-gray-500 ml-2">
-                ({decisions.impact.campaignsNeedingAction} campaigns need action)
+                ({decisions.impact.campaignsNeedingAction} campañas requieren acción)
               </span>
             </div>
             <div className="space-y-2">
@@ -200,7 +200,7 @@ export function Campaigns() {
         {/* Campaigns Table */}
         <div className="mb-6">
           <div className="text-sm text-gray-400 uppercase tracking-wide mb-3">
-            All Campaigns
+            Todas las Campañas
           </div>
           <CampaignsTable
             campaigns={data?.campaigns || []}
@@ -210,16 +210,16 @@ export function Campaigns() {
 
         {/* Legend / Help */}
         <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
-          <div className="text-sm text-gray-400 mb-2">Decision Logic</div>
+          <div className="text-sm text-gray-400 mb-2">Lógica de Decisión</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-500">
             <div>
-              <span className="text-green-400 font-medium">SCALE</span>: Payback 51d &ge; 1.5x, age &ge; 51d, n &ge; 10
+              <span className="text-green-400 font-medium">ESCALAR</span>: Payback 51d &ge; 1.5x, edad &ge; 51d, n &ge; 10
             </div>
             <div>
-              <span className="text-yellow-400 font-medium">MONITOR</span>: Age &lt; 51d OR small cohort OR break-even
+              <span className="text-yellow-400 font-medium">MONITOREAR</span>: Edad &lt; 51d O cohorte pequeña O break-even
             </div>
             <div>
-              <span className="text-red-400 font-medium">PAUSE</span>: Payback 51d &lt; 0.7x, age &ge; 51d, n &ge; 10
+              <span className="text-red-400 font-medium">PAUSAR</span>: Payback 51d &lt; 0.7x, edad &ge; 51d, n &ge; 10
             </div>
           </div>
         </div>

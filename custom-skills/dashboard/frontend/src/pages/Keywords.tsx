@@ -158,7 +158,7 @@ export function Keywords() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             {/* Total Spend */}
             <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-              <div className="text-sm text-gray-400 mb-1">Total Spend (7d)</div>
+              <div className="text-sm text-gray-400 mb-1">Gasto Total (7d)</div>
               <div className="text-2xl font-bold">{summary.totalSpend.toFixed(0)}</div>
               <div className="text-xs text-gray-500">{summary.totalKeywords} keywords</div>
             </div>
@@ -167,11 +167,11 @@ export function Keywords() {
             <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
               <div className="flex items-center gap-2 text-sm text-green-400 mb-1">
                 <TrendingUp className="w-4 h-4" />
-                With Conversions
+                <span title="Conversiones reportadas por Google Ads (trials)">Con Conversiones</span>
               </div>
               <div className="text-2xl font-bold text-green-400">{summary.keywordsWithConversions}</div>
               <div className="text-xs text-gray-500">
-                {((summary.keywordsWithConversions / summary.totalKeywords) * 100).toFixed(1)}% of keywords
+                {((summary.keywordsWithConversions / summary.totalKeywords) * 100).toFixed(1)}% de keywords
               </div>
             </div>
 
@@ -179,20 +179,20 @@ export function Keywords() {
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
               <div className="flex items-center gap-2 text-sm text-yellow-400 mb-1">
                 <AlertTriangle className="w-4 h-4" />
-                Zero Conversions
+                Sin Conversiones
               </div>
               <div className="text-2xl font-bold text-yellow-400">{summary.keywordsWithZeroConversions}</div>
               <div className="text-xs text-gray-500">
-                {((summary.keywordsWithZeroConversions / summary.totalKeywords) * 100).toFixed(1)}% of keywords
+                {((summary.keywordsWithZeroConversions / summary.totalKeywords) * 100).toFixed(1)}% de keywords
               </div>
             </div>
 
             {/* Waste */}
             {waste && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-                <div className="text-sm text-red-400 mb-1">Estimated Waste</div>
+                <div className="text-sm text-red-400 mb-1">Gasto Desperdiciado</div>
                 <div className="text-2xl font-bold text-red-400">{waste.totalEstimatedWaste.toFixed(0)}</div>
-                <div className="text-xs text-gray-500">{waste.count} keywords flagged</div>
+                <div className="text-xs text-gray-500">{waste.count} keywords marcadas</div>
               </div>
             )}
           </div>
@@ -201,7 +201,7 @@ export function Keywords() {
         {/* Match Type Breakdown */}
         {summary && summary.byMatchType && (
           <div className="mb-6">
-            <div className="text-sm text-gray-400 uppercase tracking-wide mb-3">By Match Type</div>
+            <div className="text-sm text-gray-400 uppercase tracking-wide mb-3">Por Tipo de Concordancia</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {Object.entries(summary.byMatchType).map(([matchType, stats]) => (
                 <div
@@ -214,11 +214,11 @@ export function Keywords() {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <span className="text-gray-400">Spend:</span>{' '}
+                      <span className="text-gray-400">Gasto:</span>{' '}
                       <span className="font-medium">{stats.spend.toFixed(0)}</span>
                     </div>
                     <div>
-                      <span className="text-gray-400">Conv:</span>{' '}
+                      <span className="text-gray-400" title="Conversiones de Google Ads (trials)">Conv:</span>{' '}
                       <span className="font-medium">{stats.conversions.toFixed(0)}</span>
                     </div>
                   </div>
@@ -235,15 +235,15 @@ export function Keywords() {
               <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5" />
               <div>
                 <div className="font-medium text-red-400 mb-1">
-                  {waste.count} keywords flagged for waste
+                  {waste.count} keywords marcadas como desperdicio
                 </div>
                 <div className="text-sm text-gray-400 mb-2">
-                  Estimated {waste.totalEstimatedWaste.toFixed(2)} wasted in the last 7 days
+                  Estimado {waste.totalEstimatedWaste.toFixed(2)} desperdiciado en los últimos 7 días
                 </div>
                 <div className="flex gap-4 text-xs">
-                  <span>High spend, zero conv: {waste.byFlag.HIGH_SPEND_ZERO_CONV}</span>
-                  <span>High spend, low conv: {waste.byFlag.HIGH_SPEND_LOW_CONV}</span>
-                  <span>Spend concentration: {waste.byFlag.SPEND_CONCENTRATION}</span>
+                  <span>Gasto alto, cero conv: {waste.byFlag.HIGH_SPEND_ZERO_CONV}</span>
+                  <span>Gasto alto, baja conv: {waste.byFlag.HIGH_SPEND_LOW_CONV}</span>
+                  <span>Concentración de gasto: {waste.byFlag.SPEND_CONCENTRATION}</span>
                 </div>
               </div>
             </div>
@@ -254,7 +254,7 @@ export function Keywords() {
         <div className="mb-4 flex flex-wrap gap-4 items-center">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-gray-500" />
-            <span className="text-sm text-gray-500">Filters:</span>
+            <span className="text-sm text-gray-500">Filtros:</span>
           </div>
 
           {/* Campaign Filter */}
@@ -263,7 +263,7 @@ export function Keywords() {
             onChange={(e) => handleFilterChange('campaign', e.target.value)}
             className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-gray-600"
           >
-            <option value="">All Campaigns</option>
+            <option value="">Todas las Campañas</option>
             {campaigns.map((c) => (
               <option key={c} value={c}>
                 {c.length > 40 ? c.substring(0, 40) + '...' : c}
@@ -277,7 +277,7 @@ export function Keywords() {
             onChange={(e) => handleFilterChange('matchType', e.target.value)}
             className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-gray-600"
           >
-            <option value="">All Match Types</option>
+            <option value="">Todos los Tipos</option>
             <option value="EXACT">EXACT</option>
             <option value="PHRASE">PHRASE</option>
             <option value="BROAD">BROAD</option>
@@ -291,12 +291,12 @@ export function Keywords() {
               onChange={(e) => setShowWasteOnly(e.target.checked)}
               className="rounded border-gray-600 bg-gray-800 text-red-500 focus:ring-red-500"
             />
-            <span className="text-gray-400">Show waste only</span>
+            <span className="text-gray-400">Solo desperdicio</span>
           </label>
 
           {/* Result count */}
           <span className="text-sm text-gray-500 ml-auto">
-            Showing {displayKeywords.length} keywords (page {page} of {pagination?.totalPages || 1})
+            Mostrando {displayKeywords.length} keywords (página {page} de {pagination?.totalPages || 1})
           </span>
         </div>
 
@@ -364,16 +364,16 @@ export function Keywords() {
 
         {/* Legend */}
         <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
-          <div className="text-sm text-gray-400 mb-2">Waste Detection Flags</div>
+          <div className="text-sm text-gray-400 mb-2">Indicadores de Desperdicio</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-500">
             <div>
-              <span className="text-red-400 font-medium">HIGH_SPEND_ZERO_CONV</span>: Spend &gt; 50, zero conversions
+              <span className="text-red-400 font-medium">GASTO_ALTO_CERO_CONV</span>: Gasto &gt; 50, cero conversiones
             </div>
             <div>
-              <span className="text-yellow-400 font-medium">HIGH_SPEND_LOW_CONV</span>: Spend high, conv rate &lt; 1%
+              <span className="text-yellow-400 font-medium">GASTO_ALTO_BAJA_CONV</span>: Gasto alto, tasa conv &lt; 1%
             </div>
             <div>
-              <span className="text-orange-400 font-medium">SPEND_CONCENTRATION</span>: &gt;50% of ad group spend without return
+              <span className="text-orange-400 font-medium">CONCENTRACIÓN_GASTO</span>: &gt;50% del gasto del grupo sin retorno
             </div>
           </div>
         </div>
