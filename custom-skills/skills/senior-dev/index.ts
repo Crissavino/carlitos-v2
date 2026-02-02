@@ -24,6 +24,14 @@ export { find, explain, listModules, listSkills, listApis, getModuleDependencies
 // T10.2 - Task → Code Mapping
 export { mapTaskToCode, mapAllTasks } from "./task-mapper/mapper.js";
 
+// T10.2.5 - Weekly Code Impact Review
+export { generateWeeklyReview, formatWeeklyReview, toJson as reviewToJson } from "./reporters/weekly-review.js";
+export type { WeeklyCodeReview, ReviewItem } from "./reporters/weekly-review.js";
+
+// T10.3 - PR Proposal Engine
+export { generatePrProposal, generatePrProposals, formatPrProposal } from "./pr-engine/generator.js";
+export type { PrProposal, PrProposalBatch } from "./pr-engine/types.js";
+
 // Types
 export * from "./types.js";
 export * from "./task-mapper/types.js";

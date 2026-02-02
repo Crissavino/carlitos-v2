@@ -33,6 +33,8 @@ import {
   getModuleDependencies,
 } from "./repo/navigator.js";
 import { mapTaskToCode, mapAllTasks } from "./task-mapper/mapper.js";
+import { generateWeeklyReview, toJson as reviewToJson } from "./reporters/weekly-review.js";
+import { generatePrProposal, generatePrProposals } from "./pr-engine/generator.js";
 import type { IndexStatus } from "./types.js";
 import type { TaskCodeMapping, KanbanTask, Recommendation } from "./task-mapper/types.js";
 
@@ -126,6 +128,33 @@ async function main() {
     case "map-tasks": {
       const statusFilter = args[0];
       await cmdMapTasks(statusFilter);
+      break;
+    }
+
+    // ========== T10.2.5 - Human Review Gate ==========
+
+    case "review": {
+      const statusFilter = args[0];
+      const jsonFlag = args.includes("--json");
+      await cmdWeeklyReview(statusFilter, jsonFlag);
+      break;
+    }
+
+    // ========== T10.3 - PR Proposal Engine ==========
+
+    case "pr-proposal": {
+      const taskId = parseInt(args[0], 10);
+      if (isNaN(taskId)) {
+        console.error("Error: Task ID required. Usage: pr-proposal <id>");
+        process.exit(1);
+      }
+      await cmdPrProposal(taskId);
+      break;
+    }
+
+    case "pr-proposals": {
+      const statusFilter = args[0];
+      await cmdPrProposals(statusFilter);
       break;
     }
 
@@ -628,6 +657,144 @@ function getRecommendationIcon(rec: Recommendation): string {
 }
 
 // ============================================================================
+// T10.3 - PR PROPOSAL COMMANDS
+// ============================================================================
+
+async function cmdPrProposal(taskId: number): Promise<void> {
+  try {
+    // Fetch task
+    const task = await fetchTaskById(taskId);
+    if (!task) {
+      console.error(`Error: Task #${taskId} not found`);
+      process.exit(1);
+    }
+
+    // Map task to code
+    const mapping = await mapTaskToCode(task);
+
+    // Check if it's a DO recommendation
+    if (mapping.recommendation !== "DO") {
+      console.log("═".repeat(78));
+      console.log(`⚠️  Task #${taskId} is NOT recommended for PR generation`);
+      console.log("═".repeat(78));
+      console.log("");
+      console.log(`Recommendation: ${mapping.recommendation}`);
+      console.log(`Reason: ${mapping.recommendationReason}`);
+      console.log("");
+      console.log("To generate a PR proposal anyway, the task must be:");
+      console.log("  - Marked as DO by the mapper, or");
+      console.log("  - Explicitly approved via 'review' command");
+      console.log("");
+      return;
+    }
+
+    // Generate proposal
+    const proposal = generatePrProposal(mapping);
+    console.log(proposal.formattedProposal);
+
+  } catch (error) {
+    console.error("Error:", (error as Error).message);
+    process.exit(1);
+  }
+}
+
+async function cmdPrProposals(statusFilter?: string): Promise<void> {
+  try {
+    // Default to actionable statuses
+    const statuses = statusFilter
+      ? statusFilter.split(",")
+      : ["backlog", "todo"];
+
+    // Fetch tasks
+    const tasks = await fetchTasks(statuses);
+
+    if (tasks.length === 0) {
+      console.log(`No tasks found with status: ${statuses.join(", ")}`);
+      return;
+    }
+
+    console.log(`Analyzing ${tasks.length} task(s)...\n`);
+
+    // Map all tasks
+    const mappings = await mapAllTasks(tasks);
+
+    // Filter to DO only
+    const doMappings = mappings.filter((m) => m.recommendation === "DO");
+
+    if (doMappings.length === 0) {
+      console.log("═".repeat(78));
+      console.log("⚠️  No tasks are ready for PR generation");
+      console.log("═".repeat(78));
+      console.log("");
+      console.log(`Analyzed: ${mappings.length} tasks`);
+      console.log(`  - REVIEW: ${mappings.filter(m => m.recommendation === "REVIEW").length}`);
+      console.log(`  - SKIP: ${mappings.filter(m => m.recommendation === "SKIP").length}`);
+      console.log("");
+      console.log("Run 'review' command to see which tasks need human approval.");
+      return;
+    }
+
+    // Generate proposals
+    const batch = generatePrProposals(mappings);
+
+    // Print summary
+    console.log(batch.summary);
+    console.log("");
+
+    // Print each proposal
+    for (const proposal of batch.proposals) {
+      console.log("");
+      console.log(proposal.formattedProposal);
+      console.log("");
+    }
+
+  } catch (error) {
+    console.error("Error:", (error as Error).message);
+    process.exit(1);
+  }
+}
+
+// ============================================================================
+// T10.2.5 - WEEKLY REVIEW COMMAND
+// ============================================================================
+
+async function cmdWeeklyReview(statusFilter?: string, jsonOutput = false): Promise<void> {
+  try {
+    // Default to actionable statuses
+    const statuses = statusFilter
+      ? statusFilter.split(",")
+      : ["backlog", "todo"];
+
+    // Fetch tasks from database
+    const tasks = await fetchTasks(statuses);
+
+    if (tasks.length === 0) {
+      console.log(`No tasks found with status: ${statuses.join(", ")}`);
+      return;
+    }
+
+    console.log(`Analyzing ${tasks.length} task(s)...\n`);
+
+    // Map all tasks
+    const mappings = await mapAllTasks(tasks);
+
+    // Generate weekly review
+    const review = generateWeeklyReview(mappings);
+
+    // Output
+    if (jsonOutput) {
+      console.log(reviewToJson(review));
+    } else {
+      console.log(review.formattedReport);
+    }
+
+  } catch (error) {
+    console.error("Error:", (error as Error).message);
+    process.exit(1);
+  }
+}
+
+// ============================================================================
 // DATABASE ACCESS (for fetching tasks)
 // ============================================================================
 
@@ -710,11 +877,27 @@ T10.2 - TASK → CODE MAPPING
   map-tasks       Map all pending tasks (default: backlog,todo)
   map-tasks <s>   Map tasks with specific status (comma-separated)
 
+T10.2.5 - WEEKLY CODE IMPACT REVIEW
+───────────────────────────────────────────────────────────────────
+  review          Generate weekly review for human approval
+  review <s>      Review tasks with specific status
+  review --json   Output as JSON for programmatic use
+
+T10.3 - PR PROPOSAL ENGINE
+───────────────────────────────────────────────────────────────────
+  pr-proposal <id>  Generate PR proposal for a specific task (DO only)
+  pr-proposals      Generate all PR proposals for DO tasks
+  pr-proposals <s>  Generate proposals for specific status filter
+
 Examples:
-  node cli.js index
-  node cli.js map-task 42
-  node cli.js map-tasks
-  node cli.js map-tasks backlog,todo,in_progress
+  node cli.js review                  # See which tasks are ready
+  node cli.js pr-proposal 42          # Generate proposal for task #42
+  node cli.js pr-proposals            # Generate all DO proposals
+
+Workflow:
+  1. Run 'review' to see task recommendations
+  2. Run 'pr-proposals' to generate proposals for DO items
+  3. Manually create PRs in GitHub using the proposals
 
 Output Explanation:
   ✅ DO      - Task has economic impact, proceed with implementation
@@ -722,10 +905,9 @@ Output Explanation:
   ⏭️ SKIP    - Task has no economic justification, do not proceed
 
 Notes:
-  - Run 'index' first before using mapping commands
-  - Mappings are based on task content, decision rules, and KPIs
-  - Economic impact is estimated based on rule type and priority
-  - Risk assessment considers module criticality and change scope
+  - PR proposals are text-only (no actual commits or GitHub API)
+  - Only DO tasks get PR proposals generated
+  - Each proposal includes validation checklist and rollback plan
 `);
 }
 

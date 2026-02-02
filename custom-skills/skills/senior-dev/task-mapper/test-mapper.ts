@@ -8,6 +8,8 @@
  */
 
 import { mapTaskToCode, mapAllTasks } from "./mapper.js";
+import { generateWeeklyReview } from "../reporters/weekly-review.js";
+import { generatePrProposals } from "../pr-engine/generator.js";
 import type { KanbanTask } from "./types.js";
 
 // Mock tasks for testing
@@ -183,6 +185,27 @@ async function main() {
     console.log("═══════════════════════════════════════════════════════════════════");
     console.log(`POTENTIAL MONTHLY IMPACT: €${totalImpact.toLocaleString()}/month`);
     console.log("═══════════════════════════════════════════════════════════════════");
+
+    // Test Weekly Review formatting (T10.2.5)
+    console.log("\n\n");
+    console.log("Testing Weekly Code Impact Review (T10.2.5)...\n");
+
+    const review = generateWeeklyReview(mappings);
+    console.log(review.formattedReport);
+
+    // Test PR Proposal generation (T10.3)
+    console.log("\n\n");
+    console.log("Testing PR Proposal Engine (T10.3)...\n");
+
+    const batch = generatePrProposals(mappings);
+    console.log(batch.summary);
+
+    // Show first proposal in detail
+    if (batch.proposals.length > 0) {
+      console.log("\n");
+      console.log("Sample PR Proposal (first DO item):");
+      console.log(batch.proposals[0].formattedProposal);
+    }
 
   } catch (error) {
     console.error(`Error: ${(error as Error).message}`);
