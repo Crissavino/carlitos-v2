@@ -9,9 +9,8 @@ export function Chat() {
   const [gatewayToken, setGatewayToken] = useState<string | null>(null);
 
   const openChat = useCallback((token: string) => {
-    // Open chat without specifying agent - gateway now defaults to 'main' (no --dev flag)
-    // This creates session key 'agent:main' instead of 'agent:main:main'
-    window.open(`https://carlitos-bot.com/__openclaw__/chat?token=${encodeURIComponent(token)}`, '_blank');
+    // Explicitly set session=agent:main to avoid gateway adding suffix (agent:main:main)
+    window.open(`https://carlitos-bot.com/__openclaw__/chat?token=${encodeURIComponent(token)}&session=agent:main`, '_blank');
   }, []);
 
   useEffect(() => {
