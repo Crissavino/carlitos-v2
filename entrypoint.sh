@@ -60,6 +60,9 @@ else
   "skills": {
     "install": {
       "nodeManager": "npm"
+    },
+    "load": {
+      "extraDirs": ["/root/.openclaw/skills"]
     }
   }
 }
