@@ -9,67 +9,33 @@ mkdir -p /root/.openclaw/data/google-ads
 mkdir -p /root/.openclaw/workspace
 mkdir -p /root/.openclaw/config
 
-# Use persisted config if exists, otherwise create default
+# =============================================================================
+# CONFIG BOOTSTRAP (always applied, idempotent)
+# =============================================================================
+# Config is generated from versioned template on every start.
+# This ensures skills.load.extraDirs and gateway tokens are always correct.
+# See: infra/openclaw/README.md
+
 CONFIG_FILE="/root/.openclaw/openclaw.json"
 PERSISTED_CONFIG="/root/.openclaw/config/openclaw.json"
+CONFIG_TEMPLATE="/app/openclaw.config.json"
 
-# Use env var for token or generate random one
-TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$(head -c 24 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 48)}"
+# Generate token: use env var or generate random
+TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$(head -c 24 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)}"
 
-if [ -f "$PERSISTED_CONFIG" ]; then
-    echo "Using persisted config from $PERSISTED_CONFIG"
-    ln -sf "$PERSISTED_CONFIG" "$CONFIG_FILE"
+echo "Applying OpenClaw config from template..."
 
-    # Sync gateway token from env var if set
-    if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
-        echo "Syncing gateway token from environment..."
-        # Update all token occurrences in config file
-        sed -i "s/\"token\": \"[^\"]*\"/\"token\": \"$OPENCLAW_GATEWAY_TOKEN\"/g" "$PERSISTED_CONFIG"
-    fi
-else
-    echo "Creating default OpenClaw config..."
+# Always generate config from template (replaces __GATEWAY_TOKEN__ placeholder)
+sed "s/__GATEWAY_TOKEN__/$TOKEN/g" "$CONFIG_TEMPLATE" > "$PERSISTED_CONFIG"
 
-    cat > "$PERSISTED_CONFIG" << EOF
-{
-  "agents": {
-    "defaults": {
-      "maxConcurrent": 4,
-      "workspace": "/root/.openclaw/workspace"
-    }
-  },
-  "gateway": {
-    "mode": "local",
-    "auth": {
-      "mode": "token",
-      "token": "$TOKEN"
-    },
-    "remote": {
-      "token": "$TOKEN"
-    },
-    "port": 18789,
-    "bind": "lan"
-  },
-  "auth": {
-    "profiles": {
-      "anthropic:default": {
-        "provider": "anthropic",
-        "mode": "api_key"
-      }
-    }
-  },
-  "skills": {
-    "install": {
-      "nodeManager": "npm"
-    },
-    "load": {
-      "extraDirs": ["/root/.openclaw/skills"]
-    }
-  }
-}
-EOF
-    ln -sf "$PERSISTED_CONFIG" "$CONFIG_FILE"
-    echo "Gateway token: $TOKEN"
-fi
+# Create symlink to effective config location
+ln -sf "$PERSISTED_CONFIG" "$CONFIG_FILE"
+
+echo "Config applied: skills.load.extraDirs = [\"/root/.openclaw/skills\"]"
+
+# =============================================================================
+# INFO
+# =============================================================================
 
 echo ""
 echo "Custom skills: /root/.openclaw/custom-skills"
@@ -78,16 +44,19 @@ echo "Skills: /root/.openclaw/skills"
 # List available skills
 echo ""
 echo "=== Available Skills ==="
-openclaw skills list 2>/dev/null | grep -E "ready|db-reader|google-ads" || echo "Skills loading..."
+openclaw skills list 2>/dev/null | grep -E "ready|db-reader|google-ads|business|decision|senior|dashboard" || echo "Skills loading..."
 
 # Show dashboard URL with token
-TOKEN=$(grep -o '"token": "[^"]*"' "$CONFIG_FILE" | head -1 | cut -d'"' -f4)
 echo ""
 echo "=== Starting Services ==="
 echo "Gateway:       http://localhost:18789/?token=$TOKEN"
 echo "Dashboard API: http://localhost:3002/"
 echo "Webhook:       http://localhost:3001/ingest/google-ads"
 echo ""
+
+# =============================================================================
+# START SERVICES
+# =============================================================================
 
 # Start webhook server in background
 echo "Starting webhook server..."
@@ -104,4 +73,4 @@ echo "Dashboard API started (PID: $DASHBOARD_PID)"
 
 # Start gateway in foreground
 cd /app
-exec openclaw --dev gateway --bind lan --port 18789 --allow-unconfigured --token "${OPENCLAW_GATEWAY_TOKEN:-$TOKEN}"
+exec openclaw --dev gateway --bind lan --port 18789 --allow-unconfigured --token "$TOKEN"

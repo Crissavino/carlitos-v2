@@ -38,6 +38,9 @@ RUN npm install && npm run build
 # Volver al directorio de trabajo
 WORKDIR /app
 
+# Copiar infra config template
+COPY infra/openclaw/openclaw.config.json /app/openclaw.config.json
+
 # Copiar script de inicio
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh

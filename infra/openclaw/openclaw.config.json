@@ -1,0 +1,36 @@
+{
+  "agents": {
+    "defaults": {
+      "maxConcurrent": 4,
+      "workspace": "/root/.openclaw/workspace"
+    }
+  },
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token",
+      "token": "__GATEWAY_TOKEN__"
+    },
+    "remote": {
+      "token": "__GATEWAY_TOKEN__"
+    },
+    "port": 18789,
+    "bind": "lan"
+  },
+  "auth": {
+    "profiles": {
+      "anthropic:default": {
+        "provider": "anthropic",
+        "mode": "api_key"
+      }
+    }
+  },
+  "skills": {
+    "install": {
+      "nodeManager": "npm"
+    },
+    "load": {
+      "extraDirs": ["/root/.openclaw/skills"]
+    }
+  }
+}
