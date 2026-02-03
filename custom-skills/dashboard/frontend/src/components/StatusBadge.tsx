@@ -19,7 +19,7 @@ const statusConfig: Record<string, { icon: typeof CheckCircle; label: string; cl
   'critical': { icon: XCircle, label: 'Crítico', class: 'border-red-500/50 bg-red-500/10 text-red-400' },
 };
 
-function getSubtitle(status: string, paybackM1?: number): string | null {
+function getSubtitle(paybackM1?: number): string | null {
   if (paybackM1 === undefined) return null;
 
   if (paybackM1 < 0.90) {
@@ -37,7 +37,7 @@ function getSubtitle(status: string, paybackM1?: number): string | null {
 export function StatusBadge({ status, size = 'sm', paybackM1 }: Props) {
   const config = statusConfig[status] || { icon: HelpCircle, label: status, class: 'border-gray-500/50 bg-gray-500/10 text-gray-400' };
   const Icon = config.icon;
-  const subtitle = getSubtitle(status, paybackM1);
+  const subtitle = getSubtitle(paybackM1);
 
   if (size === 'lg') {
     return (
