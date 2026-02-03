@@ -38,7 +38,9 @@ export type AllowedQueryId =
   // Phase 12: Keyword-level attribution using utm_term
   | "keyword-attribution"   // Acquisitions/FirstRebills by keyword (utm_term)
   // Phase 13: Customer counts for dashboard
-  | "customer-counts";      // Total and active customer counts
+  | "customer-counts"      // Total and active customer counts
+  // Phase 14: Customer cohort distribution
+  | "customer-cohort-distribution";  // M1, M2, M3, etc. distribution
 
 export interface DBReaderRequest {
   query: AllowedQueryId;

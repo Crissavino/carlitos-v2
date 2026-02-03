@@ -409,3 +409,43 @@ export async function getPaybackM1CohortData(websiteId: number): Promise<Payback
   setCachedLtv("payback-m1-cohort", websiteId, cohortData);
   return cohortData;
 }
+
+// ============================================================================
+// CUSTOMER COHORT DISTRIBUTION (Phase 14)
+// Muestra de dónde viene el revenue (M1, M2, M3, etc.)
+// ============================================================================
+
+export interface CohortDistributionItem {
+  cohortMonth: string;
+  activeCustomers: number;
+  monthlyRevenuePotential: number;
+}
+
+export interface CohortDistributionData {
+  distribution: CohortDistributionItem[];
+  totalActiveCustomers: number;
+}
+
+export async function getCustomerCohortDistribution(websiteId: number): Promise<CohortDistributionData | null> {
+  const result = await executeQuery("customer-cohort-distribution", websiteId);
+
+  if (result.status !== "success" || !result.results) {
+    console.error(`[CohortDistribution] Query failed for website ${websiteId}:`, result.error);
+    return null;
+  }
+
+  const rows = result.results as any[];
+
+  const distribution: CohortDistributionItem[] = rows.map(row => ({
+    cohortMonth: row.cohort_month,
+    activeCustomers: parseInt(row.active_customers) || 0,
+    monthlyRevenuePotential: parseFloat(row.monthly_revenue_potential) || 0,
+  }));
+
+  const totalActiveCustomers = distribution.reduce((sum, item) => sum + item.activeCustomers, 0);
+
+  return {
+    distribution,
+    totalActiveCustomers,
+  };
+}

@@ -3,7 +3,8 @@ import { AlertTriangle, CheckCircle, XCircle, HelpCircle, Info } from 'lucide-re
 interface Props {
   status: string;
   size?: 'sm' | 'lg';
-  paybackM1?: number; // Para determinar el subtítulo
+  paybackM1?: number;
+  weeklyProfit?: number;
 }
 
 const statusConfig: Record<string, { icon: typeof CheckCircle; label: string; class: string }> = {
@@ -19,25 +20,33 @@ const statusConfig: Record<string, { icon: typeof CheckCircle; label: string; cl
   'critical': { icon: XCircle, label: 'Crítico', class: 'border-red-500/50 bg-red-500/10 text-red-400' },
 };
 
-function getSubtitle(paybackM1?: number): string | null {
-  if (paybackM1 === undefined) return null;
+function getSubtitle(status: string, paybackM1?: number, weeklyProfit?: number): string | null {
+  // El subtítulo se basa en el estado y contexto
+  if (status === 'CRÍTICO') {
+    return 'Pérdida real - acción urgente';
+  }
 
-  if (paybackM1 < 0.90) {
-    return 'Pérdida confirmada en M1';
+  if (status === 'EN RIESGO') {
+    if (weeklyProfit !== undefined && weeklyProfit > 0 && paybackM1 !== undefined && paybackM1 < 0.90) {
+      return 'Profit positivo, pero M1 bajo';
+    }
+    return 'Métricas en zona de warning';
   }
-  if (paybackM1 >= 1.20) {
-    return 'Modelo rentable en M1 (utility)';
+
+  if (status === 'ESTABLE') {
+    if (paybackM1 !== undefined && paybackM1 >= 1.20) {
+      return 'Modelo rentable en M1';
+    }
+    return 'Negocio saludable';
   }
-  if (paybackM1 >= 0.90 && paybackM1 < 1.20) {
-    return 'Break-even en M1';
-  }
+
   return null;
 }
 
-export function StatusBadge({ status, size = 'sm', paybackM1 }: Props) {
+export function StatusBadge({ status, size = 'sm', paybackM1, weeklyProfit }: Props) {
   const config = statusConfig[status] || { icon: HelpCircle, label: status, class: 'border-gray-500/50 bg-gray-500/10 text-gray-400' };
   const Icon = config.icon;
-  const subtitle = getSubtitle(paybackM1);
+  const subtitle = getSubtitle(status, paybackM1, weeklyProfit);
 
   if (size === 'lg') {
     return (

@@ -769,18 +769,16 @@ export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
 
 export function determineBusinessStatus(kpis: CoreKpis): BusinessStatus {
   // ============================================================================
-  // MODELO UTILITY: JERARQUÍA DE DECISIÓN
+  // MODELO UTILITY: WEEKLY PROFIT ES EL JUEZ FINAL
   // ============================================================================
   //
-  // P0. Weekly Profit: Si es verde (>€5k), el negocio está bien
-  // P1. Payback M1: Si es verde (>=1.20), el negocio está bien
-  // P2. Weekly Profit rojo (<€2.5k) → CRÍTICO (perdiendo plata)
-  // P3. Payback M1 < 0.90 → CRÍTICO
-  // P4. Refund Rate M1 > 15% → CRÍTICO
+  // El negocio se mide por si GANA o PIERDE plata HOY.
+  // Payback M1 es un indicador de calidad de adquisición, pero NO invalida
+  // un profit positivo.
   //
-  // KPIs que NO afectan el estado (solo contexto):
-  // - SRR, U-R2, Payback 30d/51d/90d, CPT
-  // - FRR, CPFR (alertas pero no cambian estado si profit es bueno)
+  // CRÍTICO   = Weekly Profit <= 0 (pérdida real, acción urgente)
+  // EN RIESGO = Weekly Profit > 0 pero bajo, O indicadores de warning
+  // ESTABLE   = Weekly Profit saludable
   //
   // ============================================================================
 
@@ -789,56 +787,49 @@ export function determineBusinessStatus(kpis: CoreKpis): BusinessStatus {
   const refundRateM1Value = kpis.refundRateM1.value;
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // ESTABLE: Weekly Profit verde O Payback M1 verde
+  // CRÍTICO: Solo si Weekly Profit <= 0 (pérdida REAL)
   // ─────────────────────────────────────────────────────────────────────────────
-  // Si el negocio genera >€5k/semana de profit, está bien aunque otros KPIs
-  // estén en amarillo. El profit real es lo que importa.
-  if (weeklyProfitValue >= THRESHOLDS.WEEKLY_PROFIT_GREEN) {
-    return "ESTABLE";
-  }
-
-  // Payback M1 verde también indica negocio estable
-  if (paybackM1Value >= 1.20) {
-    return "ESTABLE";
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // CRÍTICO: Solo si hay pérdida REAL (profit <= 0)
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Weekly Profit <= 0 = pérdida real
-  // Payback M1 < 0.90 = pérdida en M1
-  // Refund Rate M1 > 15% = refunds descontrolados
-  //
-  // IMPORTANTE: Si hay profit > 0, NO es CRÍTICO aunque sea bajo
+  // Si estás perdiendo plata HOY, es crítico. Punto.
+  // Payback M1 malo NO es crítico si hay profit positivo (puede ser revenue legacy)
   // ─────────────────────────────────────────────────────────────────────────────
   if (weeklyProfitValue <= 0) {
     return "CRÍTICO";
   }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // ESTABLE: Weekly Profit >= €5k (verde)
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Si el negocio genera >€5k/semana, está bien aunque otros KPIs estén mal.
+  // El profit real es lo que importa.
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (weeklyProfitValue >= THRESHOLDS.WEEKLY_PROFIT_GREEN) {
+    return "ESTABLE";
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // EN RIESGO: Profit positivo pero con warnings
+  // ─────────────────────────────────────────────────────────────────────────────
+  // - Weekly Profit €0-5k (bajo pero positivo)
+  // - Payback M1 < 0.90 (adquisición ineficiente - WARNING, no crítico)
+  // - Refund Rate M1 > 10% (refunds altos)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Profit bajo (< €2.5k) = en riesgo
+  if (weeklyProfitValue < THRESHOLDS.WEEKLY_PROFIT_YELLOW) {
+    return "EN RIESGO";
+  }
+
+  // Payback M1 malo = warning de adquisición (pero hay profit, no es crítico)
   if (paybackM1Value < 0.90) {
-    return "CRÍTICO";
-  }
-  if (refundRateM1Value > 0.15) {
-    return "CRÍTICO";
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // EN RIESGO: Métricas en zona amarilla
-  // ─────────────────────────────────────────────────────────────────────────────
-  // - Weekly Profit €2.5k-5k
-  // - Payback M1 0.90-1.19
-  // - Refund Rate M1 8-15%
-  // ─────────────────────────────────────────────────────────────────────────────
-  if (weeklyProfitValue >= THRESHOLDS.WEEKLY_PROFIT_YELLOW && weeklyProfitValue < THRESHOLDS.WEEKLY_PROFIT_GREEN) {
-    return "EN RIESGO";
-  }
-  if (paybackM1Value >= 0.90 && paybackM1Value < 1.20) {
-    return "EN RIESGO";
-  }
-  if (refundRateM1Value > 0.08 && refundRateM1Value <= 0.15) {
     return "EN RIESGO";
   }
 
-  // Net ROAS < 1.2 es warning pero no crítico
+  // Refunds descontrolados
+  if (refundRateM1Value > 0.10) {
+    return "EN RIESGO";
+  }
+
+  // Net ROAS bajo
   if (kpis.netRoas.value < 1.2) {
     return "EN RIESGO";
   }

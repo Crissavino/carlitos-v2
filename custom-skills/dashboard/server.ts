@@ -23,6 +23,7 @@ import {
 } from "../skills/business-expert/reporters/executive-summary.js";
 import {
   clearLtvCache,
+  getCustomerCohortDistribution,
 } from "../skills/business-expert/analyzers/revenue-analyzer.js";
 import {
   executeQuery,
@@ -670,6 +671,37 @@ app.get("/api/business/customers", sessionAuth, async (req: Request, res: Respon
         churnedCustomers: parseInt(row.churned_customers) || 0,
         cancelledTrials: parseInt(row.cancelled_trials) || 0,
       },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: msg });
+  }
+});
+
+// GET /api/business/cohort-distribution?websiteId=1
+// Customer distribution by month: M1, M2, M3, etc.
+app.get("/api/business/cohort-distribution", sessionAuth, async (req: Request, res: Response) => {
+  try {
+    const websiteIdParam = req.query.websiteId as string;
+    if (!websiteIdParam) {
+      res.status(400).json({
+        error: "WEBSITE_ID_REQUIRED",
+        validWebsiteIds: VALID_WEBSITE_IDS,
+      });
+      return;
+    }
+
+    const websiteId = validateWebsiteId(parseInt(websiteIdParam, 10));
+    const data = await getCustomerCohortDistribution(websiteId);
+
+    if (!data) {
+      res.status(500).json({ error: "Failed to fetch cohort distribution" });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

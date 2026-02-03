@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw, Clock } from 'lucide-react';
-import { api, type BusinessSummary, type Snapshot, type DecisionCurrent, type DailyComparison, type WebsiteId, type AllWebsitesPayback, type CustomerCounts } from '../api/client';
+import { api, type BusinessSummary, type Snapshot, type DecisionCurrent, type DailyComparison, type WebsiteId, type AllWebsitesPayback, type CustomerCounts, type CohortDistribution } from '../api/client';
 import { StatusBadge } from '../components/StatusBadge';
 import { KpiCard } from '../components/KpiCard';
 import { TrendChart } from '../components/TrendChart';
@@ -8,6 +8,7 @@ import { ActionCard } from '../components/ActionCard';
 import { PaybackByWebsiteChart } from '../components/PaybackByWebsiteChart';
 import { DailyMarginChart } from '../components/DailyMarginChart';
 import { ConversionFunnel } from '../components/ConversionFunnel';
+import { CohortDistributionChart } from '../components/CohortDistributionChart';
 
 interface ExecutiveProps {
   websiteId: WebsiteId;
@@ -20,6 +21,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
   const [daily, setDaily] = useState<DailyComparison | null>(null);
   const [allWebsitesPayback, setAllWebsitesPayback] = useState<AllWebsitesPayback | null>(null);
   const [customerCounts, setCustomerCounts] = useState<CustomerCounts | null>(null);
+  const [cohortDistribution, setCohortDistribution] = useState<CohortDistribution | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -28,13 +30,14 @@ export function Executive({ websiteId }: ExecutiveProps) {
     setLoading(true);
     setError(null);
     try {
-      const [summaryData, snapshotsData, decisionsData, dailyData, paybackData, customersData] = await Promise.all([
+      const [summaryData, snapshotsData, decisionsData, dailyData, paybackData, customersData, cohortData] = await Promise.all([
         api.getSummary(websiteId),
         api.getSnapshots(websiteId, 14),
         api.getDecisions(websiteId),
         api.getDailyComparison(websiteId),
         api.getAllWebsitesPayback(),
         api.getCustomerCounts(websiteId),
+        api.getCohortDistribution(websiteId),
       ]);
       setSummary(summaryData);
       setSnapshots(snapshotsData.snapshots);
@@ -42,6 +45,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
       setDaily(dailyData);
       setAllWebsitesPayback(paybackData);
       setCustomerCounts(customersData);
+      setCohortDistribution(cohortData);
       setLastUpdate(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error cargando datos');
@@ -58,6 +62,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
     setDaily(null);
     setAllWebsitesPayback(null);
     setCustomerCounts(null);
+    setCohortDistribution(null);
     setError(null);
 
     loadData();
@@ -152,6 +157,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
               status={summary.businessStatus}
               size="lg"
               paybackM1={summary.kpis.paybackM1?.value}
+              weeklyProfit={summary.kpis.weeklyProfit?.value}
             />
           </div>
         </div>
@@ -341,6 +347,14 @@ export function Executive({ websiteId }: ExecutiveProps) {
             {/* Daily Margin Chart */}
             {snapshots.length > 1 && (
               <DailyMarginChart snapshots={snapshots} />
+            )}
+
+            {/* Cohort Distribution Chart */}
+            {cohortDistribution && (
+              <CohortDistributionChart
+                data={cohortDistribution.distribution}
+                totalActiveCustomers={cohortDistribution.totalActiveCustomers}
+              />
             )}
 
             {/* Conversion Funnel */}

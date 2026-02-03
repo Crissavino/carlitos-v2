@@ -137,6 +137,17 @@ export interface AllWebsitesPayback {
 }
 
 // Customer Counts
+export interface CohortDistributionItem {
+  cohortMonth: string;
+  activeCustomers: number;
+  monthlyRevenuePotential: number;
+}
+
+export interface CohortDistribution {
+  distribution: CohortDistributionItem[];
+  totalActiveCustomers: number;
+}
+
 export interface CustomerCounts {
   totalCustomers: number;
   activeCustomers: number;
@@ -338,6 +349,7 @@ export const api = {
   getCustomerCounts: (websiteId: number) => fetchAPI<CustomerCounts>(`/business/customers?websiteId=${websiteId}`),
   getDailyComparison: (websiteId: number) => fetchAPI<DailyComparison>(`/business/daily?websiteId=${websiteId}`),
   getAllWebsitesPayback: () => fetchAPI<AllWebsitesPayback>(`/business/all-websites-payback`),
+  getCohortDistribution: (websiteId: number) => fetchAPI<CohortDistribution>(`/business/cohort-distribution?websiteId=${websiteId}`),
 
   // Tasks
   getTasks: (status?: string) => {

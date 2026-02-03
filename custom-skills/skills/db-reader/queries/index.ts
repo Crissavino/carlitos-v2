@@ -30,6 +30,7 @@ import {
 } from "./daily-comparison.js";
 import { paybackM1CohortQuery } from "./payback-m1-cohort.js";
 import { customerCountsQuery } from "./customer-counts.js";
+import { customerCohortDistributionQuery } from "./customer-cohort-distribution.js";
 
 // Query builders that support websiteId filtering
 export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
@@ -73,6 +74,8 @@ export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
   "keyword-attribution": keywordAttributionQuery,
   // Phase 13: Customer counts
   "customer-counts": customerCountsQuery,
+  // Phase 14: Customer cohort distribution
+  "customer-cohort-distribution": customerCohortDistributionQuery,
 };
 
 /**
