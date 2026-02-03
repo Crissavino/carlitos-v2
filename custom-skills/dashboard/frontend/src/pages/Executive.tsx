@@ -291,7 +291,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
         <div className="mb-6">
           <div className="text-sm text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
             Métricas de Riesgo
-            <span className="text-xs text-red-600 normal-case">(Chargeback >0.5% = riesgo cierre de cuenta)</span>
+            <span className="text-xs text-red-600 normal-case">(Chargeback {'>'}0.5% = riesgo cierre de cuenta)</span>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <KpiCard
@@ -305,7 +305,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
             <KpiCard
               title="Base Instalada"
               value={`${((summary.kpis.baseInstalada?.value || 0) * 100).toFixed(1)}%`}
-              subtitle="Clientes con >1 rebill"
+              subtitle="Clientes con más de 1 rebill"
               status={summary.kpis.baseInstalada?.status || 'yellow'}
               reason={summary.kpis.baseInstalada?.reason || 'Sin datos'}
               isInformative
