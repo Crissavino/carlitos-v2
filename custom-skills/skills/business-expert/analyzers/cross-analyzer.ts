@@ -62,7 +62,7 @@ interface MetricsCacheEntry {
   cachedAt: number;
 }
 
-const METRICS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour (data updates daily from Google Ads)
+const METRICS_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours (data updates daily from Google Ads)
 // HARDENING: Cache per website_id, not global
 const metricsCache: Map<number, MetricsCacheEntry> = new Map();
 
@@ -99,6 +99,15 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
   }
 
   console.log(`[MetricsCache] Miss for website_id=${websiteId} - fetching fresh metrics...`);
+  const fetchStart = Date.now();
+
+  // Helper to time individual queries
+  const timed = async <T>(name: string, fn: () => Promise<T>): Promise<T> => {
+    const start = Date.now();
+    const result = await fn();
+    console.log(`[QueryTime] ${name}: ${Date.now() - start}ms`);
+    return result;
+  };
 
   // HARDENING: All queries now filter by websiteId
   const [
@@ -121,25 +130,27 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
     // Phase 11: Payback M1 Cohort (FIX - real cohort-based calculation)
     paybackM1CohortData,
   ] = await Promise.all([
-    getRevenueData(websiteId),
-    getTrialsData(websiteId),
-    getFirstRebillsData(websiteId),
-    getFirstRebillsCohorte30dData(websiteId),
-    getSecondRebillsData(websiteId),
-    getUsageBeforeRebill2Data(websiteId),
-    getSubscriptionsData(websiteId),
-    getAdSpendData(websiteId),
-    getLtv30dData(websiteId),
-    getLtv21dData(websiteId),
-    getLtv51dData(websiteId),
-    getLtv81dData(websiteId),
+    timed('revenue', () => getRevenueData(websiteId)),
+    timed('trials', () => getTrialsData(websiteId)),
+    timed('firstRebills', () => getFirstRebillsData(websiteId)),
+    timed('firstRebillsCohorte30d', () => getFirstRebillsCohorte30dData(websiteId)),
+    timed('secondRebills', () => getSecondRebillsData(websiteId)),
+    timed('usage', () => getUsageBeforeRebill2Data(websiteId)),
+    timed('subscriptions', () => getSubscriptionsData(websiteId)),
+    timed('adSpend', () => getAdSpendData(websiteId)),
+    timed('ltv30d', () => getLtv30dData(websiteId)),
+    timed('ltv21d', () => getLtv21dData(websiteId)),
+    timed('ltv51d', () => getLtv51dData(websiteId)),
+    timed('ltv81d', () => getLtv81dData(websiteId)),
     // Utility Model (Phase 9) - DEPRECATED for Payback M1
-    getTrialRevenueData(websiteId),
-    getFirstRebillRevenueData(websiteId),
-    getRefundsM1Data(websiteId),
+    timed('trialRevenue', () => getTrialRevenueData(websiteId)),
+    timed('firstRebillRevenue', () => getFirstRebillRevenueData(websiteId)),
+    timed('refundsM1', () => getRefundsM1Data(websiteId)),
     // Phase 11: Payback M1 Cohort (FIX)
-    getPaybackM1CohortData(websiteId),
+    timed('paybackM1Cohort', () => getPaybackM1CohortData(websiteId)),
   ]);
+
+  console.log(`[MetricsCache] Total fetch time for website_id=${websiteId}: ${Date.now() - fetchStart}ms`);
 
   if (!revenueData || !trialsData) {
     return null;
