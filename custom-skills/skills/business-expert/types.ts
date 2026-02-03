@@ -178,6 +178,29 @@ export interface CoreKpis {
    * - Rojo: < €2,500/semana
    */
   weeklyProfit: KpiResult;
+
+  // ============================================================================
+  // NUEVAS MÉTRICAS - OpenClaw Phase 15
+  // ============================================================================
+
+  /**
+   * Chargeback Rate - RIESGO PROCESADOR
+   * Fuente: avocode.customers.disputes
+   * ChargebackRate = disputes / total_transactions (últimos 30 días)
+   *
+   * CRÍTICO si > 0.5% → riesgo de cierre de cuenta por el procesador
+   * Ya cerraron Revolut por esto
+   */
+  chargebackRate?: KpiResult;
+
+  /**
+   * Base Instalada - Clientes con >1 rebill
+   * Fuente: avocode.invoices (type_id = 2, cuenta > 1)
+   *
+   * Representa clientes "asegurados" que generan revenue recurrente.
+   * En modelo utility esto debería ser bajo (mayoría M1)
+   */
+  baseInstalada?: KpiResult;
 }
 
 // ============================================================================
@@ -210,7 +233,7 @@ export const WEBSITE_THRESHOLDS: Record<number, WebsiteThresholds> = {
   // ConviertePDF (CL/BR) - Mercado emergente, más difícil
   3: {
     frr: { green: 0.35, yellow: 0.25 },   // Verde ≥35%, Amarillo 25-34%, Rojo <25%
-    cpfr: { green: 100, yellow: 130 },     // Verde ≤€100, Amarillo ≤€130, Rojo >€130
+    cpfr: { green: 110, yellow: 140 },     // Verde ≤€110, Amarillo ≤€140, Rojo >€140
   },
   // DeviceFinder - Similar a Convierte
   4: {
@@ -304,6 +327,15 @@ export const THRESHOLDS = {
   CPT_GREEN: 30,    // <= €30 es verde
   CPT_YELLOW: 50,   // €30 - €50 es amarillo
   // > €50 es rojo
+
+  // ============================================================================
+  // CHARGEBACK RATE - RIESGO PROCESADOR
+  // Fuente: avocode.customers.disputes
+  // ============================================================================
+  // Si supera 0.5%, el procesador puede cerrar la cuenta (riesgo existencial)
+  CHARGEBACK_GREEN: 0.003,   // <= 0.3% es verde (excelente)
+  CHARGEBACK_YELLOW: 0.005,  // 0.3% - 0.5% es amarillo (atención)
+  // > 0.5% es rojo (CRÍTICO - riesgo de cierre de cuenta)
 } as const;
 
 // Derived thresholds for CPFR
@@ -365,13 +397,33 @@ export interface RawMetrics {
     paybackM1: number;            // m1NetRevenueEur / adSpendEur
     cpfrCohort: number;           // adSpendEur / firstRebills
   };
+
+  // ============================================================================
+  // NUEVAS MÉTRICAS - OpenClaw Phase 15
+  // ============================================================================
+
+  // Chargeback Rate (riesgo procesador)
+  // Fuente: avocode.customers.disputes
+  chargebackData?: {
+    totalDisputes: number;        // COUNT de disputes en últimos 30 días
+    totalTransactions: number;    // COUNT de transacciones en últimos 30 días
+    chargebackRate: number;       // disputes / transactions
+  };
+
+  // Base Instalada (clientes con >1 rebill = revenue "asegurado")
+  // Fuente: avocode.invoices (type_id = 2, grouped by customer)
+  baseInstaladaData?: {
+    customersWithMultipleRebills: number;  // Clientes con >1 rebill
+    totalActiveCustomers: number;           // Total clientes activos
+    percentage: number;                     // % de base instalada
+  };
 }
 
 // ============================================================================
 // ALERTS (SOLO 2 - U-R2 es diagnóstica)
 // ============================================================================
 
-export type AlertType = "weekly_profit_red" | "frr_red" | "cpfr_red" | "payback_red" | "refund_m1_red" | "roas_red";
+export type AlertType = "weekly_profit_red" | "frr_red" | "cpfr_red" | "payback_red" | "refund_m1_red" | "roas_red" | "chargeback_red";
 
 export interface Alert {
   type: AlertType;

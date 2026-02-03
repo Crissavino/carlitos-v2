@@ -447,3 +447,55 @@ export async function getCustomerCohortDistribution(websiteId: number): Promise<
     totalActiveCustomers,
   };
 }
+
+// ============================================================================
+// RISK METRICS (Phase 15 - OpenClaw)
+// ============================================================================
+
+export interface ChargebackData {
+  totalDisputes: number;
+  totalTransactions: number;
+  chargebackRate: number;
+}
+
+export async function getChargebackRateData(websiteId: number): Promise<ChargebackData | null> {
+  const result = await executeQuery("chargeback-rate", websiteId);
+
+  if (result.status !== "success" || !result.results) {
+    console.error(`[ChargebackRate] Query failed for website ${websiteId}:`, result.error);
+    return null;
+  }
+
+  const data = result.results as any;
+  const row = Array.isArray(data) ? data[0] : data;
+
+  return {
+    totalDisputes: parseInt(row.total_disputes) || 0,
+    totalTransactions: parseInt(row.total_transactions) || 0,
+    chargebackRate: parseFloat(row.chargeback_rate) || 0,
+  };
+}
+
+export interface BaseInstaladaData {
+  customersWithMultipleRebills: number;
+  totalActiveCustomers: number;
+  percentage: number;
+}
+
+export async function getBaseInstaladaData(websiteId: number): Promise<BaseInstaladaData | null> {
+  const result = await executeQuery("base-instalada", websiteId);
+
+  if (result.status !== "success" || !result.results) {
+    console.error(`[BaseInstalada] Query failed for website ${websiteId}:`, result.error);
+    return null;
+  }
+
+  const data = result.results as any;
+  const row = Array.isArray(data) ? data[0] : data;
+
+  return {
+    customersWithMultipleRebills: parseInt(row.customers_with_multiple_rebills) || 0,
+    totalActiveCustomers: parseInt(row.total_active_customers) || 0,
+    percentage: parseFloat(row.percentage) || 0,
+  };
+}

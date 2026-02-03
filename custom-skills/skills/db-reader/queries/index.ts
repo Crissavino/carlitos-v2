@@ -31,6 +31,7 @@ import {
 import { paybackM1CohortQuery } from "./payback-m1-cohort.js";
 import { customerCountsQuery } from "./customer-counts.js";
 import { customerCohortDistributionQuery } from "./customer-cohort-distribution.js";
+import { chargebackRateQuery, baseInstaladaQuery } from "./risk-metrics.js";
 
 // Query builders that support websiteId filtering
 export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
@@ -76,6 +77,9 @@ export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
   "customer-counts": customerCountsQuery,
   // Phase 14: Customer cohort distribution
   "customer-cohort-distribution": customerCohortDistributionQuery,
+  // Phase 15: Risk metrics (OpenClaw)
+  "chargeback-rate": chargebackRateQuery,
+  "base-instalada": baseInstaladaQuery,
 };
 
 /**

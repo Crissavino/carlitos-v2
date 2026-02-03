@@ -287,6 +287,33 @@ export function Executive({ websiteId }: ExecutiveProps) {
           </div>
         </div>
 
+        {/* Risk Metrics - Riesgo Procesador */}
+        <div className="mb-6">
+          <div className="text-sm text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+            Métricas de Riesgo
+            <span className="text-xs text-red-600 normal-case">(Chargeback >0.5% = riesgo cierre de cuenta)</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <KpiCard
+              title="Chargeback Rate"
+              value={`${((summary.kpis.chargebackRate?.value || 0) * 100).toFixed(2)}%`}
+              subtitle="Disputes / Transacciones (30d)"
+              status={summary.kpis.chargebackRate?.status || 'green'}
+              reason={summary.kpis.chargebackRate?.reason || 'Sin datos'}
+              tooltip="Tasa de chargebacks/disputes. Si supera 0.5%, el procesador puede cerrar la cuenta (Revolut ya la cerró por esto). Verde: ≤0.3%, Amarillo: 0.3-0.5%, Rojo: >0.5%."
+            />
+            <KpiCard
+              title="Base Instalada"
+              value={`${((summary.kpis.baseInstalada?.value || 0) * 100).toFixed(1)}%`}
+              subtitle="Clientes con >1 rebill"
+              status={summary.kpis.baseInstalada?.status || 'yellow'}
+              reason={summary.kpis.baseInstalada?.reason || 'Sin datos'}
+              isInformative
+              tooltip="% de clientes activos con más de 1 rebill (revenue 'asegurado'). En modelo utility debería ser bajo porque la mayoría resuelve su problema en M1."
+            />
+          </div>
+        </div>
+
         {/* Informativos (sin alertas) */}
         <div className="mb-6">
           <div className="text-sm text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">

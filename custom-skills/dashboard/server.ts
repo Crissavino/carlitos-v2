@@ -537,6 +537,9 @@ app.get("/api/business/summary", async (req: Request, res: Response) => {
           payback51d: { value: summary.kpis.payback51d.value, status: summary.kpis.payback51d.status, reason: summary.kpis.payback51d.shortReason, isInformative: true },
           // Cashflow Coverage 7d (ex-Payback M1 cashflow - DEPRECATED, solo informativo)
           cashflowCoverage7d: summary.kpis.cashflowCoverage7d ? { value: summary.kpis.cashflowCoverage7d.value, status: 'yellow', reason: summary.kpis.cashflowCoverage7d.shortReason, isInformative: true } : undefined,
+          // Phase 15: Risk Metrics (OpenClaw)
+          chargebackRate: summary.kpis.chargebackRate ? { value: summary.kpis.chargebackRate.value, percentage: Math.round(summary.kpis.chargebackRate.value * 10000) / 100, status: summary.kpis.chargebackRate.status, reason: summary.kpis.chargebackRate.shortReason } : undefined,
+          baseInstalada: summary.kpis.baseInstalada ? { value: summary.kpis.baseInstalada.value, percentage: Math.round(summary.kpis.baseInstalada.value * 1000) / 10, status: summary.kpis.baseInstalada.status, reason: summary.kpis.baseInstalada.shortReason, isInformative: true } : undefined,
         },
         alerts: summary.alerts,
         summaryText: summary.summaryText,
@@ -877,6 +880,20 @@ app.get("/api/business/kpis", sessionAuth, async (req: Request, res: Response) =
             status: kpis.cpt.status,
             reason: kpis.cpt.shortReason,
           },
+          // Phase 15: Risk Metrics (OpenClaw)
+          chargebackRate: kpis.chargebackRate ? {
+            value: kpis.chargebackRate.value,
+            percentage: Math.round(kpis.chargebackRate.value * 10000) / 100,
+            status: kpis.chargebackRate.status,
+            reason: kpis.chargebackRate.shortReason,
+          } : undefined,
+          baseInstalada: kpis.baseInstalada ? {
+            value: kpis.baseInstalada.value,
+            percentage: Math.round(kpis.baseInstalada.value * 1000) / 10,
+            status: kpis.baseInstalada.status,
+            reason: kpis.baseInstalada.shortReason,
+            isInformative: true,
+          } : undefined,
         },
         totals: {
           trials: raw.trials,

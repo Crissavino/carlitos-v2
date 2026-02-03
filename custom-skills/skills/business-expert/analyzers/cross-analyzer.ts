@@ -35,6 +35,9 @@ import {
   getRefundsM1Data,
   // Phase 11: Payback M1 Cohort (FIX)
   getPaybackM1CohortData,
+  // Phase 15: Risk Metrics (OpenClaw)
+  getChargebackRateData,
+  getBaseInstaladaData,
 } from "./revenue-analyzer.js";
 import {
   RawMetrics,
@@ -129,6 +132,9 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
     refundsM1Data,
     // Phase 11: Payback M1 Cohort (FIX - real cohort-based calculation)
     paybackM1CohortData,
+    // Phase 15: Risk Metrics (OpenClaw)
+    chargebackData,
+    baseInstaladaData,
   ] = await Promise.all([
     timed('revenue', () => getRevenueData(websiteId)),
     timed('trials', () => getTrialsData(websiteId)),
@@ -148,6 +154,9 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
     timed('refundsM1', () => getRefundsM1Data(websiteId)),
     // Phase 11: Payback M1 Cohort (FIX)
     timed('paybackM1Cohort', () => getPaybackM1CohortData(websiteId)),
+    // Phase 15: Risk Metrics (OpenClaw)
+    timed('chargeback', () => getChargebackRateData(websiteId)),
+    timed('baseInstalada', () => getBaseInstaladaData(websiteId)),
   ]);
 
   console.log(`[MetricsCache] Total fetch time for website_id=${websiteId}: ${Date.now() - fetchStart}ms`);
@@ -201,6 +210,19 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
       adSpendEur: paybackM1CohortData.adSpendEur,
       paybackM1: paybackM1CohortData.paybackM1,
       cpfrCohort: paybackM1CohortData.cpfrCohort,
+    } : undefined,
+
+    // Phase 15: Risk Metrics (OpenClaw)
+    chargebackData: chargebackData ? {
+      totalDisputes: chargebackData.totalDisputes,
+      totalTransactions: chargebackData.totalTransactions,
+      chargebackRate: chargebackData.chargebackRate,
+    } : undefined,
+
+    baseInstaladaData: baseInstaladaData ? {
+      customersWithMultipleRebills: baseInstaladaData.customersWithMultipleRebills,
+      totalActiveCustomers: baseInstaladaData.totalActiveCustomers,
+      percentage: baseInstaladaData.percentage,
     } : undefined,
   };
 
@@ -689,6 +711,81 @@ function calculateCPT(totalAdSpend: number, trials: number): KpiResult {
   return { value: Math.round(cpt * 100) / 100, status, shortReason };
 }
 
+// ============================================================================
+// RISK METRICS (Phase 15 - OpenClaw)
+// ============================================================================
+
+/**
+ * Chargeback Rate - RIESGO PROCESADOR
+ * Fuente: avocode.customers.disputes
+ *
+ * Si supera 0.5%, el procesador puede cerrar la cuenta.
+ * Ya cerraron Revolut por esto.
+ */
+function calculateChargebackRate(
+  chargebackData?: {
+    totalDisputes: number;
+    totalTransactions: number;
+    chargebackRate: number;
+  }
+): KpiResult {
+  if (!chargebackData || chargebackData.totalTransactions === 0) {
+    return { value: 0, status: "green", shortReason: "Sin datos de transacciones" };
+  }
+
+  const rate = chargebackData.chargebackRate;
+  let status: KpiStatus;
+  let shortReason: string;
+
+  if (rate <= THRESHOLDS.CHARGEBACK_GREEN) {
+    status = "green";
+    shortReason = `${(rate * 100).toFixed(2)}% - Excelente`;
+  } else if (rate <= THRESHOLDS.CHARGEBACK_YELLOW) {
+    status = "yellow";
+    shortReason = `${(rate * 100).toFixed(2)}% - Atención`;
+  } else {
+    status = "red";
+    shortReason = `${(rate * 100).toFixed(2)}% - RIESGO PROCESADOR`;
+  }
+
+  return {
+    value: Math.round(rate * 10000) / 10000,
+    status,
+    shortReason,
+  };
+}
+
+/**
+ * Base Instalada - Clientes con >1 rebill
+ * Fuente: avocode.invoices (type_id = 2)
+ *
+ * En modelo utility debería ser bajo (mayoría M1)
+ * Es informativo, no genera alertas.
+ */
+function calculateBaseInstalada(
+  baseInstaladaData?: {
+    customersWithMultipleRebills: number;
+    totalActiveCustomers: number;
+    percentage: number;
+  }
+): KpiResult {
+  if (!baseInstaladaData || baseInstaladaData.totalActiveCustomers === 0) {
+    return { value: 0, status: "yellow", shortReason: "Sin datos", isInformative: true };
+  }
+
+  const percentage = baseInstaladaData.percentage;
+  const count = baseInstaladaData.customersWithMultipleRebills;
+
+  // En utility, bajo es normal (mayoría M1)
+  // Informativo - no genera alertas
+  return {
+    value: Math.round(percentage * 1000) / 1000,
+    status: "yellow", // Siempre amarillo - es informativo
+    shortReason: `${count} clientes (${(percentage * 100).toFixed(1)}%) con >1 rebill`,
+    isInformative: true,
+  };
+}
+
 export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
   // Usar thresholds por website para FRR y CPFR
   const websiteId = raw.websiteId;
@@ -760,6 +857,10 @@ export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
       raw.refundsM1Eur,
       cpfr.value
     ),
+
+    // Phase 15: Risk Metrics (OpenClaw)
+    chargebackRate: calculateChargebackRate(raw.chargebackData),
+    baseInstalada: calculateBaseInstalada(raw.baseInstaladaData),
   };
 }
 
@@ -908,7 +1009,17 @@ export function generateAlerts(kpis: CoreKpis): Alert[] {
     });
   }
 
-  // NOTA: SRR y U-R2 NUNCA generan alertas en modelo utility
+  // P6: Chargeback Rate alto - RIESGO EXISTENCIAL
+  // Si supera 0.5%, el procesador puede cerrar la cuenta
+  if (kpis.chargebackRate && kpis.chargebackRate.status === "red") {
+    alerts.push({
+      type: "chargeback_red",
+      severity: "critical",
+      message: `Chargeback Rate ${(kpis.chargebackRate.value * 100).toFixed(2)}%: RIESGO DE CIERRE DE CUENTA. Acción URGENTE.`,
+    });
+  }
+
+  // NOTA: SRR, U-R2 y Base Instalada NUNCA generan alertas en modelo utility
   // M2+ bajo es estructural, no un problema
 
   return alerts;

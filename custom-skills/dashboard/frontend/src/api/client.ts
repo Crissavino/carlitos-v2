@@ -78,6 +78,9 @@ export interface BusinessSummary {
     // Legacy (referencia histórica) - informativos
     ltv30d: KpiValue;
     paybackRatio: KpiValue;
+    // Phase 15: Risk Metrics (OpenClaw)
+    chargebackRate?: KpiValue;  // Riesgo procesador (>0.5% = CRÍTICO)
+    baseInstalada?: KpiValue;   // Clientes con >1 rebill (informativo)
   };
   alerts: Array<{ type: string; message: string }>;
   summaryText: string;
