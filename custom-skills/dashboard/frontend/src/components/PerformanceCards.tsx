@@ -1,5 +1,3 @@
-import { ChevronDown } from 'lucide-react';
-
 export interface MetricCard {
   id: string;
   label: string;
@@ -52,7 +50,7 @@ const COLOR_STYLES: Record<string, { bg: string; text: string; border: string }>
 function formatValue(value: string | number): string {
   if (typeof value === 'number') {
     if (value >= 1000000) {
-      return (value / 1000000).toFixed(2) + 'M';
+      return (value / 1000000).toFixed(1) + 'M';
     }
     if (value >= 1000) {
       return (value / 1000).toFixed(1) + 'k';
@@ -64,7 +62,7 @@ function formatValue(value: string | number): string {
 
 export function PerformanceCards({ cards, onCardClick }: PerformanceCardsProps) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+    <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3 mb-4 md:mb-6">
       {cards.map((card) => {
         const colorStyle = COLOR_STYLES[card.color || 'gray'];
         const isColored = card.color && card.color !== 'gray';
@@ -74,29 +72,28 @@ export function PerformanceCards({ cards, onCardClick }: PerformanceCardsProps) 
             key={card.id}
             onClick={() => onCardClick?.(card.id)}
             className={`
-              rounded-lg border p-4 transition-all
+              rounded-lg border p-2 md:p-4 transition-all
               ${colorStyle.bg} ${colorStyle.border}
-              ${onCardClick ? 'cursor-pointer hover:shadow-md hover:scale-[1.02]' : ''}
+              ${onCardClick ? 'cursor-pointer hover:shadow-md active:scale-95' : ''}
             `}
             title={card.tooltip}
           >
-            {/* Label with dropdown indicator (like Google Ads) */}
-            <div className={`flex items-center gap-1 text-sm mb-2 ${isColored ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
-              <span>{card.label}</span>
-              {onCardClick && <ChevronDown className="w-3 h-3" />}
+            {/* Label */}
+            <div className={`text-[10px] md:text-sm mb-1 truncate ${isColored ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
+              {card.label}
             </div>
 
             {/* Value */}
-            <div className={`text-2xl font-medium ${colorStyle.text}`}>
+            <div className={`text-base md:text-2xl font-semibold truncate ${colorStyle.text}`}>
               {formatValue(card.value)}
             </div>
 
-            {/* Sub value or trend */}
+            {/* Sub value or trend - hidden on mobile for cleaner look */}
             {(card.subValue || card.trendValue) && (
-              <div className={`text-xs mt-1 ${isColored ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'}`}>
+              <div className={`hidden md:block text-xs mt-1 ${isColored ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'}`}>
                 {card.subValue}
                 {card.trendValue && (
-                  <span className={card.trend === 'up' ? 'text-green-400' : card.trend === 'down' ? 'text-red-400' : ''}>
+                  <span className={card.trend === 'up' ? 'text-green-300' : card.trend === 'down' ? 'text-red-300' : ''}>
                     {card.trend === 'up' ? ' ↑' : card.trend === 'down' ? ' ↓' : ''} {card.trendValue}
                   </span>
                 )}
@@ -117,7 +114,6 @@ export function buildGoogleAdsCards(data: {
   costPerConv?: number;
   ctr?: number;
   cpc?: number;
-  // Custom DB metrics
   acquisitions?: number;
   firstRebills?: number;
   cpfr?: number;
@@ -127,31 +123,19 @@ export function buildGoogleAdsCards(data: {
   const currency = data.currency || '€';
   const cards: MetricCard[] = [];
 
-  // Google Ads style: first two cards are colored
   if (data.clicks !== undefined) {
-    cards.push({
-      id: 'clicks',
-      label: 'Clicks',
-      value: data.clicks,
-      color: 'blue',
-    });
+    cards.push({ id: 'clicks', label: 'Clicks', value: data.clicks, color: 'blue' });
   }
 
   if (data.impressions !== undefined) {
-    cards.push({
-      id: 'impressions',
-      label: 'Impr.',
-      value: data.impressions,
-      color: 'red',
-    });
+    cards.push({ id: 'impressions', label: 'Impr.', value: data.impressions, color: 'red' });
   }
 
-  // Gray cards for cost metrics
   if (data.costPerConv !== undefined) {
     cards.push({
       id: 'costPerConv',
       label: 'Cost/conv.',
-      value: data.costPerConv > 0 ? `${currency}${data.costPerConv.toFixed(2)}` : '-',
+      value: data.costPerConv > 0 ? `${currency}${data.costPerConv.toFixed(0)}` : '-',
       color: 'gray',
     });
   }
@@ -160,12 +144,11 @@ export function buildGoogleAdsCards(data: {
     cards.push({
       id: 'cost',
       label: 'Costo',
-      value: `${currency}${data.cost.toFixed(2)}`,
+      value: `${currency}${data.cost.toFixed(0)}`,
       color: 'gray',
     });
   }
 
-  // Our custom metrics - use distinctive colors
   if (data.acquisitions !== undefined && data.firstRebills !== undefined) {
     cards.push({
       id: 'conversions',

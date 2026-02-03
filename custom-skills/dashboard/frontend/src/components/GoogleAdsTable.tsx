@@ -9,6 +9,10 @@ export interface Column<T> {
   align?: 'left' | 'center' | 'right';
   width?: string;
   tooltip?: string;
+  // Mobile config
+  hideOnMobile?: boolean;
+  mobileLabel?: string;
+  isPrimary?: boolean; // Show in mobile card header
 }
 
 export interface GoogleAdsTableProps<T> {
@@ -16,7 +20,6 @@ export interface GoogleAdsTableProps<T> {
   data: T[];
   keyAccessor: (row: T) => string;
   loading?: boolean;
-  // Pagination
   pagination?: {
     page: number;
     totalPages: number;
@@ -25,16 +28,12 @@ export interface GoogleAdsTableProps<T> {
     totalItems?: number;
   };
   onPageChange?: (page: number) => void;
-  // Sorting
   defaultSortColumn?: string;
   defaultSortDirection?: 'asc' | 'desc';
-  // Selection (future)
-  selectable?: boolean;
-  onSelectionChange?: (selectedIds: string[]) => void;
-  // Row click
   onRowClick?: (row: T) => void;
-  // Empty state
   emptyMessage?: string;
+  // Mobile: which columns to show in card view
+  mobileColumns?: string[];
 }
 
 export function GoogleAdsTable<T>({
@@ -48,11 +47,11 @@ export function GoogleAdsTable<T>({
   defaultSortDirection = 'desc',
   onRowClick,
   emptyMessage = 'No hay datos disponibles',
+  mobileColumns,
 }: GoogleAdsTableProps<T>) {
   const [sortColumn, setSortColumn] = useState<string | null>(defaultSortColumn || null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(defaultSortDirection);
 
-  // Handle sort
   const handleSort = (columnId: string) => {
     const column = columns.find(c => c.id === columnId);
     if (!column?.sortAccessor) return;
@@ -65,7 +64,6 @@ export function GoogleAdsTable<T>({
     }
   };
 
-  // Sort data locally if we have a sort accessor
   let sortedData = data;
   if (sortColumn) {
     const column = columns.find(c => c.id === sortColumn);
@@ -87,10 +85,17 @@ export function GoogleAdsTable<T>({
     }
   }
 
+  // Determine which columns to show on mobile
+  const mobileVisibleColumns = mobileColumns
+    ? columns.filter(c => mobileColumns.includes(c.id))
+    : columns.filter(c => !c.hideOnMobile);
+
+  const primaryColumn = columns.find(c => c.isPrimary) || columns[0];
+
   if (loading && data.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center text-gray-500">
-        Cargando...
+        <div className="animate-pulse">Cargando...</div>
       </div>
     );
   }
@@ -105,8 +110,8 @@ export function GoogleAdsTable<T>({
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Desktop Table */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
@@ -119,7 +124,7 @@ export function GoogleAdsTable<T>({
                     key={column.id}
                     onClick={() => isSortable && handleSort(column.id)}
                     className={`
-                      px-4 py-3 font-medium text-gray-600 dark:text-gray-300
+                      px-3 py-3 font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap
                       ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}
                       ${isSortable ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none' : ''}
                       ${column.width || ''}
@@ -127,7 +132,7 @@ export function GoogleAdsTable<T>({
                     title={column.tooltip}
                   >
                     <div className={`flex items-center gap-1 ${column.align === 'right' ? 'justify-end' : column.align === 'center' ? 'justify-center' : ''}`}>
-                      <span>{column.header}</span>
+                      <span className="text-xs">{column.header}</span>
                       {isSortable && (
                         <span className="flex flex-col">
                           <ChevronUp className={`w-3 h-3 -mb-1 ${isSorted && sortDirection === 'asc' ? 'text-blue-500' : 'text-gray-400'}`} />
@@ -145,18 +150,12 @@ export function GoogleAdsTable<T>({
               <tr
                 key={keyAccessor(row)}
                 onClick={() => onRowClick?.(row)}
-                className={`
-                  hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors
-                  ${onRowClick ? 'cursor-pointer' : ''}
-                `}
+                className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
               >
                 {columns.map((column) => (
                   <td
                     key={column.id}
-                    className={`
-                      px-4 py-3 text-gray-900 dark:text-gray-100
-                      ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}
-                    `}
+                    className={`px-3 py-2.5 text-gray-900 dark:text-gray-100 ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
                   >
                     {column.accessor(row)}
                   </td>
@@ -167,35 +166,61 @@ export function GoogleAdsTable<T>({
         </table>
       </div>
 
-      {/* Pagination */}
+      {/* Mobile Card View */}
+      <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+        {sortedData.map((row) => (
+          <div
+            key={keyAccessor(row)}
+            onClick={() => onRowClick?.(row)}
+            className={`p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${onRowClick ? 'cursor-pointer active:bg-gray-100' : ''}`}
+          >
+            {/* Primary content (title) */}
+            <div className="font-medium text-gray-900 dark:text-white mb-2 text-sm">
+              {primaryColumn.accessor(row)}
+            </div>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              {mobileVisibleColumns.filter(c => c.id !== primaryColumn.id).slice(0, 6).map((column) => (
+                <div key={column.id} className="min-w-0">
+                  <div className="text-gray-500 dark:text-gray-400 truncate">
+                    {column.mobileLabel || column.header}
+                  </div>
+                  <div className="text-gray-900 dark:text-gray-100 font-medium truncate">
+                    {column.accessor(row)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Pagination - Mobile optimized */}
       {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {pagination.totalItems && (
-              <span>{pagination.totalItems.toLocaleString()} elementos</span>
-            )}
+        <div className="flex items-center justify-between px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            {pagination.totalItems ? `${pagination.totalItems}` : `Pág ${pagination.page}`}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => onPageChange?.(pagination.page - 1)}
               disabled={!pagination.hasPrev}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="w-4 h-4" />
-              Anterior
             </button>
 
-            <span className="text-sm text-gray-600 dark:text-gray-300 px-3">
-              {pagination.page} de {pagination.totalPages}
+            <span className="text-xs text-gray-600 dark:text-gray-300 px-2 min-w-[60px] text-center">
+              {pagination.page}/{pagination.totalPages}
             </span>
 
             <button
               onClick={() => onPageChange?.(pagination.page + 1)}
               disabled={!pagination.hasNext}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Siguiente
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -206,12 +231,12 @@ export function GoogleAdsTable<T>({
 }
 
 // ============================================================================
-// Reusable Cell Components (Google Ads style)
+// Reusable Cell Components
 // ============================================================================
 
 export function StatusDot({ active }: { active: boolean }) {
   return (
-    <div className={`w-2.5 h-2.5 rounded-full ${active ? 'bg-green-500' : 'bg-gray-400'}`} />
+    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${active ? 'bg-green-500' : 'bg-gray-400'}`} />
   );
 }
 
@@ -223,7 +248,7 @@ export function MatchTypeBadge({ matchType }: { matchType: string }) {
   };
 
   return (
-    <span className={`px-2 py-0.5 text-xs font-medium rounded ${colors[matchType] || 'bg-gray-100 text-gray-700'}`}>
+    <span className={`px-1.5 py-0.5 text-[10px] md:text-xs font-medium rounded ${colors[matchType] || 'bg-gray-100 text-gray-700'}`}>
       {matchType}
     </span>
   );
@@ -239,13 +264,11 @@ export function ConversionCell({
   attributionLevel?: string;
 }) {
   return (
-    <div className="flex items-center gap-1" title={attributionLevel === 'campaign' ? 'Atribución por campaña' : 'Atribución por keyword (utm_term)'}>
+    <div className="flex items-center gap-0.5 text-xs md:text-sm" title={attributionLevel === 'campaign' ? 'Atribución por campaña' : 'Atribución por keyword'}>
       <span className="text-blue-600 dark:text-blue-400 font-medium">{acquisitions}</span>
       <span className="text-gray-400">/</span>
       <span className="text-green-600 dark:text-green-400 font-medium">{firstRebills}</span>
-      {attributionLevel === 'campaign' && (
-        <span className="text-gray-400 text-xs">*</span>
-      )}
+      {attributionLevel === 'campaign' && <span className="text-gray-400 text-[10px]">*</span>}
     </div>
   );
 }
@@ -256,14 +279,11 @@ export function PerformanceIndicator({ status }: { status: 'good' | 'warning' | 
     warning: 'bg-yellow-500',
     poor: 'bg-red-500',
   };
-
-  return (
-    <div className={`w-2 h-2 rounded-full ${colors[status]}`} />
-  );
+  return <div className={`w-2 h-2 rounded-full flex-shrink-0 ${colors[status]}`} />;
 }
 
 export function ActionBadge({ action }: { action: string | null }) {
-  if (!action) return <span className="text-gray-400">-</span>;
+  if (!action) return <span className="text-gray-400 text-xs">-</span>;
 
   const styles: Record<string, string> = {
     NEGATIVE_SUGGESTION: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -275,16 +295,16 @@ export function ActionBadge({ action }: { action: string | null }) {
   };
 
   const labels: Record<string, string> = {
-    NEGATIVE_SUGGESTION: 'Negativizar',
-    INTENT_MISMATCH: 'Intent. Incorrecta',
-    PROMOTE_TO_KEYWORD: 'Promover',
-    REVIEW_MATCH_TYPE: 'Revisar Match',
+    NEGATIVE_SUGGESTION: 'Neg',
+    INTENT_MISMATCH: 'Intent',
+    PROMOTE_TO_KEYWORD: 'Promo',
+    REVIEW_MATCH_TYPE: 'Match',
     SCALE_KEYWORD: 'Escalar',
-    MONITOR: 'Monitorear',
+    MONITOR: 'Monitor',
   };
 
   return (
-    <span className={`px-2 py-0.5 text-xs font-medium rounded ${styles[action] || styles.MONITOR}`}>
+    <span className={`px-1.5 py-0.5 text-[10px] md:text-xs font-medium rounded whitespace-nowrap ${styles[action] || styles.MONITOR}`}>
       {labels[action] || action}
     </span>
   );
@@ -293,7 +313,7 @@ export function ActionBadge({ action }: { action: string | null }) {
 export function TruncatedText({ text, maxLength = 30 }: { text: string; maxLength?: number }) {
   const truncated = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
   return (
-    <span title={text} className="block truncate max-w-[200px]">
+    <span title={text} className="block truncate">
       {truncated}
     </span>
   );
