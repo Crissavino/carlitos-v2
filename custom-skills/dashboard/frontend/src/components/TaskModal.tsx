@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Bot, User, Tag, Play, MessageSquare, FileText, Send } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { api, type TaskDetails, type TaskStatus } from '../api/client';
 
 interface Props {
@@ -135,8 +136,9 @@ export function TaskModal({ taskId, onClose, onUpdate }: Props) {
             </select>
           </div>
           <button
-            onClick={handleStartRun}
-            className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+            disabled
+            title="Próximamente: ejecución autónoma con OpenClaw"
+            className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-gray-700 text-gray-400 rounded text-sm cursor-not-allowed opacity-50"
           >
             <Play className="w-4 h-4" />
             Ejecutar con OpenClaw
@@ -173,8 +175,26 @@ export function TaskModal({ taskId, onClose, onUpdate }: Props) {
               {task.description && (
                 <div>
                   <h4 className="text-sm font-medium text-gray-400 mb-2">Descripción</h4>
-                  <div className="text-sm text-gray-300 whitespace-pre-wrap bg-gray-800/50 rounded p-3">
-                    {task.description}
+                  <div className="prose prose-sm prose-invert max-w-none bg-gray-800/50 rounded p-3">
+                    <ReactMarkdown
+                      components={{
+                        h1: ({ children }) => <h1 className="text-lg font-bold text-white mt-4 mb-2">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-base font-bold text-white mt-3 mb-2">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-sm font-bold text-white mt-2 mb-1">{children}</h3>,
+                        p: ({ children }) => <p className="text-sm text-gray-300 mb-2">{children}</p>,
+                        ul: ({ children }) => <ul className="list-disc list-inside text-sm text-gray-300 mb-2 ml-2">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal list-inside text-sm text-gray-300 mb-2 ml-2">{children}</ol>,
+                        li: ({ children }) => <li className="mb-1">{children}</li>,
+                        strong: ({ children }) => <strong className="text-white font-semibold">{children}</strong>,
+                        em: ({ children }) => <em className="italic">{children}</em>,
+                        code: ({ children }) => <code className="bg-gray-900 px-1 py-0.5 rounded text-xs text-blue-300">{children}</code>,
+                        pre: ({ children }) => <pre className="bg-gray-900 p-2 rounded text-xs overflow-x-auto mb-2">{children}</pre>,
+                        hr: () => <hr className="border-gray-700 my-3" />,
+                        a: ({ href, children }) => <a href={href} className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                      }}
+                    >
+                      {task.description}
+                    </ReactMarkdown>
                   </div>
                 </div>
               )}
