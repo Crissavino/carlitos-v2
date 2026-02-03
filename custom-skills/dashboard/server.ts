@@ -513,7 +513,9 @@ app.get("/api/business/summary", async (req: Request, res: Response) => {
           total: summary.refundsM1Total,
         },
         kpis: {
-          // P1 HEADLINE - Utility Model (COHORT-BASED - Phase 11 FIX)
+          // P0 HEADLINE - Weekly Profit (modelo utility)
+          weeklyProfit: { value: summary.kpis.weeklyProfit.value, status: summary.kpis.weeklyProfit.status, reason: summary.kpis.weeklyProfit.shortReason },
+          // P1 - Payback M1 (COHORT-BASED - Phase 11 FIX)
           paybackM1: { value: summary.kpis.paybackM1.value, status: summary.kpis.paybackM1.status, reason: summary.kpis.paybackM1.shortReason },
           // P2 - Accionables
           frr: { value: summary.kpis.frr.value, percentage: Math.round(summary.kpis.frr.value * 1000) / 10, status: summary.kpis.frr.status, reason: summary.kpis.frr.shortReason },
