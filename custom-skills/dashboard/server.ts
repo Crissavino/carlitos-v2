@@ -821,6 +821,28 @@ app.get("/api/business/kpis", sessionAuth, async (req: Request, res: Response) =
             status: kpis.payback51d.status,
             reason: kpis.payback51d.shortReason,
           },
+          // Utility Model KPIs
+          weeklyProfit: {
+            value: kpis.weeklyProfit.value,
+            status: kpis.weeklyProfit.status,
+            reason: kpis.weeklyProfit.shortReason,
+          },
+          paybackM1: {
+            value: kpis.paybackM1.value,
+            status: kpis.paybackM1.status,
+            reason: kpis.paybackM1.shortReason,
+          },
+          refundRateM1: {
+            value: kpis.refundRateM1.value,
+            percentage: Math.round(kpis.refundRateM1.value * 1000) / 10,
+            status: kpis.refundRateM1.status,
+            reason: kpis.refundRateM1.shortReason,
+          },
+          cpt: {
+            value: kpis.cpt.value,
+            status: kpis.cpt.status,
+            reason: kpis.cpt.shortReason,
+          },
         },
         totals: {
           trials: raw.trials,

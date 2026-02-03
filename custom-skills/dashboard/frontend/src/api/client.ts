@@ -55,7 +55,9 @@ export interface BusinessSummary {
   acquisitionData: { trials: number; firstRebills: number };
   refundsM1: { total: number };
   kpis: {
-    // P1 HEADLINE - Utility Model (el negocio se gana o pierde en M1)
+    // P0 HEADLINE - Weekly Profit (el indicador más importante)
+    weeklyProfit: KpiValue;
+    // P1 - Payback M1
     paybackM1: KpiValue;
     // P2 - Accionables
     frr: KpiValue;

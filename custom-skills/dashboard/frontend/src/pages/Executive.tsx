@@ -195,7 +195,21 @@ export function Executive({ websiteId }: ExecutiveProps) {
           </div>
         )}
 
-        {/* P1 HEADLINE - Payback M1 (Cohorte 30-60d) */}
+        {/* P0 HEADLINE - Weekly Profit (el indicador más importante) */}
+        <div className="mb-6">
+          <KpiCard
+            title="Weekly Profit"
+            value={`€${(summary.kpis.weeklyProfit?.value || 0).toLocaleString()}`}
+            subtitle="Net Revenue - Ad Spend - €250 (costos fijos)"
+            status={summary.kpis.weeklyProfit?.status || 'yellow'}
+            reason={summary.kpis.weeklyProfit?.reason || 'Profit semanal'}
+            badge="P0 HEADLINE"
+            size="large"
+            tooltip="Ganancia neta semanal = Ingresos Netos - Gasto Ads - €250 (costos fijos). Si es >€5k verde, €2.5k-5k amarillo, <€2.5k rojo. Es el indicador MÁS IMPORTANTE del negocio."
+          />
+        </div>
+
+        {/* P1 - Payback M1 (Cohorte 30-60d) */}
         <div className="mb-6">
           <KpiCard
             title="Payback M1 (Cohorte)"
@@ -203,7 +217,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
             subtitle="Cohorte 30-60d atrás - M1 completado"
             status={summary.kpis.paybackM1?.status || 'yellow'}
             reason={summary.kpis.paybackM1?.reason || 'Payback cohorte M1'}
-            badge="HEADLINE"
+            badge="P1"
             size="large"
             tooltip="Cuánto recuperas por cada €1 invertido en el primer mes. Fórmula: (Trial + Subscripciones M1 - Refunds M1) / Gasto Ads. Si es < 1.0, pierdes dinero en M1 (normal en modelo utility)."
           />
