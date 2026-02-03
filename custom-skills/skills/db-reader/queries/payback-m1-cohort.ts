@@ -41,6 +41,9 @@ const RATE_CASE_ZI = buildCurrencyRateCase('inv.currency_code');
  * - first_rebills: Count of first rebills (for CPFR calculation)
  * - cpfr: Ad Spend / First Rebills (cohort-based)
  */
+/**
+ * OPTIMIZED: Uses JOINs instead of correlated subqueries for O(n) instead of O(n²)
+ */
 export const paybackM1CohortQuery: QueryBuilder = (websiteId?: number): QueryDefinition => {
   const websiteFilter = websiteId ? `AND c.website_id = ${websiteId}` : '';
   const adsWebsiteFilter = websiteId ? `AND camp.website_id = ${websiteId}` : '';
@@ -74,117 +77,94 @@ export const paybackM1CohortQuery: QueryBuilder = (websiteId?: number): QueryDef
         ) as cpfr_cohort
 
       FROM (
-        -- Cohort revenue calculation
+        -- Cohort calculation using pre-aggregated JOINs (OPTIMIZED)
         SELECT
           COUNT(DISTINCT c.id) as cohort_size,
-
-          -- Count of first rebills (customers who had at least one rebill)
-          SUM(
-            CASE WHEN EXISTS (
-              SELECT 1 FROM avocode.invoices i
-              WHERE i.customer_id = c.id
-                AND i.invoice_type_id = 2
-                AND i.invoice_status_id = 1
-                AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY)
-            ) THEN 1 ELSE 0 END
-          ) as first_rebills,
-
-          -- Trial revenue (invoice_type_id = 1)
-          ROUND(COALESCE(SUM(
-            (SELECT SUM(i.amount / ${RATE_CASE})
-             FROM avocode.invoices i
-             WHERE i.customer_id = c.id
-               AND i.invoice_type_id = 1
-               AND i.invoice_status_id = 1
-               AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY))
-          ), 0), 2) as trial_revenue_eur,
-
-          -- ALL subscription revenue in M1 (all type_id=2 invoices within 30 days, not just first)
-          -- This captures the total subscription revenue in M1, regardless of number of invoices
-          ROUND(COALESCE(SUM(
-            (SELECT SUM(i.amount / ${RATE_CASE})
-             FROM avocode.invoices i
-             WHERE i.customer_id = c.id
-               AND i.invoice_type_id = 2
-               AND i.invoice_status_id = 1
-               AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY))
-          ), 0), 2) as first_rebill_revenue_eur,
-
-          -- Refunds M1 (within 30 days of acquisition)
-          -- Type 3 refunds (non-Jackcode) + Zoho refunds (Jackcode)
-          ROUND(COALESCE(SUM(
-            -- Invoice type 3 refunds (Avocode/Kiwikode)
-            COALESCE((
-              SELECT SUM(i.amount / ${RATE_CASE})
-              FROM avocode.invoices i
-              WHERE i.customer_id = c.id
-                AND i.invoice_type_id = 3
-                AND i.invoice_status_id = 1
-                AND i.company_id != ${JACKCODE_COMPANY_ID}
-                AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY)
-            ), 0)
-            +
-            -- Zoho refunds (Jackcode)
-            COALESCE((
-              SELECT SUM(zr.amount / ${RATE_CASE_ZI})
-              FROM avocodebo.zoho_refunds zr
-              JOIN avocodebo.zoho_credit_notes zcn ON zcn.id = zr.zoho_credit_note_id
-              JOIN avocodebo.zoho_invoices zi ON zi.id = zcn.zoho_invoice_id
-              JOIN avocode.invoices inv ON inv.id = zi.invoice_id
-              WHERE inv.customer_id = c.id
-                AND inv.company_id = ${JACKCODE_COMPANY_ID}
-                AND zr.created_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY)
-            ), 0)
-          ), 0), 2) as refunds_m1_eur,
-
-          -- M1 Net Revenue = Trial + First Rebill - Refunds
+          COUNT(DISTINCT rebills.customer_id) as first_rebills,
+          ROUND(COALESCE(SUM(trial_rev.amount_eur), 0), 2) as trial_revenue_eur,
+          ROUND(COALESCE(SUM(m1_rev.amount_eur), 0), 2) as first_rebill_revenue_eur,
+          ROUND(COALESCE(SUM(COALESCE(ref.amount_eur, 0) + COALESCE(zref.amount_eur, 0)), 0), 2) as refunds_m1_eur,
           ROUND(
-            COALESCE(SUM(
-              -- Trial
-              COALESCE((
-                SELECT SUM(i.amount / ${RATE_CASE})
-                FROM avocode.invoices i
-                WHERE i.customer_id = c.id
-                  AND i.invoice_type_id = 1
-                  AND i.invoice_status_id = 1
-                  AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY)
-              ), 0)
-              +
-              -- ALL subscription revenue in M1
-              COALESCE((
-                SELECT SUM(i.amount / ${RATE_CASE})
-                FROM avocode.invoices i
-                WHERE i.customer_id = c.id
-                  AND i.invoice_type_id = 2
-                  AND i.invoice_status_id = 1
-                  AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY)
-              ), 0)
-              -
-              -- Refunds
-              COALESCE((
-                SELECT SUM(i.amount / ${RATE_CASE})
-                FROM avocode.invoices i
-                WHERE i.customer_id = c.id
-                  AND i.invoice_type_id = 3
-                  AND i.invoice_status_id = 1
-                  AND i.company_id != ${JACKCODE_COMPANY_ID}
-                  AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY)
-              ), 0)
-              -
-              COALESCE((
-                SELECT SUM(zr.amount / ${RATE_CASE_ZI})
-                FROM avocodebo.zoho_refunds zr
-                JOIN avocodebo.zoho_credit_notes zcn ON zcn.id = zr.zoho_credit_note_id
-                JOIN avocodebo.zoho_invoices zi ON zi.id = zcn.zoho_invoice_id
-                JOIN avocode.invoices inv ON inv.id = zi.invoice_id
-                WHERE inv.customer_id = c.id
-                  AND inv.company_id = ${JACKCODE_COMPANY_ID}
-                  AND zr.created_at <= DATE_ADD(c.create_time, INTERVAL 30 DAY)
-              ), 0)
-            ), 0),
-          2) as m1_net_revenue_eur
+            COALESCE(SUM(trial_rev.amount_eur), 0) +
+            COALESCE(SUM(m1_rev.amount_eur), 0) -
+            COALESCE(SUM(COALESCE(ref.amount_eur, 0) + COALESCE(zref.amount_eur, 0)), 0),
+            2
+          ) as m1_net_revenue_eur
 
         FROM avocode.customers c
+
+        -- Customers with at least one rebill in M1
+        LEFT JOIN (
+          SELECT DISTINCT i.customer_id
+          FROM avocode.invoices i
+          JOIN avocode.customers c2 ON i.customer_id = c2.id
+          WHERE i.invoice_type_id = 2
+            AND i.invoice_status_id = 1
+            AND i.transacted_at <= DATE_ADD(c2.create_time, INTERVAL 30 DAY)
+            AND c2.create_time >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            AND c2.create_time < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            ${websiteFilter.replace('c.website_id', 'c2.website_id')}
+        ) rebills ON rebills.customer_id = c.id
+
+        -- Trial revenue (type 1)
+        LEFT JOIN (
+          SELECT i.customer_id, SUM(i.amount / ${RATE_CASE}) as amount_eur
+          FROM avocode.invoices i
+          JOIN avocode.customers c2 ON i.customer_id = c2.id
+          WHERE i.invoice_type_id = 1
+            AND i.invoice_status_id = 1
+            AND i.transacted_at <= DATE_ADD(c2.create_time, INTERVAL 30 DAY)
+            AND c2.create_time >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            AND c2.create_time < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            ${websiteFilter.replace('c.website_id', 'c2.website_id')}
+          GROUP BY i.customer_id
+        ) trial_rev ON trial_rev.customer_id = c.id
+
+        -- M1 subscription revenue (type 2 within 30 days)
+        LEFT JOIN (
+          SELECT i.customer_id, SUM(i.amount / ${RATE_CASE}) as amount_eur
+          FROM avocode.invoices i
+          JOIN avocode.customers c2 ON i.customer_id = c2.id
+          WHERE i.invoice_type_id = 2
+            AND i.invoice_status_id = 1
+            AND i.transacted_at <= DATE_ADD(c2.create_time, INTERVAL 30 DAY)
+            AND c2.create_time >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            AND c2.create_time < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            ${websiteFilter.replace('c.website_id', 'c2.website_id')}
+          GROUP BY i.customer_id
+        ) m1_rev ON m1_rev.customer_id = c.id
+
+        -- Refunds type 3 (non-Jackcode)
+        LEFT JOIN (
+          SELECT i.customer_id, SUM(i.amount / ${RATE_CASE}) as amount_eur
+          FROM avocode.invoices i
+          JOIN avocode.customers c2 ON i.customer_id = c2.id
+          WHERE i.invoice_type_id = 3
+            AND i.invoice_status_id = 1
+            AND i.company_id != ${JACKCODE_COMPANY_ID}
+            AND i.transacted_at <= DATE_ADD(c2.create_time, INTERVAL 30 DAY)
+            AND c2.create_time >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            AND c2.create_time < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            ${websiteFilter.replace('c.website_id', 'c2.website_id')}
+          GROUP BY i.customer_id
+        ) ref ON ref.customer_id = c.id
+
+        -- Zoho refunds (Jackcode)
+        LEFT JOIN (
+          SELECT inv.customer_id, SUM(zr.amount / ${RATE_CASE_ZI}) as amount_eur
+          FROM avocodebo.zoho_refunds zr
+          JOIN avocodebo.zoho_credit_notes zcn ON zcn.id = zr.zoho_credit_note_id
+          JOIN avocodebo.zoho_invoices zi ON zi.id = zcn.zoho_invoice_id
+          JOIN avocode.invoices inv ON inv.id = zi.invoice_id
+          JOIN avocode.customers c2 ON inv.customer_id = c2.id
+          WHERE inv.company_id = ${JACKCODE_COMPANY_ID}
+            AND zr.created_at <= DATE_ADD(c2.create_time, INTERVAL 30 DAY)
+            AND c2.create_time >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            AND c2.create_time < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            ${websiteFilter.replace('c.website_id', 'c2.website_id')}
+          GROUP BY inv.customer_id
+        ) zref ON zref.customer_id = c.id
+
         WHERE c.create_time >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
           AND c.create_time < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
           ${websiteFilter}
