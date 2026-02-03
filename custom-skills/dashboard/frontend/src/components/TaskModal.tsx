@@ -71,16 +71,17 @@ export function TaskModal({ taskId, onClose, onUpdate }: Props) {
     }
   };
 
-  const handleStartRun = async () => {
-    if (!task) return;
-    try {
-      await api.startRun(taskId);
-      await loadTask();
-      onUpdate();
-    } catch (error) {
-      console.error('Failed to start run:', error);
-    }
-  };
+  // TODO: Re-enable when OpenClaw autonomous mode is ready
+  // const handleStartRun = async () => {
+  //   if (!task) return;
+  //   try {
+  //     await api.startRun(taskId);
+  //     await loadTask();
+  //     onUpdate();
+  //   } catch (error) {
+  //     console.error('Failed to start run:', error);
+  //   }
+  // };
 
   if (loading) {
     return (
