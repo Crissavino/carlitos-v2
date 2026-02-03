@@ -304,12 +304,19 @@ function calculateWeeklyProfit(netRevenueEur: number, adSpendEur: number): KpiRe
   let shortReason: string;
 
   if (weeklyProfit >= THRESHOLDS.WEEKLY_PROFIT_GREEN) {
+    // >= €5,000 = verde
     status = "green";
-    shortReason = `€${weeklyProfit.toFixed(0)} - Negocio rentable`;
+    shortReason = `€${weeklyProfit.toFixed(0)} - Excelente rentabilidad`;
   } else if (weeklyProfit >= THRESHOLDS.WEEKLY_PROFIT_YELLOW) {
+    // >= €2,500 = amarillo
     status = "yellow";
-    shortReason = `€${weeklyProfit.toFixed(0)} - Rentabilidad ajustada`;
+    shortReason = `€${weeklyProfit.toFixed(0)} - Rentabilidad moderada`;
+  } else if (weeklyProfit > 0) {
+    // > €0 pero < €2,500 = amarillo (hay ganancia, pero baja)
+    status = "yellow";
+    shortReason = `€${weeklyProfit.toFixed(0)} - Profit bajo (semana floja)`;
   } else {
+    // <= €0 = rojo (pérdida real)
     status = "red";
     shortReason = `€${weeklyProfit.toFixed(0)} - Negocio en pérdida`;
   }
@@ -796,13 +803,15 @@ export function determineBusinessStatus(kpis: CoreKpis): BusinessStatus {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // CRÍTICO: Condiciones de pérdida confirmada
+  // CRÍTICO: Solo si hay pérdida REAL (profit <= 0)
   // ─────────────────────────────────────────────────────────────────────────────
-  // 1. Weekly Profit < €2,500 (el negocio pierde plata)
-  // 2. Payback M1 < 0.90 (pérdida en M1)
-  // 3. Refund Rate M1 > 15% (refunds descontrolados)
+  // Weekly Profit <= 0 = pérdida real
+  // Payback M1 < 0.90 = pérdida en M1
+  // Refund Rate M1 > 15% = refunds descontrolados
+  //
+  // IMPORTANTE: Si hay profit > 0, NO es CRÍTICO aunque sea bajo
   // ─────────────────────────────────────────────────────────────────────────────
-  if (weeklyProfitValue < THRESHOLDS.WEEKLY_PROFIT_YELLOW) {
+  if (weeklyProfitValue <= 0) {
     return "CRÍTICO";
   }
   if (paybackM1Value < 0.90) {
