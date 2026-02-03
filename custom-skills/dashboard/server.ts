@@ -637,6 +637,44 @@ app.get("/api/business/daily", sessionAuth, async (req: Request, res: Response) 
 
 // GET /api/business/all-websites-payback
 // Returns Payback M1 for all websites (for comparison chart)
+// GET /api/business/customers?websiteId=1
+// Customer counts: total and active customers
+app.get("/api/business/customers", sessionAuth, async (req: Request, res: Response) => {
+  try {
+    const websiteIdParam = req.query.websiteId as string;
+    if (!websiteIdParam) {
+      res.status(400).json({
+        error: "WEBSITE_ID_REQUIRED",
+        validWebsiteIds: VALID_WEBSITE_IDS,
+      });
+      return;
+    }
+
+    const websiteId = validateWebsiteId(parseInt(websiteIdParam, 10));
+    const result = await executeQuery("customer-counts", websiteId);
+
+    if (result.status !== "success" || !result.results) {
+      res.status(500).json({ error: "Failed to fetch customer counts" });
+      return;
+    }
+
+    const row = (result.results as any[])[0] || {};
+
+    res.json({
+      success: true,
+      data: {
+        totalCustomers: parseInt(row.total_customers) || 0,
+        activeCustomers: parseInt(row.active_customers) || 0,
+        churnedCustomers: parseInt(row.churned_customers) || 0,
+        cancelledTrials: parseInt(row.cancelled_trials) || 0,
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: msg });
+  }
+});
+
 app.get("/api/business/all-websites-payback", sessionAuth, async (req: Request, res: Response) => {
   try {
     // Fetch metrics for all websites in parallel

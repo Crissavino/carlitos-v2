@@ -134,6 +134,14 @@ export interface AllWebsitesPayback {
   websites: WebsitePaybackData[];
 }
 
+// Customer Counts
+export interface CustomerCounts {
+  totalCustomers: number;
+  activeCustomers: number;
+  churnedCustomers: number;
+  cancelledTrials: number;
+}
+
 // ============================================================================
 // Tasks & Kanban
 // ============================================================================
@@ -325,6 +333,7 @@ export const api = {
   getSummary: (websiteId: number) => fetchAPI<BusinessSummary>(`/business/summary?websiteId=${websiteId}`),
   getSnapshots: (websiteId: number, days = 30) => fetchAPI<{ count: number; snapshots: Snapshot[] }>(`/snapshots?websiteId=${websiteId}&days=${days}`),
   getDecisions: (websiteId: number) => fetchAPI<DecisionCurrent>(`/decision/current?websiteId=${websiteId}`),
+  getCustomerCounts: (websiteId: number) => fetchAPI<CustomerCounts>(`/business/customers?websiteId=${websiteId}`),
   getDailyComparison: (websiteId: number) => fetchAPI<DailyComparison>(`/business/daily?websiteId=${websiteId}`),
   getAllWebsitesPayback: () => fetchAPI<AllWebsitesPayback>(`/business/all-websites-payback`),
 

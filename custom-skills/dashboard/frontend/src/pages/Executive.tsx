@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw, Clock } from 'lucide-react';
-import { api, type BusinessSummary, type Snapshot, type DecisionCurrent, type DailyComparison, type WebsiteId, type AllWebsitesPayback } from '../api/client';
+import { api, type BusinessSummary, type Snapshot, type DecisionCurrent, type DailyComparison, type WebsiteId, type AllWebsitesPayback, type CustomerCounts } from '../api/client';
 import { StatusBadge } from '../components/StatusBadge';
 import { KpiCard } from '../components/KpiCard';
 import { TrendChart } from '../components/TrendChart';
@@ -19,6 +19,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
   const [decisions, setDecisions] = useState<DecisionCurrent | null>(null);
   const [daily, setDaily] = useState<DailyComparison | null>(null);
   const [allWebsitesPayback, setAllWebsitesPayback] = useState<AllWebsitesPayback | null>(null);
+  const [customerCounts, setCustomerCounts] = useState<CustomerCounts | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -27,18 +28,20 @@ export function Executive({ websiteId }: ExecutiveProps) {
     setLoading(true);
     setError(null);
     try {
-      const [summaryData, snapshotsData, decisionsData, dailyData, paybackData] = await Promise.all([
+      const [summaryData, snapshotsData, decisionsData, dailyData, paybackData, customersData] = await Promise.all([
         api.getSummary(websiteId),
         api.getSnapshots(websiteId, 14),
         api.getDecisions(websiteId),
         api.getDailyComparison(websiteId),
         api.getAllWebsitesPayback(),
+        api.getCustomerCounts(websiteId),
       ]);
       setSummary(summaryData);
       setSnapshots(snapshotsData.snapshots);
       setDecisions(decisionsData);
       setDaily(dailyData);
       setAllWebsitesPayback(paybackData);
+      setCustomerCounts(customersData);
       setLastUpdate(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error cargando datos');
@@ -54,6 +57,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
     setDecisions(null);
     setDaily(null);
     setAllWebsitesPayback(null);
+    setCustomerCounts(null);
     setError(null);
 
     loadData();
@@ -122,7 +126,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
         </div>
 
         {/* Resumen Financiero */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
           <div className="bg-gray-900 rounded-xl p-4">
             <div className="text-sm text-gray-400">Ingresos Brutos</div>
             <div className="text-2xl font-bold text-green-400">€{summary.financials.grossRevenueEur.toLocaleString()}</div>
@@ -134,6 +138,14 @@ export function Executive({ websiteId }: ExecutiveProps) {
           <div className="bg-gray-900 rounded-xl p-4">
             <div className="text-sm text-gray-400">Gasto en Ads</div>
             <div className="text-2xl font-bold text-gray-400">€{summary.financials.adSpendEur.toLocaleString()}</div>
+          </div>
+          <div className="bg-gray-900 rounded-xl p-4" title="Total de clientes registrados (trials + suscriptos)">
+            <div className="text-sm text-gray-400">Total Clientes</div>
+            <div className="text-2xl font-bold text-blue-400">{customerCounts?.totalCustomers?.toLocaleString() || 0}</div>
+          </div>
+          <div className="bg-gray-900 rounded-xl p-4" title="Clientes con suscripción activa">
+            <div className="text-sm text-gray-400">Clientes Activos</div>
+            <div className="text-2xl font-bold text-green-400">{customerCounts?.activeCustomers?.toLocaleString() || 0}</div>
           </div>
           <div className="lg:row-span-1">
             <StatusBadge status={summary.businessStatus} size="lg" />

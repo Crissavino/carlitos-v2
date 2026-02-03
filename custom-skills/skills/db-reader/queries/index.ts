@@ -29,6 +29,7 @@ import {
   adSpend7dAgoQuery,
 } from "./daily-comparison.js";
 import { paybackM1CohortQuery } from "./payback-m1-cohort.js";
+import { customerCountsQuery } from "./customer-counts.js";
 
 // Query builders that support websiteId filtering
 export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
@@ -70,6 +71,8 @@ export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
   "payback-m1-cohort": paybackM1CohortQuery,
   // Phase 12: Keyword-level attribution
   "keyword-attribution": keywordAttributionQuery,
+  // Phase 13: Customer counts
+  "customer-counts": customerCountsQuery,
 };
 
 /**

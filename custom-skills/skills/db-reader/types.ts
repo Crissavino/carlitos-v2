@@ -36,7 +36,9 @@ export type AllowedQueryId =
   // Phase 11: Payback M1 Cohort (FIX - real cohort-based calculation)
   | "payback-m1-cohort"     // Payback M1 real por cohorte 30-60d
   // Phase 12: Keyword-level attribution using utm_term
-  | "keyword-attribution";   // Acquisitions/FirstRebills by keyword (utm_term)
+  | "keyword-attribution"   // Acquisitions/FirstRebills by keyword (utm_term)
+  // Phase 13: Customer counts for dashboard
+  | "customer-counts";      // Total and active customer counts
 
 export interface DBReaderRequest {
   query: AllowedQueryId;
