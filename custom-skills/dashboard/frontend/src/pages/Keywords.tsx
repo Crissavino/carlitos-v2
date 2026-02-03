@@ -1,13 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, Clock, AlertTriangle, TrendingUp, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
-import { api, type KeywordPerformanceResult, type KeywordsSummary, type KeywordsWasteResult, type KeywordsQueryParams } from '../api/client';
-import { KeywordsTable } from '../components/KeywordsTable';
-
-const MATCH_TYPE_COLORS: Record<string, string> = {
-  EXACT: 'bg-green-500/20 text-green-400 border-green-500/30',
-  PHRASE: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  BROAD: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-};
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { RefreshCw, Filter, AlertTriangle, X } from 'lucide-react';
+import { api, type KeywordPerformanceResult, type KeywordsSummary, type KeywordsWasteResult, type KeywordsQueryParams, type KeywordPerformance } from '../api/client';
+import { GoogleAdsHeader, type DateRange } from '../components/GoogleAdsHeader';
+import { PerformanceCards, type MetricCard } from '../components/PerformanceCards';
+import { GoogleAdsTable, type Column, MatchTypeBadge, ConversionCell, ActionBadge, PerformanceIndicator, StatusDot } from '../components/GoogleAdsTable';
 
 const PAGE_SIZE = 50;
 
@@ -19,12 +15,15 @@ export function Keywords() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  // Filters & Pagination (server-side)
+  // Filters
   const [page, setPage] = useState(1);
   const [filterCampaign, setFilterCampaign] = useState<string>('');
   const [filterMatchType, setFilterMatchType] = useState<string>('');
   const [showWasteOnly, setShowWasteOnly] = useState(false);
-  const [campaigns, setCampaigns] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange>('7d');
+
+  // Derived campaigns list
+  const [campaigns, setCampaigns] = useState<{ id: string; name: string }[]>([]);
 
   const loadKeywords = useCallback(async (params: KeywordsQueryParams) => {
     setLoading(true);
@@ -33,17 +32,17 @@ export function Keywords() {
       const keywordsData = await api.getKeywords({
         page: params.page || 1,
         limit: PAGE_SIZE,
-        hasSpend: true, // Only show keywords with spend
+        hasSpend: true,
         campaign: params.campaign || undefined,
         matchType: params.matchType || undefined,
       });
       setData(keywordsData);
       setLastUpdate(new Date());
 
-      // Extract unique campaigns from first load for filter dropdown
+      // Extract unique campaigns from first load
       if (!params.campaign && !params.matchType && params.page === 1) {
-        const uniqueCampaigns = [...new Set(keywordsData.keywords.map(k => k.campaignName))].sort();
-        setCampaigns(uniqueCampaigns);
+        const uniqueCampaigns = [...new Map(keywordsData.keywords.map(k => [k.campaignId, { id: k.campaignId, name: k.campaignName }])).values()];
+        setCampaigns(uniqueCampaigns.sort((a, b) => a.name.localeCompare(b.name)));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error cargando keywords');
@@ -61,35 +60,187 @@ export function Keywords() {
       setSummary(summaryData);
       setWaste(wasteData);
     } catch {
-      // Silently fail for summary/waste
+      // Silently fail
     }
   }, []);
 
-  // Load keywords when page or filters change
   useEffect(() => {
     loadKeywords({ page, campaign: filterCampaign, matchType: filterMatchType });
   }, [page, filterCampaign, filterMatchType, loadKeywords]);
 
-  // Load summary and waste once on mount
   useEffect(() => {
     loadSummaryAndWaste();
   }, [loadSummaryAndWaste]);
-
-  // Reset page when filters change
-  const handleFilterChange = (type: 'campaign' | 'matchType', value: string) => {
-    setPage(1);
-    if (type === 'campaign') setFilterCampaign(value);
-    if (type === 'matchType') setFilterMatchType(value);
-  };
 
   const handleRefresh = () => {
     loadKeywords({ page, campaign: filterCampaign, matchType: filterMatchType });
     loadSummaryAndWaste();
   };
 
+  const handleCampaignChange = (campaignId: string) => {
+    setPage(1);
+    setFilterCampaign(campaignId);
+  };
+
+  // Filter waste if toggle is on
+  const displayKeywords = useMemo(() => {
+    let keywords = data?.keywords || [];
+    if (showWasteOnly && waste) {
+      const wasteKeywordIds = new Set(waste.keywords.map(w => w.keyword.keywordId));
+      keywords = keywords.filter(k => wasteKeywordIds.has(k.keywordId));
+    }
+    return keywords;
+  }, [data, waste, showWasteOnly]);
+
+  // Build performance cards
+  const performanceCards: MetricCard[] = useMemo(() => {
+    if (!summary) return [];
+
+    // Calculate totals from filtered data if campaign selected
+    const keywords = data?.keywords || [];
+    const filteredTotals = filterCampaign ? {
+      clicks: keywords.reduce((sum, k) => sum + k.clicks, 0),
+      impressions: keywords.reduce((sum, k) => sum + k.impressions, 0),
+      spend: keywords.reduce((sum, k) => sum + k.spend7d, 0),
+      acquisitions: keywords.reduce((sum, k) => sum + (k.acquisitions || 0), 0),
+      firstRebills: keywords.reduce((sum, k) => sum + (k.firstRebills || 0), 0),
+    } : null;
+
+    const clicks = filteredTotals?.clicks ?? keywords.reduce((sum, k) => sum + k.clicks, 0);
+    const impressions = filteredTotals?.impressions ?? keywords.reduce((sum, k) => sum + k.impressions, 0);
+    const spend = filteredTotals?.spend ?? summary.totalSpend;
+    const acquisitions = filteredTotals?.acquisitions ?? keywords.reduce((sum, k) => sum + (k.acquisitions || 0), 0);
+    const firstRebills = filteredTotals?.firstRebills ?? keywords.reduce((sum, k) => sum + (k.firstRebills || 0), 0);
+    const cpfr = firstRebills > 0 ? spend / firstRebills : 0;
+
+    return [
+      { id: 'clicks', label: 'Clicks', value: clicks, color: 'blue' as const },
+      { id: 'impressions', label: 'Impr.', value: impressions, color: 'red' as const },
+      { id: 'cost', label: 'Costo', value: `€${spend.toFixed(0)}`, color: 'gray' as const },
+      { id: 'ctr', label: 'CTR', value: impressions > 0 ? `${((clicks / impressions) * 100).toFixed(2)}%` : '-', color: 'gray' as const },
+      { id: 'conversions', label: 'Acq/R1', value: `${acquisitions}/${firstRebills}`, color: 'green' as const, tooltip: 'Adquisiciones / Primer Rebill (de nuestra DB)' },
+      { id: 'cpfr', label: 'CPFR', value: cpfr > 0 ? `€${cpfr.toFixed(0)}` : '-', color: 'purple' as const, tooltip: 'Cost Per First Rebill' },
+    ];
+  }, [summary, data, filterCampaign]);
+
+  // Table columns - Google Ads style
+  const columns: Column<KeywordPerformance>[] = useMemo(() => [
+    {
+      id: 'status',
+      header: '',
+      accessor: () => <StatusDot active={true} />,
+      width: 'w-8',
+    },
+    {
+      id: 'keyword',
+      header: 'Keyword',
+      accessor: (row) => (
+        <div className="font-medium max-w-[200px] truncate" title={row.keywordText}>
+          {row.keywordText}
+        </div>
+      ),
+      sortAccessor: (row) => row.keywordText,
+    },
+    {
+      id: 'matchType',
+      header: 'Match type',
+      accessor: (row) => <MatchTypeBadge matchType={row.matchType} />,
+      sortAccessor: (row) => row.matchType,
+    },
+    {
+      id: 'adGroup',
+      header: 'Ad group',
+      accessor: (row) => (
+        <span className="text-gray-500 dark:text-gray-400 max-w-[120px] truncate block" title={row.adGroupName}>
+          {row.adGroupName}
+        </span>
+      ),
+    },
+    {
+      id: 'campaign',
+      header: 'Campaña',
+      accessor: (row) => (
+        <span className="text-gray-500 dark:text-gray-400 max-w-[150px] truncate block" title={row.campaignName}>
+          {row.campaignName}
+        </span>
+      ),
+    },
+    {
+      id: 'conversions',
+      header: 'Acq/R1',
+      accessor: (row) => (
+        <ConversionCell
+          acquisitions={row.acquisitions || 0}
+          firstRebills={row.firstRebills || 0}
+          attributionLevel={row.attributionLevel}
+        />
+      ),
+      sortAccessor: (row) => row.firstRebills || 0,
+      align: 'right',
+      tooltip: 'Adquisiciones / Primer Rebill (de nuestra DB)',
+    },
+    {
+      id: 'clicks',
+      header: 'Clicks',
+      accessor: (row) => row.clicks.toLocaleString(),
+      sortAccessor: (row) => row.clicks,
+      align: 'right',
+    },
+    {
+      id: 'impressions',
+      header: 'Impr.',
+      accessor: (row) => row.impressions.toLocaleString(),
+      sortAccessor: (row) => row.impressions,
+      align: 'right',
+    },
+    {
+      id: 'ctr',
+      header: 'CTR',
+      accessor: (row) => `${row.ctr.toFixed(2)}%`,
+      sortAccessor: (row) => row.ctr,
+      align: 'right',
+    },
+    {
+      id: 'cpc',
+      header: 'Avg. CPC',
+      accessor: (row) => `€${row.cpc.toFixed(2)}`,
+      sortAccessor: (row) => row.cpc,
+      align: 'right',
+    },
+    {
+      id: 'cost',
+      header: 'Costo',
+      accessor: (row) => `€${row.spend7d.toFixed(2)}`,
+      sortAccessor: (row) => row.spend7d,
+      align: 'right',
+    },
+    {
+      id: 'cpfr',
+      header: 'CPFR',
+      accessor: (row) => {
+        const cpfr = row.firstRebills && row.firstRebills > 0 ? row.spend7d / row.firstRebills : null;
+        return cpfr ? `€${cpfr.toFixed(0)}` : '-';
+      },
+      sortAccessor: (row) => row.firstRebills && row.firstRebills > 0 ? row.spend7d / row.firstRebills : 99999,
+      align: 'right',
+      tooltip: 'Cost Per First Rebill',
+    },
+    {
+      id: 'performance',
+      header: '',
+      accessor: (row) => <PerformanceIndicator status={row.performanceStatus} />,
+      width: 'w-8',
+    },
+    {
+      id: 'action',
+      header: 'Acción',
+      accessor: (row) => <ActionBadge action={row.recommendation} />,
+    },
+  ], []);
+
   if (loading && !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <RefreshCw className="w-8 h-8 animate-spin text-gray-500" />
       </div>
     );
@@ -97,14 +248,11 @@ export function Keywords() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="text-center">
           <div className="text-red-500 text-xl mb-4">Error</div>
           <div className="text-gray-400 mb-4">{error}</div>
-          <button
-            onClick={handleRefresh}
-            className="px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition"
-          >
+          <button onClick={handleRefresh} className="px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition">
             Reintentar
           </button>
         </div>
@@ -112,268 +260,172 @@ export function Keywords() {
     );
   }
 
-  // Filter by waste if checkbox is checked (client-side since waste comes from separate endpoint)
-  let displayKeywords = data?.keywords || [];
-  if (showWasteOnly && waste) {
-    const wasteKeywordIds = new Set(waste.keywords.map(w => w.keyword.keywordId));
-    displayKeywords = displayKeywords.filter(k => wasteKeywordIds.has(k.keywordId));
-  }
-
-  const pagination = data?.pagination;
-  const filteredCount = data?.filteredCount || 0;
-
   return (
-    <div className="min-h-screen p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <span className="text-4xl">🔑</span>
-            <div>
-              <h1 className="text-2xl font-bold">Keywords</h1>
-              <div className="text-sm text-gray-500 flex items-center gap-2">
-                <Clock className="w-3 h-3" />
-                {data?.dateRange || 'LAST_7_DAYS'} | {filteredCount} con gasto / {data?.totalKeywords || 0} total
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            {lastUpdate && (
-              <span className="text-xs text-gray-500">
-                Actualizado: {lastUpdate.toLocaleTimeString()}
-              </span>
-            )}
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
-              className="p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-6">
+      <div className="max-w-[1600px] mx-auto">
+        {/* Google Ads Header */}
+        <GoogleAdsHeader
+          title="Keywords"
+          subtitle={filterCampaign ? campaigns.find(c => c.id === filterCampaign)?.name : undefined}
+          campaigns={campaigns}
+          selectedCampaign={filterCampaign}
+          onCampaignChange={handleCampaignChange}
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          onRefresh={handleRefresh}
+          loading={loading}
+          lastUpdate={lastUpdate || undefined}
+          totalSpend={data?.totalSpend}
+          totalItems={data?.filteredCount || data?.totalKeywords}
+          currency="€"
+        />
 
-        {/* Summary Cards */}
-        {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            {/* Total Spend */}
-            <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-              <div className="text-sm text-gray-400 mb-1">Gasto Total (7d)</div>
-              <div className="text-2xl font-bold">{summary.totalSpend.toFixed(0)}</div>
-              <div className="text-xs text-gray-500">{summary.totalKeywords} keywords</div>
-            </div>
-
-            {/* Conversions */}
-            <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-sm text-green-400 mb-1">
-                <TrendingUp className="w-4 h-4" />
-                <span title="Conversiones reportadas por Google Ads (trials)">Con Conversiones</span>
-              </div>
-              <div className="text-2xl font-bold text-green-400">{summary.keywordsWithConversions}</div>
-              <div className="text-xs text-gray-500">
-                {((summary.keywordsWithConversions / summary.totalKeywords) * 100).toFixed(1)}% de keywords
-              </div>
-            </div>
-
-            {/* Zero Conversions */}
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-sm text-yellow-400 mb-1">
-                <AlertTriangle className="w-4 h-4" />
-                Sin Conversiones
-              </div>
-              <div className="text-2xl font-bold text-yellow-400">{summary.keywordsWithZeroConversions}</div>
-              <div className="text-xs text-gray-500">
-                {((summary.keywordsWithZeroConversions / summary.totalKeywords) * 100).toFixed(1)}% de keywords
-              </div>
-            </div>
-
-            {/* Waste */}
-            {waste && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-                <div className="text-sm text-red-400 mb-1">Gasto Desperdiciado</div>
-                <div className="text-2xl font-bold text-red-400">{waste.totalEstimatedWaste.toFixed(0)}</div>
-                <div className="text-xs text-gray-500">{waste.count} keywords marcadas</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Match Type Breakdown */}
-        {summary && summary.byMatchType && (
-          <div className="mb-6">
-            <div className="text-sm text-gray-400 uppercase tracking-wide mb-3">Por Tipo de Concordancia</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {Object.entries(summary.byMatchType).map(([matchType, stats]) => (
-                <div
-                  key={matchType}
-                  className={`rounded-xl p-4 border ${MATCH_TYPE_COLORS[matchType] || 'bg-gray-800/50 border-gray-700'}`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">{matchType}</span>
-                    <span className="text-sm">{stats.count} keywords</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <span className="text-gray-400">Gasto:</span>{' '}
-                      <span className="font-medium">{stats.spend.toFixed(0)}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400" title="Conversiones de Google Ads (trials)">Conv:</span>{' '}
-                      <span className="font-medium">{stats.conversions.toFixed(0)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Performance Cards */}
+        <PerformanceCards cards={performanceCards} />
 
         {/* Waste Alert */}
-        {waste && waste.count > 0 && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5" />
-              <div>
-                <div className="font-medium text-red-400 mb-1">
-                  {waste.count} keywords marcadas como desperdicio
-                </div>
-                <div className="text-sm text-gray-400 mb-2">
-                  Estimado {waste.totalEstimatedWaste.toFixed(2)} desperdiciado en los últimos 7 días
-                </div>
-                <div className="flex gap-4 text-xs">
-                  <span>Gasto alto, cero conv: {waste.byFlag.HIGH_SPEND_ZERO_CONV}</span>
-                  <span>Gasto alto, baja conv: {waste.byFlag.HIGH_SPEND_LOW_CONV}</span>
-                  <span>Concentración de gasto: {waste.byFlag.SPEND_CONCENTRATION}</span>
-                </div>
+        {waste && waste.count > 0 && !filterCampaign && (
+          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="font-medium text-red-800 dark:text-red-300">
+                {waste.count} keywords marcadas como desperdicio
+              </div>
+              <div className="text-sm text-red-600 dark:text-red-400 mt-1">
+                €{waste.totalEstimatedWaste.toFixed(0)} desperdiciado en los últimos 7 días
+              </div>
+              <div className="flex gap-4 mt-2 text-xs text-red-500 dark:text-red-400">
+                <span>Sin conv: {waste.byFlag.HIGH_SPEND_ZERO_CONV}</span>
+                <span>Baja conv: {waste.byFlag.HIGH_SPEND_LOW_CONV}</span>
+                <span>Concentrado: {waste.byFlag.SPEND_CONCENTRATION}</span>
               </div>
             </div>
+            <button
+              onClick={() => setShowWasteOnly(!showWasteOnly)}
+              className={`px-3 py-1.5 text-sm rounded transition ${
+                showWasteOnly
+                  ? 'bg-red-500 text-white'
+                  : 'bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700'
+              }`}
+            >
+              {showWasteOnly ? 'Ver todas' : 'Ver solo desperdicio'}
+            </button>
           </div>
         )}
 
-        {/* Filters */}
-        <div className="mb-4 flex flex-wrap gap-4 items-center">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-500" />
-            <span className="text-sm text-gray-500">Filtros:</span>
+        {/* Secondary Filters */}
+        <div className="mb-4 flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Filter className="w-4 h-4" />
+            <span>Filtros:</span>
           </div>
 
-          {/* Campaign Filter */}
-          <select
-            value={filterCampaign}
-            onChange={(e) => handleFilterChange('campaign', e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-gray-600"
-          >
-            <option value="">Todas las Campañas</option>
-            {campaigns.map((c) => (
-              <option key={c} value={c}>
-                {c.length > 40 ? c.substring(0, 40) + '...' : c}
-              </option>
-            ))}
-          </select>
-
-          {/* Match Type Filter */}
+          {/* Match Type */}
           <select
             value={filterMatchType}
-            onChange={(e) => handleFilterChange('matchType', e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-gray-600"
+            onChange={(e) => { setPage(1); setFilterMatchType(e.target.value); }}
+            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1.5 text-sm"
           >
-            <option value="">Todos los Tipos</option>
+            <option value="">Todos los tipos</option>
             <option value="EXACT">EXACT</option>
             <option value="PHRASE">PHRASE</option>
             <option value="BROAD">BROAD</option>
           </select>
 
-          {/* Waste Filter */}
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showWasteOnly}
-              onChange={(e) => setShowWasteOnly(e.target.checked)}
-              className="rounded border-gray-600 bg-gray-800 text-red-500 focus:ring-red-500"
-            />
-            <span className="text-gray-400">Solo desperdicio</span>
-          </label>
-
-          {/* Result count */}
-          <span className="text-sm text-gray-500 ml-auto">
-            Mostrando {displayKeywords.length} keywords (página {page} de {pagination?.totalPages || 1})
-          </span>
-        </div>
-
-        {/* Keywords Table */}
-        <div className="mb-6">
-          <KeywordsTable
-            keywords={displayKeywords}
-            wasteData={waste?.keywords}
-            loading={loading}
-          />
-        </div>
-
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={!pagination.hasPrev || loading}
-              className="flex items-center gap-1 px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Anterior
-            </button>
-
+          {/* Active filters badges */}
+          {(filterCampaign || filterMatchType || showWasteOnly) && (
             <div className="flex items-center gap-2">
-              {/* Page numbers */}
-              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                let pageNum: number;
-                if (pagination.totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (page <= 3) {
-                  pageNum = i + 1;
-                } else if (page >= pagination.totalPages - 2) {
-                  pageNum = pagination.totalPages - 4 + i;
-                } else {
-                  pageNum = page - 2 + i;
-                }
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setPage(pageNum)}
-                    disabled={loading}
-                    className={`w-10 h-10 rounded-lg transition ${
-                      page === pageNum
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-800 hover:bg-gray-700'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
+              {filterCampaign && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs">
+                  Campaña: {campaigns.find(c => c.id === filterCampaign)?.name.substring(0, 20)}...
+                  <button onClick={() => handleCampaignChange('')}><X className="w-3 h-3" /></button>
+                </span>
+              )}
+              {filterMatchType && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs">
+                  {filterMatchType}
+                  <button onClick={() => { setPage(1); setFilterMatchType(''); }}><X className="w-3 h-3" /></button>
+                </span>
+              )}
+              {showWasteOnly && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded text-xs">
+                  Solo desperdicio
+                  <button onClick={() => setShowWasteOnly(false)}><X className="w-3 h-3" /></button>
+                </span>
+              )}
             </div>
+          )}
 
-            <button
-              onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
-              disabled={!pagination.hasNext || loading}
-              className="flex items-center gap-1 px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Siguiente
-              <ChevronRight className="w-4 h-4" />
-            </button>
+          {/* Results count */}
+          <div className="ml-auto text-sm text-gray-500">
+            {displayKeywords.length} keywords
+            {data?.pagination && ` (pág ${data.pagination.page}/${data.pagination.totalPages})`}
+          </div>
+        </div>
+
+        {/* Match Type Summary */}
+        {summary?.byMatchType && !filterCampaign && (
+          <div className="mb-4 flex gap-3">
+            {Object.entries(summary.byMatchType).map(([matchType, stats]) => (
+              <button
+                key={matchType}
+                onClick={() => { setPage(1); setFilterMatchType(filterMatchType === matchType ? '' : matchType); }}
+                className={`px-4 py-2 rounded-lg border text-sm transition ${
+                  filterMatchType === matchType
+                    ? 'bg-blue-500 text-white border-blue-600'
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500'
+                }`}
+              >
+                <span className="font-medium">{matchType}</span>
+                <span className="text-gray-500 dark:text-gray-400 ml-2">{stats.count}</span>
+              </button>
+            ))}
           </div>
         )}
 
+        {/* Data Table */}
+        <GoogleAdsTable
+          columns={columns}
+          data={displayKeywords}
+          keyAccessor={(row) => row.keywordId}
+          loading={loading}
+          pagination={data?.pagination}
+          onPageChange={setPage}
+          defaultSortColumn="cost"
+          defaultSortDirection="desc"
+          emptyMessage="No hay keywords con gasto en este periodo"
+        />
+
         {/* Legend */}
-        <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
-          <div className="text-sm text-gray-400 mb-2">Indicadores de Desperdicio</div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-500">
-            <div>
-              <span className="text-red-400 font-medium">GASTO_ALTO_CERO_CONV</span>: Gasto &gt; 50, cero conversiones
+        <div className="mt-6 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">Leyenda</div>
+          <div className="flex flex-wrap gap-6 text-xs">
+            <div className="flex items-center gap-2">
+              <MatchTypeBadge matchType="EXACT" />
+              <span className="text-gray-500">Coincidencia exacta</span>
             </div>
-            <div>
-              <span className="text-yellow-400 font-medium">GASTO_ALTO_BAJA_CONV</span>: Gasto alto, tasa conv &lt; 1%
+            <div className="flex items-center gap-2">
+              <MatchTypeBadge matchType="PHRASE" />
+              <span className="text-gray-500">Frase</span>
             </div>
-            <div>
-              <span className="text-orange-400 font-medium">CONCENTRACIÓN_GASTO</span>: &gt;50% del gasto del grupo sin retorno
+            <div className="flex items-center gap-2">
+              <MatchTypeBadge matchType="BROAD" />
+              <span className="text-gray-500">Amplia</span>
+            </div>
+            <div className="flex items-center gap-2 border-l pl-6 border-gray-200 dark:border-gray-700">
+              <span className="text-blue-600">Acq</span>
+              <span className="text-gray-400">=</span>
+              <span className="text-gray-500">Trials</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-green-600">R1</span>
+              <span className="text-gray-400">=</span>
+              <span className="text-gray-500">Primer Rebill (de nuestra DB)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-purple-600">CPFR</span>
+              <span className="text-gray-400">=</span>
+              <span className="text-gray-500">Cost / R1</span>
             </div>
           </div>
         </div>
