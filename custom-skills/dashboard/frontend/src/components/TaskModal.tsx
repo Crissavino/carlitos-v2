@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Bot, User, Tag, Play, MessageSquare, FileText, Send } from 'lucide-react';
+import { X, Bot, User, Tag, Play, MessageSquare, FileText, Send, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { api, type TaskDetails, type TaskStatus } from '../api/client';
 
@@ -30,6 +30,7 @@ export function TaskModal({ taskId, onClose, onUpdate }: Props) {
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'runs' | 'artifacts'>('details');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     loadTask();
@@ -82,6 +83,18 @@ export function TaskModal({ taskId, onClose, onUpdate }: Props) {
   //     console.error('Failed to start run:', error);
   //   }
   // };
+
+  const handleCopyTask = async () => {
+    if (!task) return;
+    const text = `# ${task.title}\n\n${task.description || ''}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
+  };
 
   if (loading) {
     return (
@@ -136,14 +149,28 @@ export function TaskModal({ taskId, onClose, onUpdate }: Props) {
               ))}
             </select>
           </div>
-          <button
-            disabled
-            title="Próximamente: ejecución autónoma con OpenClaw"
-            className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-gray-700 text-gray-400 rounded text-sm cursor-not-allowed opacity-50"
-          >
-            <Play className="w-4 h-4" />
-            Ejecutar con OpenClaw
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={handleCopyTask}
+              title="Copiar tarea al portapapeles"
+              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm transition-colors ${
+                copied
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+              }`}
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copiado' : 'Copiar'}
+            </button>
+            <button
+              disabled
+              title="Próximamente: ejecución autónoma con OpenClaw"
+              className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 text-gray-400 rounded text-sm cursor-not-allowed opacity-50"
+            >
+              <Play className="w-4 h-4" />
+              Ejecutar con OpenClaw
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
