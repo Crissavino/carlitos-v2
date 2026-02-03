@@ -47,6 +47,7 @@ import {
   THRESHOLDS,
   CPFR_GREEN,
   CPFR_YELLOW,
+  getWebsiteThresholds,
 } from "../types.js";
 
 // Minimum sample size for LTV to be considered reliable
@@ -203,19 +204,20 @@ export async function fetchRawMetrics(websiteId: number): Promise<RawMetrics | n
 // KPI CALCULATIONS
 // ============================================================================
 
-function calculateFRR(firstRebills: number, trials: number): KpiResult {
+function calculateFRR(firstRebills: number, trials: number, websiteId: number): KpiResult {
   if (trials === 0) {
     return { value: 0, status: "red", shortReason: "Sin trials" };
   }
 
   const frr = firstRebills / trials;
+  const thresholds = getWebsiteThresholds(websiteId);
   let status: KpiStatus;
   let shortReason: string;
 
-  if (frr >= THRESHOLDS.FRR_GREEN) {
+  if (frr >= thresholds.frr.green) {
     status = "green";
     shortReason = `${(frr * 100).toFixed(1)}% - Adquisición de calidad`;
-  } else if (frr >= THRESHOLDS.FRR_YELLOW) {
+  } else if (frr >= thresholds.frr.yellow) {
     status = "yellow";
     shortReason = `${(frr * 100).toFixed(1)}% - Calidad en riesgo`;
   } else {
@@ -226,7 +228,7 @@ function calculateFRR(firstRebills: number, trials: number): KpiResult {
   return { value: Math.round(frr * 1000) / 1000, status, shortReason };
 }
 
-function calculateCPFR(totalAdSpend: number, firstRebills: number): KpiResult {
+function calculateCPFR(totalAdSpend: number, firstRebills: number, websiteId: number): KpiResult {
   if (firstRebills === 0) {
     if (totalAdSpend === 0) {
       return { value: 0, status: "green", shortReason: "Sin gasto en ads" };
@@ -235,13 +237,14 @@ function calculateCPFR(totalAdSpend: number, firstRebills: number): KpiResult {
   }
 
   const cpfr = totalAdSpend / firstRebills;
+  const thresholds = getWebsiteThresholds(websiteId);
   let status: KpiStatus;
   let shortReason: string;
 
-  if (cpfr <= CPFR_GREEN) {
+  if (cpfr <= thresholds.cpfr.green) {
     status = "green";
     shortReason = `€${cpfr.toFixed(0)} - CAC eficiente`;
-  } else if (cpfr <= CPFR_YELLOW) {
+  } else if (cpfr <= thresholds.cpfr.yellow) {
     status = "yellow";
     shortReason = `€${cpfr.toFixed(0)} - CAC en zona límite`;
   } else {
@@ -254,25 +257,53 @@ function calculateCPFR(totalAdSpend: number, firstRebills: number): KpiResult {
 
 function calculateSRR(secondRebills: number, firstRebillsCohorte30d: number): KpiResult {
   if (firstRebillsCohorte30d === 0) {
-    return { value: 0, status: "yellow", shortReason: "Sin datos de cohorte" };
+    return { value: 0, status: "yellow", shortReason: "Sin datos de cohorte", isInformative: true };
   }
 
   const srr = secondRebills / firstRebillsCohorte30d;
+  // En modelo UTILITY, SRR siempre es informativo (no genera alertas)
+  // SRR ~45-50% es ESTRUCTURAL, no un problema
+
+  let shortReason: string;
+  if (srr >= THRESHOLDS.SRR_GREEN) {
+    shortReason = `${(srr * 100).toFixed(1)}% - Excepcional para utility`;
+  } else if (srr >= THRESHOLDS.SRR_YELLOW) {
+    shortReason = `${(srr * 100).toFixed(1)}% - Normal alto`;
+  } else {
+    shortReason = `${(srr * 100).toFixed(1)}% - Normal en utility (M2 estructuralmente bajo)`;
+  }
+
+  // Status es solo visual, no genera alertas
+  const status: KpiStatus = srr >= THRESHOLDS.SRR_GREEN ? "green" :
+                            srr >= THRESHOLDS.SRR_YELLOW ? "yellow" : "yellow"; // Nunca rojo en utility
+
+  return { value: Math.round(srr * 1000) / 1000, status, shortReason, isInformative: true };
+}
+
+/**
+ * Weekly Profit - P0 HEADLINE (modelo utility)
+ * WeeklyProfit = Net Revenue (7d) - Ad Spend (7d) - €250 (fixed costs)
+ *
+ * Este es EL indicador más importante del negocio.
+ */
+function calculateWeeklyProfit(netRevenueEur: number, adSpendEur: number): KpiResult {
+  const weeklyProfit = netRevenueEur - adSpendEur - THRESHOLDS.WEEKLY_FIXED_COSTS;
+
   let status: KpiStatus;
   let shortReason: string;
 
-  if (srr >= THRESHOLDS.SRR_GREEN) {
+  if (weeklyProfit >= THRESHOLDS.WEEKLY_PROFIT_GREEN) {
     status = "green";
-    shortReason = `${(srr * 100).toFixed(1)}% - Retención sólida`;
-  } else if (srr >= THRESHOLDS.SRR_YELLOW) {
+    shortReason = `€${weeklyProfit.toFixed(0)} - Negocio rentable`;
+  } else if (weeklyProfit >= THRESHOLDS.WEEKLY_PROFIT_YELLOW) {
     status = "yellow";
-    shortReason = `${(srr * 100).toFixed(1)}% - Retención en riesgo`;
+    shortReason = `€${weeklyProfit.toFixed(0)} - Rentabilidad ajustada`;
   } else {
     status = "red";
-    shortReason = `${(srr * 100).toFixed(1)}% - Retención crítica`;
+    shortReason = `€${weeklyProfit.toFixed(0)} - Negocio en pérdida`;
   }
 
-  return { value: Math.round(srr * 1000) / 1000, status, shortReason };
+  return { value: Math.round(weeklyProfit * 100) / 100, status, shortReason };
 }
 
 function calculateUR2(usersWithUsage: number, firstRebillsCohorte30d: number): KpiResult {
@@ -641,7 +672,9 @@ function calculateCPT(totalAdSpend: number, trials: number): KpiResult {
 }
 
 export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
-  const cpfr = calculateCPFR(raw.totalAdSpendEur, raw.firstRebills);
+  // Usar thresholds por website para FRR y CPFR
+  const websiteId = raw.websiteId;
+  const cpfr = calculateCPFR(raw.totalAdSpendEur, raw.firstRebills, websiteId);
   const ltv30d = calculateLtv30d(raw.ltv30d, raw.ltv30dSampleSize);
 
   // LTV ventanas correctas (Phase 6.1)
@@ -651,9 +684,9 @@ export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
     ? calculateLtv81d(raw.ltv81d, raw.ltv81dCohortSize ?? 0)
     : undefined;
 
-  // SRR y U-R2 son informativos (no generan alertas)
+  // SRR y U-R2 son informativos (no generan alertas en modelo utility)
   const srr = calculateSRR(raw.secondRebills, raw.firstRebillsCohorte30d);
-  srr.isInformative = true; // Modelo utility: M2+ bajo es normal
+  // srr ya tiene isInformative = true en calculateSRR
 
   const ur2 = calculateUR2(raw.usersWithUsageBeforeRebill2, raw.firstRebillsCohorte30d);
   ur2.isInformative = true; // Diagnóstica, no alerta
@@ -673,7 +706,11 @@ export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
   if (payback81d) payback81d.isInformative = true;
 
   return {
-    frr: calculateFRR(raw.firstRebills, raw.trials),
+    // P0 - Weekly Profit (HEADLINE - modelo utility)
+    weeklyProfit: calculateWeeklyProfit(raw.netRevenueEur, raw.totalAdSpendEur),
+
+    // P1 - FRR con thresholds por website
+    frr: calculateFRR(raw.firstRebills, raw.trials, websiteId),
     cpfr,
     srr,
     ur2,
@@ -714,37 +751,49 @@ export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
 
 export function determineBusinessStatus(kpis: CoreKpis): BusinessStatus {
   // ============================================================================
-  // MODELO UTILITY: El estado del negocio se basa SOLO en Payback M1 + Refunds M1
+  // MODELO UTILITY: JERARQUÍA DE DECISIÓN
   // ============================================================================
   //
-  // REGLA SOBERANA: Payback M1 GREEN (>= 1.20) siempre gana.
-  // No puede existir CRÍTICO con Payback M1 >= 1.20
+  // P0. Weekly Profit: Si es verde (>€5k), el negocio está bien
+  // P1. Payback M1: Si es verde (>=1.20), el negocio está bien
+  // P2. Weekly Profit rojo (<€2.5k) → CRÍTICO (perdiendo plata)
+  // P3. Payback M1 < 0.90 → CRÍTICO
+  // P4. Refund Rate M1 > 15% → CRÍTICO
   //
-  // KPIs que NO afectan el estado:
-  // - SRR, U-R2, Payback 30d/51d/90d, CPT, FRR, CPFR (solo contexto)
-  // - Conteos de clientes (Total/Activos)
+  // KPIs que NO afectan el estado (solo contexto):
+  // - SRR, U-R2, Payback 30d/51d/90d, CPT
+  // - FRR, CPFR (alertas pero no cambian estado si profit es bueno)
+  //
   // ============================================================================
 
+  const weeklyProfitValue = kpis.weeklyProfit.value;
   const paybackM1Value = kpis.paybackM1.value;
   const refundRateM1Value = kpis.refundRateM1.value;
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // ESTABLE: Payback M1 >= 1.20 SIEMPRE gana (modelo rentable en M1)
+  // ESTABLE: Weekly Profit verde O Payback M1 verde
   // ─────────────────────────────────────────────────────────────────────────────
+  // Si el negocio genera >€5k/semana de profit, está bien aunque otros KPIs
+  // estén en amarillo. El profit real es lo que importa.
+  if (weeklyProfitValue >= THRESHOLDS.WEEKLY_PROFIT_GREEN) {
+    return "ESTABLE";
+  }
+
+  // Payback M1 verde también indica negocio estable
   if (paybackM1Value >= 1.20) {
-    // Payback M1 verde = ESTABLE, sin importar otros KPIs
-    // FRR, CPFR, SRR pueden estar amarillos/rojos sin degradar el estado
     return "ESTABLE";
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // CRÍTICO: Solo si se cumple AL MENOS UNA de estas condiciones
+  // CRÍTICO: Condiciones de pérdida confirmada
   // ─────────────────────────────────────────────────────────────────────────────
-  // 1. Payback M1 < 0.90 (pérdida confirmada en M1)
-  // 2. Refund Rate M1 > 15%
-  //
-  // ⚠️ CPFR, FRR, ROAS NO pueden por sí solos llevar a CRÍTICO
+  // 1. Weekly Profit < €2,500 (el negocio pierde plata)
+  // 2. Payback M1 < 0.90 (pérdida en M1)
+  // 3. Refund Rate M1 > 15% (refunds descontrolados)
   // ─────────────────────────────────────────────────────────────────────────────
+  if (weeklyProfitValue < THRESHOLDS.WEEKLY_PROFIT_YELLOW) {
+    return "CRÍTICO";
+  }
   if (paybackM1Value < 0.90) {
     return "CRÍTICO";
   }
@@ -753,8 +802,15 @@ export function determineBusinessStatus(kpis: CoreKpis): BusinessStatus {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // EN RIESGO: Payback M1 entre 0.90 y 1.19, o Refund Rate M1 entre 8% y 15%
+  // EN RIESGO: Métricas en zona amarilla
   // ─────────────────────────────────────────────────────────────────────────────
+  // - Weekly Profit €2.5k-5k
+  // - Payback M1 0.90-1.19
+  // - Refund Rate M1 8-15%
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (weeklyProfitValue >= THRESHOLDS.WEEKLY_PROFIT_YELLOW && weeklyProfitValue < THRESHOLDS.WEEKLY_PROFIT_GREEN) {
+    return "EN RIESGO";
+  }
   if (paybackM1Value >= 0.90 && paybackM1Value < 1.20) {
     return "EN RIESGO";
   }
@@ -762,7 +818,7 @@ export function determineBusinessStatus(kpis: CoreKpis): BusinessStatus {
     return "EN RIESGO";
   }
 
-  // Net ROAS < 1.2 acompaña pero no domina (solo si llegamos aquí)
+  // Net ROAS < 1.2 es warning pero no crítico
   if (kpis.netRoas.value < 1.2) {
     return "EN RIESGO";
   }
@@ -777,43 +833,72 @@ export function determineBusinessStatus(kpis: CoreKpis): BusinessStatus {
 export function generateAlerts(kpis: CoreKpis): Alert[] {
   const alerts: Alert[] = [];
 
-  // ALERTA 1: Payback M1 en rojo (HEADLINE - modelo utility)
-  if (kpis.paybackM1.status === "red") {
+  // ============================================================================
+  // JERARQUÍA DE ALERTAS - MODELO UTILITY
+  // ============================================================================
+  // 1. Weekly Profit rojo → CRÍTICO (el negocio pierde plata)
+  // 2. FRR rojo → CRÍTICO (adquisición de baja calidad)
+  // 3. CPFR rojo → NO ESCALAR (warning)
+  // 4. ROAS rojo → OPTIMIZAR
+  // 5. SRR → NUNCA alerta (M2+ bajo es estructural)
+  // ============================================================================
+
+  // P0: Weekly Profit en rojo - MÁXIMA PRIORIDAD
+  if (kpis.weeklyProfit.status === "red") {
     alerts.push({
-      type: "payback_red",
+      type: "weekly_profit_red",
       severity: "critical",
-      message: `Payback M1 ${kpis.paybackM1.value.toFixed(2)}x: Pérdida en primer mes. Revisar adquisición urgente.`,
+      message: `Weekly Profit €${kpis.weeklyProfit.value.toFixed(0)}: Negocio en pérdida. Acción urgente.`,
     });
   }
 
-  // ALERTA 2: FRR en rojo
+  // P1: FRR en rojo
   if (kpis.frr.status === "red") {
     alerts.push({
       type: "frr_red",
       severity: "critical",
-      message: "FRR en rojo: Adquisición de baja calidad. Revisar fuentes de tráfico.",
+      message: `FRR ${(kpis.frr.value * 100).toFixed(1)}%: Adquisición de baja calidad. Revisar tráfico.`,
     });
   }
 
-  // ALERTA 3: CPFR en rojo
+  // P2: CPFR en rojo - NO ESCALAR (pero no es crítico si hay profit)
   if (kpis.cpfr.status === "red") {
     alerts.push({
       type: "cpfr_red",
       severity: "critical",
-      message: "CPFR en rojo: Costo de adquisición insostenible. No escalar.",
+      message: `CPFR €${kpis.cpfr.value.toFixed(0)}: CAC alto. No escalar hasta optimizar.`,
     });
   }
 
-  // ALERTA 4: Refund Rate M1 alto
+  // P3: ROAS en rojo - OPTIMIZAR
+  if (kpis.netRoas.status === "red") {
+    alerts.push({
+      type: "roas_red",
+      severity: "critical",
+      message: `ROAS ${kpis.netRoas.value.toFixed(2)}x: Eficiencia baja. Optimizar campañas.`,
+    });
+  }
+
+  // P4: Payback M1 en rojo (pérdida en M1)
+  if (kpis.paybackM1.status === "red") {
+    alerts.push({
+      type: "payback_red",
+      severity: "critical",
+      message: `Payback M1 ${kpis.paybackM1.value.toFixed(2)}x: Pérdida en primer mes.`,
+    });
+  }
+
+  // P5: Refund Rate M1 alto
   if (kpis.refundRateM1.status === "red") {
     alerts.push({
       type: "refund_m1_red",
       severity: "critical",
-      message: `Refund Rate M1 ${(kpis.refundRateM1.value * 100).toFixed(1)}%: Refunds críticos. Revisar calidad de producto/tráfico.`,
+      message: `Refund Rate M1 ${(kpis.refundRateM1.value * 100).toFixed(1)}%: Refunds descontrolados.`,
     });
   }
 
-  // NOTA: SRR, U-R2, y Payback legacy NO generan alertas (isInformative = true)
+  // NOTA: SRR y U-R2 NUNCA generan alertas en modelo utility
+  // M2+ bajo es estructural, no un problema
 
   return alerts;
 }

@@ -160,41 +160,109 @@ export interface CoreKpis {
    * NO usar para business status ni alertas.
    */
   cashflowCoverage7d?: KpiResult;
+
+  // ============================================================================
+  // WEEKLY PROFIT - KPI PRINCIPAL MODELO UTILITY
+  // ============================================================================
+
+  /**
+   * Weekly Profit - P0 HEADLINE
+   * WeeklyProfit = Net Revenue (7d) - Ad Spend (7d) - €250 (fixed costs)
+   *
+   * Este es EL indicador más importante del negocio.
+   * Si hay profit, el negocio está bien aunque otros KPIs estén en amarillo.
+   *
+   * Thresholds:
+   * - Verde: > €5,000/semana
+   * - Amarillo: €2,500 - €5,000/semana
+   * - Rojo: < €2,500/semana
+   */
+  weeklyProfit: KpiResult;
 }
 
 // ============================================================================
-// THRESHOLDS (SEMÁFOROS)
+// THRESHOLDS (SEMÁFOROS) - MODELO UTILITY
+// ============================================================================
+//
+// IMPORTANTE: Este es un negocio de UTILITY SITES (PDF tools), NO SaaS tradicional
+// - Trial corto (24-48h) → subscription €40/mes
+// - Usuarios con problema puntual → usa 1 vez → se va
+// - M2 es estructuralmente difícil (no es churn evitable)
+// - El negocio gana plata con M1, M2+ es bonus
+//
+// ============================================================================
+
+// ============================================================================
+// THRESHOLDS PER WEBSITE (mercados diferentes)
+// ============================================================================
+
+export interface WebsiteThresholds {
+  frr: { green: number; yellow: number };  // >= green = verde, >= yellow = amarillo, < yellow = rojo
+  cpfr: { green: number; yellow: number }; // <= green = verde, <= yellow = amarillo, > yellow = rojo
+}
+
+export const WEBSITE_THRESHOLDS: Record<number, WebsiteThresholds> = {
+  // ConversiePDF (RO/PL) - Mercado maduro, FRR más alto
+  1: {
+    frr: { green: 0.45, yellow: 0.35 },   // Verde ≥45%, Amarillo 35-44%, Rojo <35%
+    cpfr: { green: 60, yellow: 80 },       // Verde ≤€60, Amarillo ≤€80, Rojo >€80
+  },
+  // ConviertePDF (CL/BR) - Mercado emergente, más difícil
+  3: {
+    frr: { green: 0.35, yellow: 0.25 },   // Verde ≥35%, Amarillo 25-34%, Rojo <25%
+    cpfr: { green: 100, yellow: 130 },     // Verde ≤€100, Amarillo ≤€130, Rojo >€130
+  },
+  // DeviceFinder - Similar a Convierte
+  4: {
+    frr: { green: 0.35, yellow: 0.25 },   // Verde ≥35%, Amarillo 25-34%, Rojo <25%
+    cpfr: { green: 80, yellow: 100 },      // Verde ≤€80, Amarillo ≤€100, Rojo >€100
+  },
+};
+
+// Default thresholds (fallback)
+export const DEFAULT_THRESHOLDS: WebsiteThresholds = {
+  frr: { green: 0.35, yellow: 0.25 },
+  cpfr: { green: 80, yellow: 100 },
+};
+
+export function getWebsiteThresholds(websiteId: number): WebsiteThresholds {
+  return WEBSITE_THRESHOLDS[websiteId] || DEFAULT_THRESHOLDS;
+}
+
+// ============================================================================
+// THRESHOLDS GLOBALES (no varían por website)
 // ============================================================================
 
 export const THRESHOLDS = {
-  // FRR: First Rebill Rate
-  FRR_GREEN: 0.35, // ≥ 35%
-  FRR_YELLOW: 0.25, // 25%–34%
-  // < 25% = red
-
-  // CPFR: Cost per First Rebill
-  // Ahora se valida contra LTV real, no TARGET_LTV
-  // Verde: CPFR < LTV * 0.6 (Payback > 1.67)
-  // Amarillo: CPFR < LTV * 0.8 (Payback > 1.25)
-  // Rojo: CPFR >= LTV * 0.8 (Payback <= 1.25)
+  // FRR/CPFR: Ahora usa WEBSITE_THRESHOLDS, estos son legacy/fallback
+  FRR_GREEN: 0.35, // DEPRECATED: usar getWebsiteThresholds()
+  FRR_YELLOW: 0.25,
   TARGET_LTV: 150, // EUR - fallback si no hay LTV real
   CPFR_GREEN_FACTOR: 0.6,
   CPFR_YELLOW_FACTOR: 0.8,
 
-  // SRR: Second Rebill Rate
-  SRR_GREEN: 0.70, // ≥ 70%
+  // SRR: Second Rebill Rate - INFORMATIVO EN MODELO UTILITY
+  // SRR bajo (~45-50%) es ESTRUCTURAL, no un bug
+  // No genera alertas ni afecta el estado del negocio
+  SRR_GREEN: 0.70, // ≥ 70% (raro en utility)
   SRR_YELLOW: 0.55, // 55%–69%
-  // < 55% = red
+  // < 55% = esperado en utility, solo informativo
 
   // U-R2: Usage before Rebill 2 (diagnóstica, no alerta)
   UR2_GREEN: 0.60, // ≥ 60%
   UR2_YELLOW: 0.45, // 45%–59%
   // < 45% = red
 
-  // Net ROAS Real
-  ROAS_GREEN: 2.0, // ≥ 2.0x
-  ROAS_YELLOW: 1.3, // 1.3–1.99x
-  // < 1.3x = red
+  // Net ROAS Real - AJUSTADO PARA UTILITY
+  ROAS_GREEN: 1.5, // ≥ 1.5x (antes 2.0x)
+  ROAS_YELLOW: 1.2, // 1.2–1.49x (antes 1.3x)
+  // < 1.2x = red
+
+  // Weekly Profit - NUEVO KPI PRINCIPAL
+  WEEKLY_PROFIT_GREEN: 5000, // > €5,000/semana
+  WEEKLY_PROFIT_YELLOW: 2500, // €2,500 - €5,000/semana
+  // < €2,500/semana = rojo
+  WEEKLY_FIXED_COSTS: 250, // €250/semana costos fijos
 
   // Payback Ratio (LTV / CPFR) - proxy 30d
   PAYBACK_GREEN: 1.5, // ≥ 1.5x (rentable)
@@ -303,7 +371,7 @@ export interface RawMetrics {
 // ALERTS (SOLO 2 - U-R2 es diagnóstica)
 // ============================================================================
 
-export type AlertType = "frr_red" | "cpfr_red" | "payback_red" | "refund_m1_red";
+export type AlertType = "weekly_profit_red" | "frr_red" | "cpfr_red" | "payback_red" | "refund_m1_red" | "roas_red";
 
 export interface Alert {
   type: AlertType;
@@ -347,13 +415,24 @@ export interface ExecutiveSummary {
 }
 
 // ============================================================================
-// KPI HIERARCHY (para resolución de conflictos)
+// KPI HIERARCHY - MODELO UTILITY
+// ============================================================================
+//
+// Nueva jerarquía de alertas:
+// 1. Weekly Profit en rojo → CRÍTICO (el negocio pierde plata)
+// 2. FRR en rojo → CRÍTICO (adquisición de baja calidad)
+// 3. CPFR en rojo → NO ESCALAR (warning, no crítico)
+// 4. ROAS en rojo → OPTIMIZAR (ajustar campañas)
+// 5. SRR → solo informativo, sin alerta (M2+ bajo es estructural)
+// 6. U-R2 → diagnóstica, sin alerta
+//
 // ============================================================================
 
 export const KPI_PRIORITY = {
-  frr: 1, // Máxima prioridad
+  weeklyProfit: 0, // MÁXIMA prioridad - el negocio gana o pierde plata
+  frr: 1,
   cpfr: 2,
-  srr: 3,
-  ur2: 4, // Diagnóstica
-  netRoas: 5, // Mínima prioridad
+  netRoas: 3,
+  srr: 99, // Informativo (no genera alertas)
+  ur2: 99, // Diagnóstica (no genera alertas)
 } as const;
