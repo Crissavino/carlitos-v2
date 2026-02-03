@@ -418,7 +418,6 @@ export async function getPaybackM1CohortData(websiteId: number): Promise<Payback
 export interface CohortDistributionItem {
   cohortMonth: string;
   activeCustomers: number;
-  monthlyRevenuePotential: number;
 }
 
 export interface CohortDistributionData {
@@ -439,7 +438,6 @@ export async function getCustomerCohortDistribution(websiteId: number): Promise<
   const distribution: CohortDistributionItem[] = rows.map(row => ({
     cohortMonth: row.cohort_month,
     activeCustomers: parseInt(row.active_customers) || 0,
-    monthlyRevenuePotential: parseFloat(row.monthly_revenue_potential) || 0,
   }));
 
   const totalActiveCustomers = distribution.reduce((sum, item) => sum + item.activeCustomers, 0);

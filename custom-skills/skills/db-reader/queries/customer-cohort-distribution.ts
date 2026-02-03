@@ -32,8 +32,7 @@ export const customerCohortDistributionQuery: QueryBuilder = (websiteId?: number
           WHEN DATEDIFF(CURDATE(), c.create_time) < 180 THEN 'M6'
           ELSE 'M7+'
         END as cohort_month,
-        COUNT(DISTINCT s.customer_id) as active_customers,
-        ROUND(SUM(s.price), 2) as monthly_revenue_potential
+        COUNT(DISTINCT s.customer_id) as active_customers
       FROM avocode.subscriptions s
       INNER JOIN avocode.customers c ON s.customer_id = c.id
       WHERE s.is_subscription_active = 1

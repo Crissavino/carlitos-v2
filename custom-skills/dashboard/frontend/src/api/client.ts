@@ -140,7 +140,6 @@ export interface AllWebsitesPayback {
 export interface CohortDistributionItem {
   cohortMonth: string;
   activeCustomers: number;
-  monthlyRevenuePotential: number;
 }
 
 export interface CohortDistribution {
