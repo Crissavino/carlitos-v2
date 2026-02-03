@@ -227,9 +227,10 @@ export const THRESHOLDS = {
   // < 0.90x es rojo
 
   // Refund Rate M1 = Refunds before M2 / First Rebills
-  REFUND_RATE_M1_GREEN: 0.05,   // <= 5% es verde
-  REFUND_RATE_M1_YELLOW: 0.10,  // 5% - 10% es amarillo
-  // > 10% es rojo
+  // Ajustado para modelo utility
+  REFUND_RATE_M1_GREEN: 0.08,   // <= 8% es verde
+  REFUND_RATE_M1_YELLOW: 0.15,  // 8% - 15% es amarillo
+  // > 15% es rojo (CRÍTICO)
 
   // CPT = Ad Spend / Trials (contexto, no alertas fuertes)
   CPT_GREEN: 30,    // <= €30 es verde

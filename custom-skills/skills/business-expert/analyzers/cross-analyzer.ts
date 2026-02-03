@@ -713,48 +713,59 @@ export function calculateCoreKpis(raw: RawMetrics): CoreKpis {
 // ============================================================================
 
 export function determineBusinessStatus(kpis: CoreKpis): BusinessStatus {
-  // P1 HEADLINE: Payback M1 is the main decision driver for utility model
-  if (kpis.paybackM1.status === "red") {
+  // ============================================================================
+  // MODELO UTILITY: El estado del negocio se basa SOLO en Payback M1 + Refunds M1
+  // ============================================================================
+  //
+  // REGLA SOBERANA: Payback M1 GREEN (>= 1.20) siempre gana.
+  // No puede existir CRÍTICO con Payback M1 >= 1.20
+  //
+  // KPIs que NO afectan el estado:
+  // - SRR, U-R2, Payback 30d/51d/90d, CPT, FRR, CPFR (solo contexto)
+  // - Conteos de clientes (Total/Activos)
+  // ============================================================================
+
+  const paybackM1Value = kpis.paybackM1.value;
+  const refundRateM1Value = kpis.refundRateM1.value;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // ESTABLE: Payback M1 >= 1.20 SIEMPRE gana (modelo rentable en M1)
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (paybackM1Value >= 1.20) {
+    // Payback M1 verde = ESTABLE, sin importar otros KPIs
+    // FRR, CPFR, SRR pueden estar amarillos/rojos sin degradar el estado
+    return "ESTABLE";
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CRÍTICO: Solo si se cumple AL MENOS UNA de estas condiciones
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 1. Payback M1 < 0.90 (pérdida confirmada en M1)
+  // 2. Refund Rate M1 > 15%
+  //
+  // ⚠️ CPFR, FRR, ROAS NO pueden por sí solos llevar a CRÍTICO
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (paybackM1Value < 0.90) {
+    return "CRÍTICO";
+  }
+  if (refundRateM1Value > 0.15) {
     return "CRÍTICO";
   }
 
-  // P2: FRR en rojo también es crítico
-  if (kpis.frr.status === "red") {
-    return "CRÍTICO";
+  // ─────────────────────────────────────────────────────────────────────────────
+  // EN RIESGO: Payback M1 entre 0.90 y 1.19, o Refund Rate M1 entre 8% y 15%
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (paybackM1Value >= 0.90 && paybackM1Value < 1.20) {
+    return "EN RIESGO";
   }
-
-  // P2: CPFR en rojo es crítico
-  if (kpis.cpfr.status === "red") {
-    return "CRÍTICO";
-  }
-
-  // P2: Refund Rate M1 alto es crítico
-  if (kpis.refundRateM1.status === "red") {
-    return "CRÍTICO";
-  }
-
-  // Payback M1 amarillo es riesgo
-  if (kpis.paybackM1.status === "yellow") {
+  if (refundRateM1Value > 0.08 && refundRateM1Value <= 0.15) {
     return "EN RIESGO";
   }
 
-  // FRR o CPFR amarillo es riesgo
-  if (kpis.frr.status === "yellow" || kpis.cpfr.status === "yellow") {
+  // Net ROAS < 1.2 acompaña pero no domina (solo si llegamos aquí)
+  if (kpis.netRoas.value < 1.2) {
     return "EN RIESGO";
   }
-
-  // Refund Rate M1 amarillo es riesgo
-  if (kpis.refundRateM1.status === "yellow") {
-    return "EN RIESGO";
-  }
-
-  // Net ROAS red is risk (contexto)
-  if (kpis.netRoas.status === "red") {
-    return "EN RIESGO";
-  }
-
-  // SRR y U-R2 son informativos, no afectan el estado
-  // (modelo utility: M2+ bajo es normal)
 
   return "ESTABLE";
 }

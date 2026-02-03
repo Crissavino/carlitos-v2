@@ -148,7 +148,11 @@ export function Executive({ websiteId }: ExecutiveProps) {
             <div className="text-2xl font-bold text-green-400">{customerCounts?.activeCustomers?.toLocaleString() || 0}</div>
           </div>
           <div className="lg:row-span-1">
-            <StatusBadge status={summary.businessStatus} size="lg" />
+            <StatusBadge
+              status={summary.businessStatus}
+              size="lg"
+              paybackM1={summary.kpis.paybackM1?.value}
+            />
           </div>
         </div>
 
