@@ -41,7 +41,7 @@ export function Executive({ websiteId }: ExecutiveProps) {
       setAllWebsitesPayback(paybackData);
       setLastUpdate(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error loading data');
+      setError(err instanceof Error ? err.message : 'Error cargando datos');
     } finally {
       setLoading(false);
     }

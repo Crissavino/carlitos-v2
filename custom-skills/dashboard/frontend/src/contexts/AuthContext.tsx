@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json();
 
     if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Login failed');
+      throw new Error(data.error || 'Error de inicio de sesión');
     }
 
     localStorage.setItem(TOKEN_KEY, data.data.token);

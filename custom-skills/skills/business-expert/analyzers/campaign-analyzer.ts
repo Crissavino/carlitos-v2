@@ -238,7 +238,7 @@ export async function getCampaignPerformance(): Promise<CampaignPerformanceResul
 // ATTRIBUTION DATA (from DB)
 // ============================================================================
 
-interface AttributionDataMap {
+export interface AttributionDataMap {
   [campaignId: string]: {
     acquisitions: number;
     firstRebills: number;
@@ -257,7 +257,7 @@ interface AttributionDataMap {
  * Get attribution data from DB for all campaigns
  * Uses google_ads_details → customers → invoices chain
  */
-async function getAttributionData(): Promise<AttributionDataMap> {
+export async function getAttributionData(): Promise<AttributionDataMap> {
   // Execute the campaign-performance query to get attribution data
   const result = await executeQuery("campaign-performance");
 
@@ -351,6 +351,60 @@ function getPaybackStatusAndRecommendation(
     status: 'red',
     recommendation: 'PAUSE: Payback < 0.7x',
   };
+}
+
+// ============================================================================
+// KEYWORD ATTRIBUTION (from DB using utm_term)
+// ============================================================================
+
+export interface KeywordAttributionData {
+  keywordText: string;
+  campaignId: string;
+  campaignName: string;
+  acquisitions: number;
+  firstRebills: number;
+}
+
+export interface KeywordAttributionMap {
+  // Key: "campaignId:keywordText" (lowercase)
+  [key: string]: KeywordAttributionData;
+}
+
+/**
+ * Get keyword-level attribution data from DB using utm_term
+ * Returns a map indexed by "campaignId:keywordText" for quick lookup
+ */
+export async function getKeywordAttributionData(): Promise<KeywordAttributionMap> {
+  const result = await executeQuery("keyword-attribution");
+
+  if (result.status !== "success" || !result.results) {
+    console.log("[CampaignAnalyzer] Failed to get keyword attribution data from DB:", result.error);
+    return {};
+  }
+
+  const rows = result.results as any[];
+  const dataMap: KeywordAttributionMap = {};
+
+  for (const row of rows) {
+    const keywordText = String(row.keyword_text || '').toLowerCase();
+    const campaignId = String(row.campaign_id || '');
+    if (!keywordText || !campaignId) continue;
+
+    // Create composite key for lookup
+    const key = `${campaignId}:${keywordText}`;
+
+    dataMap[key] = {
+      keywordText: row.keyword_text || '',
+      campaignId,
+      campaignName: row.campaign_name || '',
+      acquisitions: parseInt(row.acquisitions) || 0,
+      firstRebills: parseInt(row.first_rebills) || 0,
+    };
+  }
+
+  console.log(`[CampaignAnalyzer] Loaded keyword attribution data for ${Object.keys(dataMap).length} keywords from DB`);
+
+  return dataMap;
 }
 
 // ============================================================================

@@ -34,7 +34,9 @@ export type AllowedQueryId =
   | "ad-spend-today"         // Ad spend today
   | "ad-spend-7d-ago"        // Ad spend 7 days ago
   // Phase 11: Payback M1 Cohort (FIX - real cohort-based calculation)
-  | "payback-m1-cohort";     // Payback M1 real por cohorte 30-60d
+  | "payback-m1-cohort"     // Payback M1 real por cohorte 30-60d
+  // Phase 12: Keyword-level attribution using utm_term
+  | "keyword-attribution";   // Acquisitions/FirstRebills by keyword (utm_term)
 
 export interface DBReaderRequest {
   query: AllowedQueryId;

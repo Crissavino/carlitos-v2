@@ -46,7 +46,7 @@ export function Keywords() {
         setCampaigns(uniqueCampaigns);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error loading keywords');
+      setError(err instanceof Error ? err.message : 'Error cargando keywords');
     } finally {
       setLoading(false);
     }

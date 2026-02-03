@@ -46,7 +46,7 @@ export function BusinessViews() {
       setRecommendations(recsData);
       setLastUpdate(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error loading data');
+      setError(err instanceof Error ? err.message : 'Error cargando datos');
     } finally {
       setLoading(false);
     }

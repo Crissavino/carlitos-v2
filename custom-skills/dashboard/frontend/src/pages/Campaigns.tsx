@@ -39,7 +39,7 @@ export function Campaigns() {
       setDecisions(decisionsData);
       setLastUpdate(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error loading campaigns');
+      setError(err instanceof Error ? err.message : 'Error cargando campañas');
     } finally {
       setLoading(false);
     }
@@ -253,9 +253,9 @@ function DecisionCard({ decision }: { decision: CampaignDecision }) {
           </div>
           <div className="text-sm text-gray-300 mb-2">{decision.actionText}</div>
           <div className="flex items-center gap-4 text-xs text-gray-500">
-            <span>Spend: €{decision.metrics.spend7d}/sem</span>
+            <span>Gasto: €{decision.metrics.spend7d}/sem</span>
             <span>PB 51d: {decision.metrics.payback51d.toFixed(2)}x</span>
-            <span>Age: {decision.metrics.campaignAgeDays}d</span>
+            <span>Edad: {decision.metrics.campaignAgeDays}d</span>
             <span>n={decision.metrics.cohort51dSize}</span>
           </div>
         </div>

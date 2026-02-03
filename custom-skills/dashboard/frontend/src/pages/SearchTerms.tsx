@@ -33,10 +33,10 @@ function WasteBadge({ flags }: { flags: string[] }) {
   };
 
   const flagLabels: Record<string, string> = {
-    HIGH_SPEND_ZERO_CONV: 'No Conv',
-    HIGH_SPEND_LOW_CONV: 'Low Conv',
-    SPEND_CONCENTRATION: 'Concentrated',
-    REPEAT_WASTE: 'Repeat',
+    HIGH_SPEND_ZERO_CONV: 'Sin Conv',
+    HIGH_SPEND_LOW_CONV: 'Baja Conv',
+    SPEND_CONCENTRATION: 'Concentrado',
+    REPEAT_WASTE: 'Repetido',
   };
 
   return (
@@ -65,11 +65,11 @@ function RecommendationBadge({ recommendation }: { recommendation: string | null
   };
 
   const labels: Record<string, string> = {
-    NEGATIVE_SUGGESTION: 'NEGATIVIZE',
-    INTENT_MISMATCH: 'INTENT MISMATCH',
-    REVIEW_MATCH_TYPE: 'REVIEW MATCH',
-    PROMOTE_TO_KEYWORD: 'PROMOTE',
-    MONITOR: 'MONITOR',
+    NEGATIVE_SUGGESTION: 'NEGATIVIZAR',
+    INTENT_MISMATCH: 'INT. INCORRECTA',
+    REVIEW_MATCH_TYPE: 'REVISAR MATCH',
+    PROMOTE_TO_KEYWORD: 'PROMOVER',
+    MONITOR: 'MONITOREAR',
   };
 
   const style = styles[recommendation] || styles.MONITOR;
@@ -94,13 +94,13 @@ function StatusDot({ status }: { status: 'good' | 'warning' | 'poor' }) {
 // Waste View Table
 function WasteTable({ data, loading }: { data: SearchTermWasteAnalysis[]; loading: boolean }) {
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">Loading...</div>;
+    return <div className="text-center py-8 text-gray-500">Cargando...</div>;
   }
 
   if (data.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        No waste search terms detected. Your budget is being used efficiently.
+        No se detectaron términos de búsqueda desperdiciados. Tu presupuesto se está usando eficientemente.
       </div>
     );
   }
@@ -110,14 +110,14 @@ function WasteTable({ data, loading }: { data: SearchTermWasteAnalysis[]; loadin
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-gray-400 border-b border-gray-800">
-            <th className="pb-3 font-medium">Search Term</th>
-            <th className="pb-3 font-medium">Matched Keyword</th>
-            <th className="pb-3 font-medium">Campaign</th>
-            <th className="pb-3 font-medium text-right">Waste</th>
+            <th className="pb-3 font-medium">Término de Búsqueda</th>
+            <th className="pb-3 font-medium">Keyword Coincidente</th>
+            <th className="pb-3 font-medium">Campaña</th>
+            <th className="pb-3 font-medium text-right">Desperdicio</th>
             <th className="pb-3 font-medium text-right">Clicks</th>
             <th className="pb-3 font-medium text-right">Conv</th>
-            <th className="pb-3 font-medium">Flags</th>
-            <th className="pb-3 font-medium">Action</th>
+            <th className="pb-3 font-medium">Alertas</th>
+            <th className="pb-3 font-medium">Acción</th>
           </tr>
         </thead>
         <tbody>
@@ -151,10 +151,11 @@ function WasteTable({ data, loading }: { data: SearchTermWasteAnalysis[]; loadin
                 <span className="text-red-400 font-medium">{item.wastedSpend.toFixed(2)}</span>
               </td>
               <td className="py-3 text-right text-gray-300">{item.searchTerm.clicks}</td>
-              <td className="py-3 text-right">
-                <span className={item.searchTerm.conversions > 0 ? 'text-green-400' : 'text-gray-500'}>
-                  {item.searchTerm.conversions}
-                </span>
+              <td className="py-3 text-right" title={item.searchTerm.attributionLevel === 'campaign' ? 'Atribución a nivel de campaña' : 'Atribución por keyword (utm_term)'}>
+                <span className="text-blue-400">{item.searchTerm.acquisitions || 0}</span>
+                <span className="text-gray-500">/</span>
+                <span className="text-green-400">{item.searchTerm.firstRebills || 0}</span>
+                {item.searchTerm.attributionLevel === 'campaign' && <span className="text-gray-600 text-xs ml-1">*</span>}
               </td>
               <td className="py-3">
                 <WasteBadge flags={item.wasteFlags} />
@@ -175,13 +176,13 @@ function IntentMismatchTable({ data, loading }: { data: SearchTermPerformance[];
   const mismatchTerms = data.filter(st => hasIntentMismatch(st.searchTerm));
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">Loading...</div>;
+    return <div className="text-center py-8 text-gray-500">Cargando...</div>;
   }
 
   if (mismatchTerms.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        No intent mismatch detected in current data.
+        No se detectó desajuste de intención en los datos actuales.
       </div>
     );
   }
@@ -191,13 +192,13 @@ function IntentMismatchTable({ data, loading }: { data: SearchTermPerformance[];
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-gray-400 border-b border-gray-800">
-            <th className="pb-3 font-medium">Search Term (User Intent)</th>
-            <th className="pb-3 font-medium">Matched Keyword (Your Bid)</th>
-            <th className="pb-3 font-medium">Match Type</th>
-            <th className="pb-3 font-medium">Campaign</th>
-            <th className="pb-3 font-medium text-right">Spend</th>
+            <th className="pb-3 font-medium">Término (Intención Usuario)</th>
+            <th className="pb-3 font-medium">Keyword (Tu Puja)</th>
+            <th className="pb-3 font-medium">Tipo Match</th>
+            <th className="pb-3 font-medium">Campaña</th>
+            <th className="pb-3 font-medium text-right">Gasto</th>
             <th className="pb-3 font-medium text-right">Conv</th>
-            <th className="pb-3 font-medium">Pattern Detected</th>
+            <th className="pb-3 font-medium">Patrón Detectado</th>
           </tr>
         </thead>
         <tbody>
@@ -228,10 +229,11 @@ function IntentMismatchTable({ data, loading }: { data: SearchTermPerformance[];
                 </td>
                 <td className="py-3 text-gray-400 max-w-[150px] truncate">{st.campaignName}</td>
                 <td className="py-3 text-right text-gray-300">{st.spend.toFixed(2)}</td>
-                <td className="py-3 text-right">
-                  <span className={st.conversions > 0 ? 'text-green-400' : 'text-red-400'}>
-                    {st.conversions}
-                  </span>
+                <td className="py-3 text-right" title={st.attributionLevel === 'campaign' ? 'Atribución a nivel de campaña' : 'Atribución por keyword (utm_term)'}>
+                  <span className="text-blue-400">{st.acquisitions || 0}</span>
+                  <span className="text-gray-500">/</span>
+                  <span className="text-green-400">{st.firstRebills || 0}</span>
+                  {st.attributionLevel === 'campaign' && <span className="text-gray-600 text-xs ml-1">*</span>}
                 </td>
                 <td className="py-3">
                   <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded border border-purple-500/30">
@@ -245,7 +247,7 @@ function IntentMismatchTable({ data, loading }: { data: SearchTermPerformance[];
       </table>
       {mismatchTerms.length > 50 && (
         <div className="text-center py-4 text-gray-500 text-sm">
-          Showing 50 of {mismatchTerms.length} intent mismatches
+          Mostrando 50 de {mismatchTerms.length} desajustes de intención
         </div>
       )}
     </div>
@@ -254,28 +256,23 @@ function IntentMismatchTable({ data, loading }: { data: SearchTermPerformance[];
 
 // Opportunities Table
 function OpportunitiesTable({ data, loading }: { data: SearchTermPerformance[]; loading: boolean }) {
-  // Filter for opportunities: has conversions, good CPA potential
+  // Filter for opportunities: has first rebills (real conversions from DB via utm_term)
   const opportunities = data
-    .filter(st => st.conversions > 0)
+    .filter(st => (st.firstRebills || 0) > 0)
     .sort((a, b) => {
-      // Sort by CPA (spend/conversions) ascending, then by conversions descending
-      const cpaA = a.spend / a.conversions;
-      const cpaB = b.spend / b.conversions;
-      if (Math.abs(cpaA - cpaB) < 5) {
-        return b.conversions - a.conversions;
-      }
-      return cpaA - cpaB;
+      // Sort by spend descending
+      return b.spend - a.spend;
     })
     .slice(0, 100);
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">Loading...</div>;
+    return <div className="text-center py-8 text-gray-500">Cargando...</div>;
   }
 
   if (opportunities.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        No high-potential search terms found with conversions.
+        No se encontraron términos de búsqueda de alto potencial con conversiones.
       </div>
     );
   }
@@ -285,21 +282,21 @@ function OpportunitiesTable({ data, loading }: { data: SearchTermPerformance[]; 
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-gray-400 border-b border-gray-800">
-            <th className="pb-3 font-medium">Search Term</th>
-            <th className="pb-3 font-medium">Matched Keyword</th>
-            <th className="pb-3 font-medium">Match Type</th>
-            <th className="pb-3 font-medium">Campaign</th>
-            <th className="pb-3 font-medium text-right">Spend</th>
-            <th className="pb-3 font-medium text-right">Conv</th>
-            <th className="pb-3 font-medium text-right">CPA</th>
-            <th className="pb-3 font-medium">Potential</th>
+            <th className="pb-3 font-medium">Término de Búsqueda</th>
+            <th className="pb-3 font-medium">Keyword Coincidente</th>
+            <th className="pb-3 font-medium">Tipo Match</th>
+            <th className="pb-3 font-medium">Campaña</th>
+            <th className="pb-3 font-medium text-right">Gasto</th>
+            <th className="pb-3 font-medium text-right" title="Acq/R1 - atribución vía utm_term">Conv</th>
+            <th className="pb-3 font-medium">Potencial</th>
           </tr>
         </thead>
         <tbody>
           {opportunities.map((st, i) => {
-            const cpa = st.spend / st.conversions;
             const isExact = st.matchType === 'EXACT';
-            const potential = cpa < 20 ? 'high' : cpa < 40 ? 'medium' : 'low';
+            const r1 = st.firstRebills || 0;
+            // Determine potential based on R1 count (high R1 = high potential)
+            const potential = r1 >= 5 ? 'high' : r1 >= 2 ? 'medium' : 'low';
 
             return (
               <tr key={i} className="border-b border-gray-800/50 hover:bg-gray-800/30">
@@ -320,11 +317,11 @@ function OpportunitiesTable({ data, loading }: { data: SearchTermPerformance[]; 
                 </td>
                 <td className="py-3 text-gray-400 max-w-[150px] truncate">{st.campaignName}</td>
                 <td className="py-3 text-right text-gray-300">{st.spend.toFixed(2)}</td>
-                <td className="py-3 text-right text-green-400 font-medium">{st.conversions}</td>
-                <td className="py-3 text-right">
-                  <span className={cpa < 20 ? 'text-green-400' : cpa < 40 ? 'text-yellow-400' : 'text-gray-400'}>
-                    {cpa.toFixed(2)}
-                  </span>
+                <td className="py-3 text-right" title={st.attributionLevel === 'campaign' ? 'Atribución a nivel de campaña' : 'Atribución por keyword (utm_term)'}>
+                  <span className="text-blue-400">{st.acquisitions || 0}</span>
+                  <span className="text-gray-500">/</span>
+                  <span className="text-green-400">{st.firstRebills || 0}</span>
+                  {st.attributionLevel === 'campaign' && <span className="text-gray-600 text-xs ml-1">*</span>}
                 </td>
                 <td className="py-3">
                   {!isExact && (
@@ -334,11 +331,11 @@ function OpportunitiesTable({ data, loading }: { data: SearchTermPerformance[]; 
                       'bg-gray-500/20 text-gray-400 border-gray-500/30'
                     }`}>
                       <ArrowUpRight className="w-3 h-3" />
-                      {potential === 'high' ? 'PROMOTE' : potential === 'medium' ? 'CONSIDER' : 'MONITOR'}
+                      {potential === 'high' ? 'PROMOVER' : potential === 'medium' ? 'CONSIDERAR' : 'MONITOREAR'}
                     </span>
                   )}
                   {isExact && (
-                    <span className="px-2 py-0.5 text-xs text-gray-500">Already EXACT</span>
+                    <span className="px-2 py-0.5 text-xs text-gray-500">Ya es EXACT</span>
                   )}
                 </td>
               </tr>
@@ -365,7 +362,7 @@ function AllSearchTermsTable({
   onPageChange: (page: number) => void;
 }) {
   if (loading && data.length === 0) {
-    return <div className="text-center py-8 text-gray-500">Loading...</div>;
+    return <div className="text-center py-8 text-gray-500">Cargando...</div>;
   }
 
   return (
@@ -375,14 +372,14 @@ function AllSearchTermsTable({
           <thead>
             <tr className="text-left text-gray-400 border-b border-gray-800">
               <th className="pb-3 font-medium w-5"></th>
-              <th className="pb-3 font-medium">Search Term</th>
+              <th className="pb-3 font-medium">Término de Búsqueda</th>
               <th className="pb-3 font-medium">Keyword</th>
               <th className="pb-3 font-medium">Match</th>
-              <th className="pb-3 font-medium">Campaign</th>
-              <th className="pb-3 font-medium text-right">Spend</th>
+              <th className="pb-3 font-medium">Campaña</th>
+              <th className="pb-3 font-medium text-right">Gasto</th>
               <th className="pb-3 font-medium text-right">Clicks</th>
-              <th className="pb-3 font-medium text-right">Conv</th>
-              <th className="pb-3 font-medium">Recommendation</th>
+              <th className="pb-3 font-medium text-right" title="Acq/R1 - atribución vía utm_term">Conv</th>
+              <th className="pb-3 font-medium">Recomendación</th>
             </tr>
           </thead>
           <tbody>
@@ -407,10 +404,11 @@ function AllSearchTermsTable({
                 <td className="py-3 text-gray-400 max-w-[120px] truncate">{st.campaignName}</td>
                 <td className="py-3 text-right text-gray-300">{st.spend.toFixed(2)}</td>
                 <td className="py-3 text-right text-gray-300">{st.clicks}</td>
-                <td className="py-3 text-right">
-                  <span className={st.conversions > 0 ? 'text-green-400' : 'text-gray-500'}>
-                    {st.conversions}
-                  </span>
+                <td className="py-3 text-right" title={st.attributionLevel === 'campaign' ? 'Atribución a nivel de campaña' : 'Atribución por keyword (utm_term)'}>
+                  <span className="text-blue-400">{st.acquisitions || 0}</span>
+                  <span className="text-gray-500">/</span>
+                  <span className="text-green-400">{st.firstRebills || 0}</span>
+                  {st.attributionLevel === 'campaign' && <span className="text-gray-600 text-xs ml-1">*</span>}
                 </td>
                 <td className="py-3">
                   <RecommendationBadge recommendation={st.recommendation} />
@@ -430,17 +428,17 @@ function AllSearchTermsTable({
             className="flex items-center gap-1 px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="w-4 h-4" />
-            Prev
+            Anterior
           </button>
           <span className="text-sm text-gray-400">
-            Page {page} of {pagination.totalPages}
+            Página {page} de {pagination.totalPages}
           </span>
           <button
             onClick={() => onPageChange(Math.min(pagination.totalPages, page + 1))}
             disabled={!pagination.hasNext || loading}
             className="flex items-center gap-1 px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Next
+            Siguiente
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -489,7 +487,7 @@ export function SearchTerms() {
         setCampaigns(uniqueCampaigns);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error loading data');
+      setError(err instanceof Error ? err.message : 'Error cargando datos');
     } finally {
       setLoading(false);
     }
@@ -523,7 +521,7 @@ export function SearchTerms() {
           <div className="text-red-500 text-xl mb-4">Error</div>
           <div className="text-gray-400 mb-4">{error}</div>
           <button onClick={handleRefresh} className="px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700">
-            Retry
+            Reintentar
           </button>
         </div>
       </div>
@@ -532,7 +530,7 @@ export function SearchTerms() {
 
   const wasteCount = waste?.count || 0;
   const intentMismatchCount = summary?.intentMismatchCount || 0;
-  const opportunitiesCount = data?.searchTerms.filter(st => st.conversions > 0).length || 0;
+  const opportunitiesCount = data?.searchTerms.filter(st => (st.firstRebills || 0) > 0).length || 0;
 
   return (
     <div className="min-h-screen p-6">
@@ -542,17 +540,17 @@ export function SearchTerms() {
           <div className="flex items-center gap-4">
             <span className="text-4xl">🔍</span>
             <div>
-              <h1 className="text-2xl font-bold">Search Terms</h1>
+              <h1 className="text-2xl font-bold">Términos de Búsqueda</h1>
               <div className="text-sm text-gray-500 flex items-center gap-2">
                 <Clock className="w-3 h-3" />
-                {data?.dateRange || 'LAST_7_DAYS'} | {data?.totalSearchTerms || 0} terms | {data?.totalSpend?.toFixed(0) || 0} total spend
+                {data?.dateRange || 'LAST_7_DAYS'} | {data?.totalSearchTerms || 0} términos | {data?.totalSpend?.toFixed(0) || 0} gasto total
               </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
             {lastUpdate && (
               <span className="text-xs text-gray-500">
-                Updated: {lastUpdate.toLocaleTimeString()}
+                Actualizado: {lastUpdate.toLocaleTimeString()}
               </span>
             )}
             <button
@@ -578,11 +576,11 @@ export function SearchTerms() {
           >
             <div className="flex items-center gap-2 text-sm text-red-400 mb-1">
               <AlertTriangle className="w-4 h-4" />
-              Waste Detected
+              Desperdicio Detectado
             </div>
             <div className="text-2xl font-bold text-red-400">{wasteCount}</div>
             <div className="text-xs text-gray-500">
-              {waste?.totalEstimatedWaste?.toFixed(0) || 0} estimated waste
+              {waste?.totalEstimatedWaste?.toFixed(0) || 0} desperdicio estimado
             </div>
           </button>
 
@@ -597,10 +595,10 @@ export function SearchTerms() {
           >
             <div className="flex items-center gap-2 text-sm text-purple-400 mb-1">
               <Target className="w-4 h-4" />
-              Intent Mismatch
+              Intención Incorrecta
             </div>
             <div className="text-2xl font-bold text-purple-400">{intentMismatchCount}</div>
-            <div className="text-xs text-gray-500">wrong intent queries</div>
+            <div className="text-xs text-gray-500">consultas con intención errónea</div>
           </button>
 
           {/* Opportunities */}
@@ -614,10 +612,10 @@ export function SearchTerms() {
           >
             <div className="flex items-center gap-2 text-sm text-green-400 mb-1">
               <TrendingUp className="w-4 h-4" />
-              Opportunities
+              Oportunidades
             </div>
             <div className="text-2xl font-bold text-green-400">{opportunitiesCount}</div>
-            <div className="text-xs text-gray-500">with conversions</div>
+            <div className="text-xs text-gray-500">con conversiones</div>
           </button>
 
           {/* All */}
@@ -631,10 +629,10 @@ export function SearchTerms() {
           >
             <div className="flex items-center gap-2 text-sm text-gray-400 mb-1">
               <Search className="w-4 h-4" />
-              All Search Terms
+              Todos los Términos
             </div>
             <div className="text-2xl font-bold">{data?.filteredCount || data?.totalSearchTerms || 0}</div>
-            <div className="text-xs text-gray-500">with spend</div>
+            <div className="text-xs text-gray-500">con gasto</div>
           </button>
         </div>
 
@@ -643,19 +641,19 @@ export function SearchTerms() {
           <div className="mb-6 p-4 bg-gray-800/50 border border-gray-700 rounded-xl">
             <div className="flex gap-6 text-sm">
               <div>
-                <span className="text-gray-400">No conversions: </span>
+                <span className="text-gray-400">Sin conversiones: </span>
                 <span className="text-red-400 font-medium">{waste.byFlag.HIGH_SPEND_ZERO_CONV}</span>
               </div>
               <div>
-                <span className="text-gray-400">Low conv rate: </span>
+                <span className="text-gray-400">Baja tasa conv: </span>
                 <span className="text-yellow-400 font-medium">{waste.byFlag.HIGH_SPEND_LOW_CONV}</span>
               </div>
               <div>
-                <span className="text-gray-400">Concentrated: </span>
+                <span className="text-gray-400">Concentrado: </span>
                 <span className="text-orange-400 font-medium">{waste.byFlag.SPEND_CONCENTRATION}</span>
               </div>
               <div>
-                <span className="text-gray-400">Repeat waste: </span>
+                <span className="text-gray-400">Desperdicio repetido: </span>
                 <span className="text-purple-400 font-medium">{waste.byFlag.REPEAT_WASTE}</span>
               </div>
             </div>
@@ -671,7 +669,7 @@ export function SearchTerms() {
               onChange={(e) => handleFilterChange(e.target.value)}
               className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-gray-600"
             >
-              <option value="">All Campaigns</option>
+              <option value="">Todas las Campañas</option>
               {campaigns.map((c) => (
                 <option key={c} value={c}>
                   {c.length > 50 ? c.substring(0, 50) + '...' : c}
@@ -688,10 +686,10 @@ export function SearchTerms() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium flex items-center gap-2">
                   <Ban className="w-5 h-5 text-red-400" />
-                  Negativization Candidates
+                  Candidatos a Negativizar
                 </h2>
                 <span className="text-sm text-gray-500">
-                  Ordered by wasted spend (highest first)
+                  Ordenados por gasto desperdiciado (mayor primero)
                 </span>
               </div>
               <WasteTable data={waste?.searchTerms || []} loading={loading} />
@@ -703,10 +701,10 @@ export function SearchTerms() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium flex items-center gap-2">
                   <Target className="w-5 h-5 text-purple-400" />
-                  Intent Mismatch Analysis
+                  Análisis de Intención Incorrecta
                 </h2>
                 <span className="text-sm text-gray-500">
-                  Queries with patterns: {INTENT_MISMATCH_PATTERNS.slice(0, 5).join(', ')}...
+                  Consultas con patrones: {INTENT_MISMATCH_PATTERNS.slice(0, 5).join(', ')}...
                 </span>
               </div>
               <IntentMismatchTable data={data?.searchTerms || []} loading={loading} />
@@ -718,10 +716,10 @@ export function SearchTerms() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-green-400" />
-                  Keyword Promotion Candidates
+                  Candidatos para Promocionar
                 </h2>
                 <span className="text-sm text-gray-500">
-                  Search terms with conversions, sorted by CPA
+                  Términos con conversiones, ordenados por CPA
                 </span>
               </div>
               <OpportunitiesTable data={data?.searchTerms || []} loading={loading} />
@@ -733,10 +731,10 @@ export function SearchTerms() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-medium flex items-center gap-2">
                   <Search className="w-5 h-5 text-gray-400" />
-                  All Search Terms
+                  Todos los Términos de Búsqueda
                 </h2>
                 <span className="text-sm text-gray-500">
-                  {data?.filteredCount || 0} terms with spend
+                  {data?.filteredCount || 0} términos con gasto
                 </span>
               </div>
               <AllSearchTermsTable
@@ -752,23 +750,23 @@ export function SearchTerms() {
 
         {/* Legend */}
         <div className="mt-6 bg-gray-900/50 rounded-xl p-4 border border-gray-800">
-          <div className="text-sm text-gray-400 mb-2">Action Recommendations</div>
+          <div className="text-sm text-gray-400 mb-2">Recomendaciones de Acción</div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs text-gray-500">
             <div className="flex items-center gap-2">
               <RecommendationBadge recommendation="NEGATIVE_SUGGESTION" />
-              <span>Add as negative keyword</span>
+              <span>Agregar como keyword negativa</span>
             </div>
             <div className="flex items-center gap-2">
               <RecommendationBadge recommendation="INTENT_MISMATCH" />
-              <span>Query doesn't match intent</span>
+              <span>La consulta no coincide con la intención</span>
             </div>
             <div className="flex items-center gap-2">
               <RecommendationBadge recommendation="REVIEW_MATCH_TYPE" />
-              <span>Consider changing match type</span>
+              <span>Considerar cambiar tipo de match</span>
             </div>
             <div className="flex items-center gap-2">
               <RecommendationBadge recommendation="PROMOTE_TO_KEYWORD" />
-              <span>Add as exact match keyword</span>
+              <span>Agregar como keyword exact match</span>
             </div>
           </div>
         </div>

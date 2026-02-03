@@ -8,7 +8,7 @@ interface KeywordsTableProps {
   loading?: boolean;
 }
 
-type SortKey = 'spend7d' | 'clicks' | 'impressions' | 'conversions' | 'ctr' | 'cpc' | 'conversionRate' | 'keywordText';
+type SortKey = 'spend7d' | 'clicks' | 'impressions' | 'ctr' | 'cpc' | 'keywordText';
 type SortDirection = 'asc' | 'desc';
 
 const MATCH_TYPE_BADGE: Record<string, string> = {
@@ -149,23 +149,11 @@ export function KeywordsTable({ keywords, wasteData, loading }: KeywordsTablePro
                   <SortIcon column="ctr" />
                 </button>
               </th>
-              <th className="px-3 py-3 text-right text-gray-400 font-medium" title="Conversiones reportadas por Google Ads (generalmente trials)">
-                <button
-                  onClick={() => handleSort('conversions')}
-                  className="hover:text-white transition"
-                >
-                  Conv
-                  <SortIcon column="conversions" />
-                </button>
+              <th className="px-3 py-3 text-right text-gray-400 font-medium" title="Adquisiciones (trials) - datos de Avocode DB vía utm_term">
+                Acq
               </th>
-              <th className="px-3 py-3 text-right text-gray-400 font-medium" title="Tasa de conversión (Conv / Clicks)">
-                <button
-                  onClick={() => handleSort('conversionRate')}
-                  className="hover:text-white transition"
-                >
-                  Conv%
-                  <SortIcon column="conversionRate" />
-                </button>
+              <th className="px-3 py-3 text-right text-gray-400 font-medium" title="First Rebills - clientes que pagaron (Avocode DB)">
+                R1
               </th>
               <th className="px-3 py-3 text-center text-gray-400 font-medium">Estado</th>
               <th className="px-3 py-3 text-left text-gray-400 font-medium">Alertas</th>
@@ -224,18 +212,20 @@ export function KeywordsTable({ keywords, wasteData, loading }: KeywordsTablePro
                     {(kw.ctr * 100).toFixed(2)}%
                   </td>
 
-                  {/* Conversions */}
-                  <td className="px-3 py-3 text-right font-mono">
-                    <span className={kw.conversions === 0 ? 'text-gray-500' : ''}>
-                      {kw.conversions.toFixed(1)}
+                  {/* Acquisitions */}
+                  <td className="px-3 py-3 text-right font-mono" title={kw.attributionLevel === 'campaign' ? 'Atribución a nivel de campaña' : 'Atribución por keyword (utm_term)'}>
+                    <span className={(kw.acquisitions || 0) === 0 ? 'text-gray-500' : 'text-blue-400'}>
+                      {kw.acquisitions || 0}
                     </span>
+                    {kw.attributionLevel === 'campaign' && <span className="text-gray-600 text-xs ml-1">*</span>}
                   </td>
 
-                  {/* Conversion Rate */}
-                  <td className="px-3 py-3 text-right font-mono">
-                    <span className={kw.conversionRate < 0.01 && kw.clicks > 0 ? 'text-red-400' : ''}>
-                      {(kw.conversionRate * 100).toFixed(2)}%
+                  {/* First Rebills */}
+                  <td className="px-3 py-3 text-right font-mono" title={kw.attributionLevel === 'campaign' ? 'Atribución a nivel de campaña' : 'Atribución por keyword (utm_term)'}>
+                    <span className={(kw.firstRebills || 0) === 0 ? 'text-gray-500' : 'text-green-400'}>
+                      {kw.firstRebills || 0}
                     </span>
+                    {kw.attributionLevel === 'campaign' && <span className="text-gray-600 text-xs ml-1">*</span>}
                   </td>
 
                   {/* Status */}

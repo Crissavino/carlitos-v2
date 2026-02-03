@@ -983,6 +983,8 @@ import {
   getCampaignsToPause,
   getCampaignsToScale,
   getCampaignsToMonitor,
+  getAttributionData,
+  getKeywordAttributionData,
 } from "../skills/business-expert/analyzers/campaign-analyzer.js";
 import {
   evaluateCampaignRules,
@@ -1111,8 +1113,13 @@ app.get("/api/keywords", async (req: Request, res: Response) => {
     const campaignFilter = req.query.campaign as string || '';
     const matchTypeFilter = req.query.matchType as string || '';
 
-    // Get data - pass campaignId to filter at SQL level (not in memory)
-    const data = await getKeywordPerformance(campaignFilter || undefined);
+    // Get keyword data and both attribution data types in parallel
+    const [data, keywordAttrData, campaignAttrData] = await Promise.all([
+      getKeywordPerformance(campaignFilter || undefined),
+      getKeywordAttributionData(), // Get Acq/R1 by keyword (utm_term) from Avocode DB
+      getAttributionData(), // Fallback: Get Acq/R1 by campaign from Avocode DB
+    ]);
+
     if (!data) {
       res.status(500).json({ error: "No keyword data available" });
       return;
@@ -1134,14 +1141,41 @@ app.get("/api/keywords", async (req: Request, res: Response) => {
       filtered = filtered.filter(k => k.matchType === matchTypeFilter.toUpperCase());
     }
 
+    // Enrich keywords with attribution data (prefer keyword-level, fallback to campaign-level)
+    const enrichedKeywords = filtered.map(k => {
+      const campaignId = String(k.campaignId || '');
+      const keywordText = (k.keywordText || '').toLowerCase();
+      const keywordKey = `${campaignId}:${keywordText}`;
+
+      // Try keyword-level attribution first (from utm_term)
+      const kwAttr = keywordAttrData[keywordKey];
+      if (kwAttr) {
+        return {
+          ...k,
+          acquisitions: kwAttr.acquisitions,
+          firstRebills: kwAttr.firstRebills,
+          attributionLevel: 'keyword' as const,
+        };
+      }
+
+      // Fallback to campaign-level attribution
+      const campAttr = campaignAttrData[campaignId];
+      return {
+        ...k,
+        acquisitions: campAttr?.acquisitions || 0,
+        firstRebills: campAttr?.firstRebills || 0,
+        attributionLevel: 'campaign' as const,
+      };
+    });
+
     // Paginate
-    const totalFiltered = filtered.length;
+    const totalFiltered = enrichedKeywords.length;
     const totalPages = Math.ceil(totalFiltered / limit);
     const offset = (page - 1) * limit;
-    const paginatedKeywords = filtered.slice(offset, offset + limit);
+    const paginatedKeywords = enrichedKeywords.slice(offset, offset + limit);
 
     // Recalculate totals for filtered dataset
-    const filteredTotalSpend = filtered.reduce((sum, k) => sum + k.spend7d, 0);
+    const filteredTotalSpend = enrichedKeywords.reduce((sum, k) => sum + k.spend7d, 0);
 
     res.json({
       success: true,
@@ -1297,8 +1331,13 @@ app.get("/api/search-terms", async (req: Request, res: Response) => {
     const campaignFilter = req.query.campaign as string || '';
     const statusFilter = req.query.status as string || '';
 
-    // Get data - pass campaignId to filter at SQL level (not in memory)
-    const data = await getSearchTermPerformance(campaignFilter || undefined);
+    // Get search term data and both attribution data types in parallel
+    const [data, keywordAttrData, campaignAttrData] = await Promise.all([
+      getSearchTermPerformance(campaignFilter || undefined),
+      getKeywordAttributionData(), // Get Acq/R1 by keyword (utm_term) from Avocode DB
+      getAttributionData(), // Fallback: Get Acq/R1 by campaign from Avocode DB
+    ]);
+
     if (!data) {
       res.status(500).json({ error: "No search term data available" });
       return;
@@ -1320,14 +1359,42 @@ app.get("/api/search-terms", async (req: Request, res: Response) => {
       filtered = filtered.filter(st => st.performanceStatus === statusFilter.toLowerCase());
     }
 
+    // Enrich search terms with attribution data (prefer keyword-level via associated keyword, fallback to campaign)
+    const enrichedSearchTerms = filtered.map(st => {
+      const campaignId = String(st.campaignId || '');
+      // Use the associated keyword (keywordText) to look up attribution
+      const keywordText = (st.keywordText || '').toLowerCase();
+      const keywordKey = `${campaignId}:${keywordText}`;
+
+      // Try keyword-level attribution first (from utm_term via associated keyword)
+      const kwAttr = keywordAttrData[keywordKey];
+      if (kwAttr) {
+        return {
+          ...st,
+          acquisitions: kwAttr.acquisitions,
+          firstRebills: kwAttr.firstRebills,
+          attributionLevel: 'keyword' as const,
+        };
+      }
+
+      // Fallback to campaign-level attribution
+      const campAttr = campaignAttrData[campaignId];
+      return {
+        ...st,
+        acquisitions: campAttr?.acquisitions || 0,
+        firstRebills: campAttr?.firstRebills || 0,
+        attributionLevel: 'campaign' as const,
+      };
+    });
+
     // Paginate
-    const totalFiltered = filtered.length;
+    const totalFiltered = enrichedSearchTerms.length;
     const totalPages = Math.ceil(totalFiltered / limit);
     const offset = (page - 1) * limit;
-    const paginatedSearchTerms = filtered.slice(offset, offset + limit);
+    const paginatedSearchTerms = enrichedSearchTerms.slice(offset, offset + limit);
 
     // Recalculate totals for filtered dataset
-    const filteredTotalSpend = filtered.reduce((sum, st) => sum + st.spend, 0);
+    const filteredTotalSpend = enrichedSearchTerms.reduce((sum, st) => sum + st.spend, 0);
 
     res.json({
       success: true,

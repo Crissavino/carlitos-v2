@@ -606,6 +606,13 @@ export interface KeywordPerformance {
   conversionRate: number;
   performanceStatus: KeywordPerformanceStatus;
   recommendation: KeywordRecommendation | null;
+  // Attribution from Avocode DB (keyword-level via utm_term, or campaign-level fallback)
+  acquisitions?: number;
+  firstRebills?: number;
+  attributionLevel?: 'keyword' | 'campaign';
+  // Legacy: deprecated, use acquisitions/firstRebills
+  campaignAcquisitions?: number;
+  campaignFirstRebills?: number;
 }
 
 export interface KeywordPerformanceResult {
@@ -706,6 +713,13 @@ export interface SearchTermPerformance {
   conversionRate: number;
   performanceStatus: SearchTermPerformanceStatus;
   recommendation: SearchTermRecommendation | null;
+  // Attribution from Avocode DB (keyword-level via utm_term, or campaign-level fallback)
+  acquisitions?: number;
+  firstRebills?: number;
+  attributionLevel?: 'keyword' | 'campaign';
+  // Legacy: deprecated, use acquisitions/firstRebills
+  campaignAcquisitions?: number;
+  campaignFirstRebills?: number;
 }
 
 export interface SearchTermWasteAnalysis {

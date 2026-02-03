@@ -7,11 +7,11 @@ import { TaskModal } from '../components/TaskModal';
 import { NewTaskModal } from '../components/NewTaskModal';
 
 const COLUMNS: { status: TaskStatus; title: string }[] = [
-  { status: 'backlog', title: 'Backlog' },
-  { status: 'todo', title: 'To Do' },
-  { status: 'in_progress', title: 'In Progress' },
-  { status: 'review', title: 'Review' },
-  { status: 'done', title: 'Done' },
+  { status: 'backlog', title: 'Pendientes' },
+  { status: 'todo', title: 'Por Hacer' },
+  { status: 'in_progress', title: 'En Progreso' },
+  { status: 'review', title: 'Revisión' },
+  { status: 'done', title: 'Hecho' },
 ];
 
 export function Kanban() {

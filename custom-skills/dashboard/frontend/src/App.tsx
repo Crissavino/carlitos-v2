@@ -70,7 +70,7 @@ function App() {
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-          <span className="text-gray-400">Loading...</span>
+          <span className="text-gray-400">Cargando...</span>
         </div>
       </div>
     );
@@ -110,7 +110,7 @@ function App() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-1">
-              <NavButton targetPage="executive" icon={LayoutDashboard} label="Dashboard" />
+              <NavButton targetPage="executive" icon={LayoutDashboard} label="Panel" />
               <NavButton targetPage="kanban" icon={KanbanIcon} label="Kanban" />
 
               {/* Google Ads Dropdown */}
@@ -137,7 +137,7 @@ function App() {
                       }`}
                     >
                       <BarChart3 className="w-4 h-4" />
-                      Campaigns
+                      Campañas
                     </button>
                     <button
                       onClick={() => navigateTo('keywords')}
@@ -155,18 +155,18 @@ function App() {
                       }`}
                     >
                       <Search className="w-4 h-4" />
-                      Search Terms
+                      Términos de Búsqueda
                     </button>
                   </div>
                 )}
               </div>
 
-              <NavButton targetPage="business" icon={Building2} label="Business" />
+              <NavButton targetPage="business" icon={Building2} label="Negocio" />
 
               {isAdmin && (
                 <>
                   <NavButton targetPage="chat" icon={MessageSquare} label="Chat" />
-                  <NavButton targetPage="users" icon={Users} label="Users" />
+                  <NavButton targetPage="users" icon={Users} label="Usuarios" />
                 </>
               )}
             </div>
@@ -210,7 +210,7 @@ function App() {
               <button
                 onClick={logout}
                 className="flex items-center gap-2 px-2 py-1.5 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-lg transition-colors"
-                title="Sign out"
+                title="Cerrar sesión"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -237,7 +237,7 @@ function App() {
                 }`}
               >
                 <LayoutDashboard className="w-5 h-5" />
-                Dashboard
+                Panel
               </button>
               <button
                 onClick={() => navigateTo('kanban')}
@@ -260,7 +260,7 @@ function App() {
                 }`}
               >
                 <BarChart3 className="w-5 h-5" />
-                Campaigns
+                Campañas
               </button>
               <button
                 onClick={() => navigateTo('keywords')}
@@ -278,7 +278,7 @@ function App() {
                 }`}
               >
                 <Search className="w-5 h-5" />
-                Search Terms
+                Términos de Búsqueda
               </button>
 
               <div className="pt-2">
@@ -289,7 +289,7 @@ function App() {
                   }`}
                 >
                   <Building2 className="w-5 h-5" />
-                  Business
+                  Negocio
                 </button>
               </div>
 
@@ -314,7 +314,7 @@ function App() {
                     }`}
                   >
                     <Users className="w-5 h-5" />
-                    Users
+                    Usuarios
                   </button>
                 </>
               )}
@@ -328,7 +328,7 @@ function App() {
                     className="flex items-center gap-2 px-3 py-1.5 text-gray-400 hover:text-white bg-gray-800 rounded-lg text-sm"
                   >
                     <LogOut className="w-4 h-4" />
-                    Sign out
+                    Cerrar sesión
                   </button>
                 </div>
               </div>

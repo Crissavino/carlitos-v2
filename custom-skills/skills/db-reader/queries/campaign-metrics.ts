@@ -161,6 +161,50 @@ export const campaignPerformanceQuery: QueryBuilder = (websiteId?: number): Quer
 };
 
 /**
+ * Keyword Attribution - Phase 12
+ *
+ * Uses utm_term from google_ads_details to attribute customers to keywords.
+ * Returns acquisitions and first rebills per keyword (utm_term + utm_campaign combo)
+ */
+export const keywordAttributionQuery: QueryBuilder = (websiteId?: number): QueryDefinition => {
+  const websiteFilter = websiteId ? `AND camp.website_id = ?` : '';
+  const params = websiteId ? [websiteId] : [];
+
+  return {
+    id: "keyword-attribution" as any,
+    name: "Keyword Attribution",
+    description: "Acquisitions and first rebills by keyword (utm_term)",
+    sql: `
+      SELECT
+        gad.utm_term as keyword_text,
+        gad.utm_campaign as campaign_id,
+        camp.name as campaign_name,
+        camp.website_id,
+        COUNT(DISTINCT gad.customer_id) as acquisitions,
+        COUNT(DISTINCT CASE
+          WHEN EXISTS (
+            SELECT 1 FROM avocode.invoices i
+            WHERE i.customer_id = gad.customer_id
+              AND i.invoice_status_id = 1
+              AND i.invoice_type_id = 2
+          ) THEN gad.customer_id
+          ELSE NULL
+        END) as first_rebills
+      FROM avocode.google_ads_details gad
+      LEFT JOIN avocodebo.campaigns camp
+        ON camp.google_campaign_id = gad.utm_campaign
+      WHERE gad.utm_term IS NOT NULL
+        AND gad.utm_term != ''
+        ${websiteFilter}
+      GROUP BY gad.utm_term, gad.utm_campaign, camp.name, camp.website_id
+      ORDER BY acquisitions DESC
+    `,
+    params,
+    permissions: ["SELECT"],
+  };
+};
+
+/**
  * Campaign Summary (lightweight)
  */
 export const campaignSummaryQuery: QueryBuilder = (websiteId?: number): QueryDefinition => {

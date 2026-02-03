@@ -17,7 +17,7 @@ export function Login() {
     try {
       await login(email, password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Error de inicio de sesión');
     } finally {
       setIsSubmitting(false);
     }
@@ -32,7 +32,7 @@ export function Login() {
             <span className="text-5xl">🦞</span>
           </div>
           <h1 className="text-2xl font-bold text-white">OpenClaw Dashboard</h1>
-          <p className="text-gray-400 mt-2">Sign in to continue</p>
+          <p className="text-gray-400 mt-2">Inicia sesión para continuar</p>
         </div>
 
         {/* Login form */}
@@ -47,7 +47,7 @@ export function Login() {
           <div className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1.5">
-                Email
+                Correo electrónico
               </label>
               <input
                 id="email"
@@ -55,7 +55,7 @@ export function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="you@example.com"
+                placeholder="tu@ejemplo.com"
                 required
                 disabled={isSubmitting}
                 autoComplete="email"
@@ -64,7 +64,7 @@ export function Login() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1.5">
-                Password
+                Contraseña
               </label>
               <input
                 id="password"
@@ -72,7 +72,7 @@ export function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="Enter your password"
+                placeholder="Ingresa tu contraseña"
                 required
                 disabled={isSubmitting}
                 autoComplete="current-password"
@@ -88,16 +88,16 @@ export function Login() {
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Signing in...
+                Iniciando sesión...
               </>
             ) : (
-              'Sign in'
+              'Iniciar sesión'
             )}
           </button>
         </form>
 
         <p className="text-center text-gray-500 text-sm mt-6">
-          Contact your administrator for access
+          Contacta al administrador para obtener acceso
         </p>
       </div>
     </div>

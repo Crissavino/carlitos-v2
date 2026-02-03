@@ -8,7 +8,7 @@ import { usageBeforeRebill27dQuery } from "./usage-before-rebill2-7d.js";
 import { adSpend7dQuery } from "./ad-spend-7d.js";
 import { ltv30dQuery, ltv45dQuery, ltv90dQuery } from "./ltv-30d.js";
 import { ltv21dQuery, ltv51dQuery, ltv81dQuery } from "./ltv-windows.js";
-import { campaignPerformanceQuery, campaignSummaryQuery } from "./campaign-metrics.js";
+import { campaignPerformanceQuery, campaignSummaryQuery, keywordAttributionQuery } from "./campaign-metrics.js";
 import {
   websiteAggregationQuery,
   companyAggregationQuery,
@@ -68,6 +68,8 @@ export const QUERY_BUILDERS: Record<AllowedQueryId, QueryBuilder> = {
   "ad-spend-7d-ago": adSpend7dAgoQuery,
   // Phase 11: Payback M1 Cohort (FIX - real cohort-based calculation)
   "payback-m1-cohort": paybackM1CohortQuery,
+  // Phase 12: Keyword-level attribution
+  "keyword-attribution": keywordAttributionQuery,
 };
 
 /**
@@ -103,6 +105,7 @@ export {
   // Phase 7: Campaign metrics
   campaignPerformanceQuery,
   campaignSummaryQuery,
+  keywordAttributionQuery,
   // Phase 7.5: Business aggregations
   websiteAggregationQuery,
   companyAggregationQuery,
