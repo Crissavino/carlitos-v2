@@ -2459,18 +2459,21 @@ app.listen(PORT, "0.0.0.0", async () => {
 });
 
 async function warmAllCaches(): Promise<void> {
-  console.log("[CacheWarmup] Starting cache pre-warm for all websites...");
+  console.log("[CacheWarmup] Starting cache pre-warm for all websites (sequential to avoid DB contention)...");
   const warmupStart = Date.now();
-  await Promise.all(
-    VALID_WEBSITE_IDS.map(async (websiteId) => {
-      try {
-        await fetchRawMetrics(websiteId);
-        console.log(`[CacheWarmup] Warmed cache for website_id=${websiteId}`);
-      } catch (err) {
-        console.error(`[CacheWarmup] Failed for website_id=${websiteId}:`, err);
-      }
-    })
-  );
+
+  // Load websites SEQUENTIALLY to avoid DB contention
+  // This is slower on startup but doesn't overload the database
+  for (const websiteId of VALID_WEBSITE_IDS) {
+    try {
+      const start = Date.now();
+      await fetchRawMetrics(websiteId);
+      console.log(`[CacheWarmup] Warmed cache for website_id=${websiteId} in ${Date.now() - start}ms`);
+    } catch (err) {
+      console.error(`[CacheWarmup] Failed for website_id=${websiteId}:`, err);
+    }
+  }
+
   const elapsed = ((Date.now() - warmupStart) / 1000).toFixed(1);
   console.log(`[CacheWarmup] Complete! All caches warm in ${elapsed}s`);
 }

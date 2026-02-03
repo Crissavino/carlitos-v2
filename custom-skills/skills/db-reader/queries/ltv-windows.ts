@@ -22,70 +22,86 @@ const RATE_CASE_INV = buildCurrencyRateCase('inv.currency_code');
 
 /**
  * MySQL 5.7 compatible query with website_id filtering
+ * OPTIMIZED: Uses JOINs instead of correlated subqueries for O(n) instead of O(n²)
  */
 const buildLtvWindowQueryCompat = (days: number, lookbackDays: number = 120, websiteId?: number): string => {
   const websiteFilter = websiteId ? `AND c.website_id = ${websiteId}` : '';
 
+  // Use pre-aggregated subqueries with JOINs instead of correlated subqueries
   return `
     SELECT
       ROUND(
-        SUM(gross_revenue_eur - invoice_refunds_eur - zoho_refunds_eur) / NULLIF(COUNT(*), 0),
+        SUM(COALESCE(rev.amount_eur, 0) - COALESCE(ref.amount_eur, 0) - COALESCE(zref.amount_eur, 0)) / NULLIF(COUNT(DISTINCT c.id), 0),
         2
       ) as ltv_${days}d,
 
-      COUNT(*) as cohort_size,
-      SUM(CASE WHEN gross_revenue_eur > 0 THEN 1 ELSE 0 END) as customers_with_revenue,
+      COUNT(DISTINCT c.id) as cohort_size,
+      SUM(CASE WHEN rev.amount_eur > 0 THEN 1 ELSE 0 END) as customers_with_revenue,
       ROUND(
-        SUM(CASE WHEN gross_revenue_eur > 0 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0),
+        SUM(CASE WHEN rev.amount_eur > 0 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(DISTINCT c.id), 0),
         1
       ) as conversion_rate_pct,
 
-      ROUND(SUM(gross_revenue_eur), 2) as total_gross_revenue_eur,
-      ROUND(SUM(invoice_refunds_eur + zoho_refunds_eur), 2) as total_refunds_eur,
-      ROUND(SUM(gross_revenue_eur - invoice_refunds_eur - zoho_refunds_eur), 2) as total_net_revenue_eur
+      ROUND(SUM(COALESCE(rev.amount_eur, 0)), 2) as total_gross_revenue_eur,
+      ROUND(SUM(COALESCE(ref.amount_eur, 0) + COALESCE(zref.amount_eur, 0)), 2) as total_refunds_eur,
+      ROUND(SUM(COALESCE(rev.amount_eur, 0) - COALESCE(ref.amount_eur, 0) - COALESCE(zref.amount_eur, 0)), 2) as total_net_revenue_eur
 
-    FROM (
+    FROM avocode.customers c
+
+    -- Pre-aggregated revenue per customer (subscription invoices within window)
+    LEFT JOIN (
       SELECT
-        c.id as customer_id,
+        i.customer_id,
+        SUM(i.amount / ${RATE_CASE}) as amount_eur
+      FROM avocode.invoices i
+      JOIN avocode.customers c2 ON i.customer_id = c2.id
+      WHERE i.invoice_status_id = 1
+        AND i.invoice_type_id = 2
+        AND i.transacted_at <= DATE_ADD(c2.create_time, INTERVAL ${days} DAY)
+        AND c2.create_time <= DATE_SUB(CURDATE(), INTERVAL ${days} DAY)
+        AND c2.create_time >= DATE_SUB(CURDATE(), INTERVAL ${lookbackDays} DAY)
+        ${websiteFilter.replace('c.website_id', 'c2.website_id')}
+      GROUP BY i.customer_id
+    ) rev ON rev.customer_id = c.id
 
-        -- Gross revenue (subscriptions type 2) within window
-        COALESCE((
-          SELECT SUM(i.amount / ${RATE_CASE})
-          FROM avocode.invoices i
-          WHERE i.customer_id = c.id
-            AND i.invoice_status_id = 1
-            AND i.invoice_type_id = 2
-            AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL ${days} DAY)
-        ), 0) as gross_revenue_eur,
+    -- Pre-aggregated refunds per customer (type 3 invoices, non-Jackcode)
+    LEFT JOIN (
+      SELECT
+        i.customer_id,
+        SUM(i.amount / ${RATE_CASE}) as amount_eur
+      FROM avocode.invoices i
+      JOIN avocode.customers c2 ON i.customer_id = c2.id
+      WHERE i.invoice_status_id = 1
+        AND i.invoice_type_id = 3
+        AND i.company_id != ${JACKCODE_COMPANY_ID}
+        AND i.transacted_at <= DATE_ADD(c2.create_time, INTERVAL ${days} DAY)
+        AND c2.create_time <= DATE_SUB(CURDATE(), INTERVAL ${days} DAY)
+        AND c2.create_time >= DATE_SUB(CURDATE(), INTERVAL ${lookbackDays} DAY)
+        ${websiteFilter.replace('c.website_id', 'c2.website_id')}
+      GROUP BY i.customer_id
+    ) ref ON ref.customer_id = c.id
 
-        -- Refunds type 3 (Avocode/Kiwikode only, company_id != 3)
-        COALESCE((
-          SELECT SUM(i.amount / ${RATE_CASE})
-          FROM avocode.invoices i
-          WHERE i.customer_id = c.id
-            AND i.invoice_status_id = 1
-            AND i.invoice_type_id = 3
-            AND i.company_id != ${JACKCODE_COMPANY_ID}
-            AND i.transacted_at <= DATE_ADD(c.create_time, INTERVAL ${days} DAY)
-        ), 0) as invoice_refunds_eur,
+    -- Pre-aggregated Zoho refunds per customer (Jackcode only)
+    LEFT JOIN (
+      SELECT
+        inv.customer_id,
+        SUM(zr.amount / ${RATE_CASE_INV}) as amount_eur
+      FROM avocodebo.zoho_refunds zr
+      JOIN avocodebo.zoho_credit_notes zcn ON zcn.id = zr.zoho_credit_note_id
+      JOIN avocodebo.zoho_invoices zi ON zi.id = zcn.zoho_invoice_id
+      JOIN avocode.invoices inv ON inv.id = zi.invoice_id
+      JOIN avocode.customers c2 ON inv.customer_id = c2.id
+      WHERE inv.company_id = ${JACKCODE_COMPANY_ID}
+        AND zr.created_at <= DATE_ADD(c2.create_time, INTERVAL ${days} DAY)
+        AND c2.create_time <= DATE_SUB(CURDATE(), INTERVAL ${days} DAY)
+        AND c2.create_time >= DATE_SUB(CURDATE(), INTERVAL ${lookbackDays} DAY)
+        ${websiteFilter.replace('c.website_id', 'c2.website_id')}
+      GROUP BY inv.customer_id
+    ) zref ON zref.customer_id = c.id
 
-        -- Zoho refunds (Jackcode only, company_id = 3)
-        COALESCE((
-          SELECT SUM(zr.amount / ${RATE_CASE_INV})
-          FROM avocodebo.zoho_refunds zr
-          JOIN avocodebo.zoho_credit_notes zcn ON zcn.id = zr.zoho_credit_note_id
-          JOIN avocodebo.zoho_invoices zi ON zi.id = zcn.zoho_invoice_id
-          JOIN avocode.invoices inv ON inv.id = zi.invoice_id
-          WHERE inv.customer_id = c.id
-            AND inv.company_id = ${JACKCODE_COMPANY_ID}
-            AND zr.created_at <= DATE_ADD(c.create_time, INTERVAL ${days} DAY)
-        ), 0) as zoho_refunds_eur
-
-      FROM avocode.customers c
-      WHERE c.create_time <= DATE_SUB(CURDATE(), INTERVAL ${days} DAY)
-        AND c.create_time >= DATE_SUB(CURDATE(), INTERVAL ${lookbackDays} DAY)
-        ${websiteFilter}
-    ) cohort
+    WHERE c.create_time <= DATE_SUB(CURDATE(), INTERVAL ${days} DAY)
+      AND c.create_time >= DATE_SUB(CURDATE(), INTERVAL ${lookbackDays} DAY)
+      ${websiteFilter}
   `;
 };
 
