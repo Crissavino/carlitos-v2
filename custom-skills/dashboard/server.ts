@@ -432,10 +432,11 @@ app.get("/api/chat/token", adminAuth, (req: Request, res: Response) => {
 // CHAT SESSION MANAGEMENT
 // ============================================================================
 
+// OpenAI-compatible message content format
 interface ChatMessageContent {
-  type: "text" | "image";
+  type: "text" | "image_url";
   text?: string;
-  source?: { type: "base64"; media_type: string; data: string };
+  image_url?: { url: string };
 }
 
 interface ChatMessageHistory {
@@ -544,33 +545,25 @@ app.post("/api/chat/send", adminAuth, async (req: Request, res: Response) => {
   }
 
   try {
-    // Build message content (Anthropic format for images)
+    // Build message content (OpenAI-compatible format)
     const content: ChatMessageContent[] = [];
 
-    // Add images first (Anthropic prefers images before text)
-    if (images && images.length > 0) {
-      for (const img of images) {
-        // Parse data URL to extract media type and base64 data
-        const match = img.match(/^data:([^;]+);base64,(.+)$/);
-        if (match) {
-          content.push({
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: match[1],
-              data: match[2],
-            },
-          });
-        }
-      }
-    }
-
-    // Add text
+    // Add text first
     if (message) {
       content.push({ type: "text", text: message });
-    } else if (content.length > 0) {
+    } else if (images && images.length > 0) {
       // If only images, add a generic prompt
       content.push({ type: "text", text: "¿Qué ves en esta imagen?" });
+    }
+
+    // Add images (OpenAI format: image_url with data URL)
+    if (images && images.length > 0) {
+      for (const img of images) {
+        content.push({
+          type: "image_url",
+          image_url: { url: img },  // img is already a data URL
+        });
+      }
     }
 
     // Add user message to session history
