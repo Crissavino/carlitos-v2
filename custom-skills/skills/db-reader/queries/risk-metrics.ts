@@ -4,7 +4,7 @@ import { QueryDefinition, QueryBuilder } from "../types.js";
  * Risk Metrics Queries
  *
  * CHARGEBACK RATE - Riesgo de cierre de cuenta por procesador
- * Fuente: avocode.customers.disputes
+ * Fuente: avocode.customers.dispute
  *
  * Si supera 0.5%, el procesador puede cerrar la cuenta.
  * Ya cerraron Revolut por esto.
@@ -44,9 +44,8 @@ export const chargebackRateQuery: QueryBuilder = (websiteId?: number): QueryDefi
         (
           SELECT COUNT(*) as total_disputes
           FROM avocode.customers c
-          WHERE c.disputes IS NOT NULL
-            AND c.disputes > 0
-            AND c.create_time >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+          WHERE c.dispute IS NOT NULL
+            AND c.dispute > 0
             ${websiteFilter}
         ) disputes,
         (
