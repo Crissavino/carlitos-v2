@@ -30,8 +30,8 @@ export const chargebackRateQuery: QueryBuilder = (websiteId?: number): QueryDefi
 
   return {
     id: "chargeback-rate",
-    name: "Chargeback Rate (30d)",
-    description: "Tasa de chargebacks/disputes en últimos 30 días. >0.5% = riesgo procesador.",
+    name: "Chargeback Rate (All Time)",
+    description: "Tasa de chargebacks/disputes. >0.5% = riesgo procesador.",
     sql: `
       SELECT
         COALESCE(disputes.total_disputes, 0) as total_disputes,
@@ -53,7 +53,6 @@ export const chargebackRateQuery: QueryBuilder = (websiteId?: number): QueryDefi
           FROM avocode.invoices i
           INNER JOIN avocode.customers c ON i.customer_id = c.id
           WHERE i.invoice_status_id = 1
-            AND i.transacted_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
             ${websiteFilter}
         ) transactions
     `,
