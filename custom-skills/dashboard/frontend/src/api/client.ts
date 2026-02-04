@@ -808,3 +808,100 @@ export interface SearchTermsWasteResult {
   };
   searchTerms: SearchTermWasteAnalysis[];
 }
+
+// ============================================================================
+// Chat API (OpenClaw Gateway Proxy)
+// ============================================================================
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  images?: string[];  // base64 encoded images
+  timestamp: Date;
+}
+
+export interface ChatSendRequest {
+  message?: string;
+  images?: string[];  // base64 data URLs
+  sessionId?: string;
+}
+
+// Send chat message with streaming response
+export async function sendChatMessage(
+  request: ChatSendRequest,
+  onChunk: (text: string) => void,
+  onDone: () => void,
+  onError: (error: string) => void
+): Promise<void> {
+  const token = localStorage.getItem('session_token') || '';
+
+  try {
+    const response = await fetch('/api/chat/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      onError(errorData.error || `HTTP ${response.status}`);
+      return;
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      onError('No response body');
+      return;
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse SSE events
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            onDone();
+            return;
+          }
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              onChunk(content);
+            }
+          } catch {
+            // Ignore parse errors for non-JSON lines
+          }
+        }
+      }
+    }
+
+    onDone();
+  } catch (error) {
+    onError(error instanceof Error ? error.message : 'Unknown error');
+  }
+}
+
+// Convert File to base64 data URL
+export function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}

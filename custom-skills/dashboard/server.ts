@@ -428,6 +428,85 @@ app.get("/api/chat/token", adminAuth, (req: Request, res: Response) => {
   res.json({ success: true, data: { token } });
 });
 
+// POST /api/chat/send - Proxy chat messages to OpenClaw (admin only)
+app.post("/api/chat/send", adminAuth, async (req: Request, res: Response) => {
+  const token = process.env.OPENCLAW_GATEWAY_TOKEN;
+  if (!token) {
+    res.status(500).json({ error: "Gateway token not configured" });
+    return;
+  }
+
+  const { message, images, sessionId } = req.body;
+  if (!message && (!images || images.length === 0)) {
+    res.status(400).json({ error: "Message or images required" });
+    return;
+  }
+
+  try {
+    // Build message content (text + images)
+    const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+
+    if (message) {
+      content.push({ type: "text", text: message });
+    }
+
+    if (images && images.length > 0) {
+      for (const img of images) {
+        content.push({
+          type: "image_url",
+          image_url: { url: img.startsWith("data:") ? img : `data:image/jpeg;base64,${img}` }
+        });
+      }
+    }
+
+    const requestBody = {
+      model: "agent:main",
+      messages: [{ role: "user", content: content.length === 1 && content[0].type === "text" ? content[0].text : content }],
+      stream: true,
+      user: sessionId || "dashboard-chat"
+    };
+
+    // Proxy to OpenClaw Gateway
+    const response = await fetch("http://0.0.0.0:18789/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      res.status(response.status).json({ error: errorText });
+      return;
+    }
+
+    // Stream the response
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      res.status(500).json({ error: "No response body" });
+      return;
+    }
+
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      res.write(chunk);
+    }
+    res.end();
+  } catch (error) {
+    console.error("[Chat] Error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
 // GET /api/admin/users - List all users (admin only)
 app.get("/api/admin/users", adminAuth, async (req: Request, res: Response) => {
   try {
