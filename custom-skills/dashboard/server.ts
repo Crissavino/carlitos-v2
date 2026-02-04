@@ -105,7 +105,7 @@ declare global {
 // ============================================================================
 
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*", credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));  // Increased for image uploads
 
 // Request logging
 app.use((req: Request, res: Response, next: NextFunction) => {
