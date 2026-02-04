@@ -428,7 +428,94 @@ app.get("/api/chat/token", adminAuth, (req: Request, res: Response) => {
   res.json({ success: true, data: { token } });
 });
 
-// POST /api/chat/send - Proxy chat messages to OpenClaw (admin only)
+// ============================================================================
+// CHAT SESSION MANAGEMENT
+// ============================================================================
+
+interface ChatMessageContent {
+  type: "text" | "image";
+  text?: string;
+  source?: { type: "base64"; media_type: string; data: string };
+}
+
+interface ChatMessageHistory {
+  role: "user" | "assistant";
+  content: string | ChatMessageContent[];
+}
+
+interface ChatSession {
+  id: string;
+  name: string;
+  createdAt: Date;
+  lastMessageAt: Date;
+  messages: ChatMessageHistory[];
+}
+
+// In-memory session store (could be moved to DB later)
+const chatSessions = new Map<string, ChatSession>();
+
+// GET /api/chat/sessions - List all sessions (admin only)
+app.get("/api/chat/sessions", adminAuth, (req: Request, res: Response) => {
+  const sessions = Array.from(chatSessions.values())
+    .map(s => ({
+      id: s.id,
+      name: s.name,
+      createdAt: s.createdAt.toISOString(),
+      lastMessageAt: s.lastMessageAt.toISOString(),
+      messageCount: s.messages.length,
+    }))
+    .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
+
+  res.json({ success: true, data: { sessions } });
+});
+
+// POST /api/chat/sessions - Create new session (admin only)
+app.post("/api/chat/sessions", adminAuth, (req: Request, res: Response) => {
+  const { name } = req.body;
+  const id = `session-${Date.now()}`;
+  const session: ChatSession = {
+    id,
+    name: name || `Chat ${new Date().toLocaleDateString()}`,
+    createdAt: new Date(),
+    lastMessageAt: new Date(),
+    messages: [],
+  };
+  chatSessions.set(id, session);
+
+  res.json({ success: true, data: { id: session.id, name: session.name } });
+});
+
+// DELETE /api/chat/sessions/:id - Delete session (admin only)
+app.delete("/api/chat/sessions/:id", adminAuth, (req: Request, res: Response) => {
+  const { id } = req.params;
+  if (chatSessions.has(id)) {
+    chatSessions.delete(id);
+    res.json({ success: true, data: { deleted: true } });
+  } else {
+    res.status(404).json({ error: "Session not found" });
+  }
+});
+
+// GET /api/chat/sessions/:id/messages - Get session messages (admin only)
+app.get("/api/chat/sessions/:id/messages", adminAuth, (req: Request, res: Response) => {
+  const { id } = req.params;
+  const session = chatSessions.get(id);
+  if (!session) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  // Return messages with images stripped (for display purposes)
+  const messages = session.messages.map(m => ({
+    role: m.role,
+    content: typeof m.content === "string" ? m.content :
+      m.content.map(c => c.type === "text" ? c.text : "[imagen]").join(" "),
+  }));
+
+  res.json({ success: true, data: { messages } });
+});
+
+// POST /api/chat/send - Send message to OpenClaw (admin only)
 app.post("/api/chat/send", adminAuth, async (req: Request, res: Response) => {
   const token = process.env.OPENCLAW_GATEWAY_TOKEN;
   if (!token) {
@@ -442,28 +529,60 @@ app.post("/api/chat/send", adminAuth, async (req: Request, res: Response) => {
     return;
   }
 
+  // Get or create session
+  let session = sessionId ? chatSessions.get(sessionId) : null;
+  if (!session) {
+    const id = sessionId || `session-${Date.now()}`;
+    session = {
+      id,
+      name: `Chat ${new Date().toLocaleDateString()}`,
+      createdAt: new Date(),
+      lastMessageAt: new Date(),
+      messages: [],
+    };
+    chatSessions.set(id, session);
+  }
+
   try {
-    // Build message content (text + images)
-    const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+    // Build message content (Anthropic format for images)
+    const content: ChatMessageContent[] = [];
 
-    if (message) {
-      content.push({ type: "text", text: message });
-    }
-
+    // Add images first (Anthropic prefers images before text)
     if (images && images.length > 0) {
       for (const img of images) {
-        content.push({
-          type: "image_url",
-          image_url: { url: img.startsWith("data:") ? img : `data:image/jpeg;base64,${img}` }
-        });
+        // Parse data URL to extract media type and base64 data
+        const match = img.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          content.push({
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: match[1],
+              data: match[2],
+            },
+          });
+        }
       }
     }
 
+    // Add text
+    if (message) {
+      content.push({ type: "text", text: message });
+    } else if (content.length > 0) {
+      // If only images, add a generic prompt
+      content.push({ type: "text", text: "¿Qué ves en esta imagen?" });
+    }
+
+    // Add user message to session history
+    session.messages.push({ role: "user", content });
+    session.lastMessageAt = new Date();
+
+    // Build request with full message history
     const requestBody = {
       model: "agent:main",
-      messages: [{ role: "user", content: content.length === 1 && content[0].type === "text" ? content[0].text : content }],
+      messages: session.messages,
       stream: true,
-      user: sessionId || "dashboard-chat"
+      user: session.id,
     };
 
     // Proxy to OpenClaw Gateway
@@ -471,35 +590,61 @@ app.post("/api/chat/send", adminAuth, async (req: Request, res: Response) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
+        "Authorization": `Bearer ${token}`,
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
+      // Remove failed message from history
+      session.messages.pop();
       res.status(response.status).json({ error: errorText });
       return;
     }
 
-    // Stream the response
+    // Stream the response and collect full response
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Session-Id", session.id);
 
     const reader = response.body?.getReader();
     if (!reader) {
+      session.messages.pop();
       res.status(500).json({ error: "No response body" });
       return;
     }
 
     const decoder = new TextDecoder();
+    let fullResponse = "";
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value, { stream: true });
       res.write(chunk);
+
+      // Parse SSE to collect full response
+      const lines = chunk.split("\n");
+      for (const line of lines) {
+        if (line.startsWith("data: ") && line !== "data: [DONE]") {
+          try {
+            const data = JSON.parse(line.slice(6));
+            const content = data.choices?.[0]?.delta?.content;
+            if (content) fullResponse += content;
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
     }
+
+    // Add assistant response to session history
+    if (fullResponse) {
+      session.messages.push({ role: "assistant", content: fullResponse });
+    }
+
     res.end();
   } catch (error) {
     console.error("[Chat] Error:", error);
