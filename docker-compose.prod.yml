@@ -85,6 +85,8 @@ services:
       # Gateway & Webhooks
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-}
       - GOOGLE_ADS_WEBHOOK_TOKEN=${GOOGLE_ADS_WEBHOOK_TOKEN:-}
+      # Telegram
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       # Dashboard
       - DASHBOARD_PORT=3002
       - DASHBOARD_TOKEN=${DASHBOARD_TOKEN}
