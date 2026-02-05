@@ -67,9 +67,14 @@ export function TaskCard({ task, index, onClick }: Props) {
 
           {/* Footer */}
           <div className="flex items-center justify-between text-xs text-gray-500">
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {createdDate}
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-gray-400 bg-gray-700/50 px-1.5 py-0.5 rounded" title="Task ID - usá este ID para referenciar en OpenClaw">
+                #{task.id}
+              </span>
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {createdDate}
+              </div>
             </div>
             {task.area && (
               <span className="bg-gray-700 px-1.5 py-0.5 rounded">
