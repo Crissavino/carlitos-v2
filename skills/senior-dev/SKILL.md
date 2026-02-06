@@ -1,6 +1,7 @@
 ---
 name: senior-dev
 description: Tech Lead / Senior Developer advisory skill. Use for codebase analysis, task-to-code mapping, and PR proposal generation. Read-only mode - cannot modify code.
+model: anthropic/claude-sonnet-4-5
 ---
 
 # Senior Dev Skill
