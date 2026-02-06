@@ -92,6 +92,10 @@ services:
       - DASHBOARD_TOKEN=${DASHBOARD_TOKEN}
       # GitHub Access (for git clone/push private repos)
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      # Gemini (alternative AI provider)
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # Brave Search (web search)
+      - BRAVE_API_KEY=${BRAVE_API_KEY:-}
     expose:
       - "18789"
       - "3001"
