@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 
-const AUDIT_DIR = "/root/.openclaw/custom-skills/data/audit";
+const AUDIT_DIR = process.env.AUDIT_DIR || (process.env.HOME ? `${process.env.HOME}/.openclaw/custom-skills/data/audit` : "/root/.openclaw/custom-skills/data/audit");
 
 export class AuditLog {
   private getLogPath(): string {

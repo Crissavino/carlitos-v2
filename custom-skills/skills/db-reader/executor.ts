@@ -116,6 +116,14 @@ async function executeRealQuery(sql: string, params: unknown[]): Promise<unknown
   return rows as unknown[];
 }
 
+/**
+ * Execute a raw SQL query (for dynamic queries not in the registry)
+ * Use with caution - only for internal dashboard use
+ */
+export async function executeRawQuery(sql: string, params: unknown[] = []): Promise<unknown[]> {
+  return executeRealQuery(sql, params);
+}
+
 function formatResults(queryId: AllowedQueryId, rows: unknown[]): unknown {
   switch (queryId) {
     case "active-subscriptions": {

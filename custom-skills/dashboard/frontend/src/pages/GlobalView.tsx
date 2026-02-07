@@ -1,29 +1,7 @@
-import { useState } from 'react';
-import { TrendingUp, TrendingDown, Minus, RefreshCw, Users, AlertTriangle, Percent, PiggyBank, Target, DollarSign, X, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { TrendingUp, TrendingDown, Minus, RefreshCw, Users, AlertTriangle, Percent, PiggyBank, DollarSign, X, Check } from 'lucide-react';
 import { useCohort } from '../contexts/CohortContext';
-
-// Base KPI values - will be adjusted based on cohort
-const BASE_KPIS = {
-  weeklyProfit: 4250,
-  paybackM1: 1.17,
-  cpt: 55,
-  frr: 38.2,
-  refundRateM1: 4.8,
-  disputeRate: 0.42,
-};
-
-const BASE_DAILY_PULSE = {
-  acquisitions: { today: 45, lastWeek: 38 },
-  firstRebills: { today: 22, lastWeek: 25 },
-  refunds: { today: 3, lastWeek: 5 },
-  grossRevenue: { today: 2850, lastWeek: 2620 },
-};
-
-const BASE_PAYBACK_BY_WEBSITE = [
-  { website: 'ConversiePDF', basePayback: 0.52 },
-  { website: 'DeviceFinder', basePayback: 0.47 },
-  { website: 'ConviertePDF', basePayback: 0.21 },
-];
+import { api, type GlobalViewData } from '../api/client';
 
 type KpiStatus = 'green' | 'yellow' | 'red';
 
@@ -99,7 +77,7 @@ function PulseCard({ title, today, lastWeek, change, format = 'number' }: PulseC
       : 'text-red-400';
 
   const formatValue = (val: number) => {
-    if (format === 'currency') return `€${val.toLocaleString()}`;
+    if (format === 'currency') return `€${Math.round(val).toLocaleString()}`;
     return val.toLocaleString();
   };
 
@@ -189,88 +167,118 @@ function PaybackByWebsiteChart({ data }: { data: PaybackWebsite[] }) {
 }
 
 export function GlobalView() {
-  const [loading] = useState(false);
   const { selectedRange, isPeriod, isCohort, days, monthsAvailable } = useCohort();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<GlobalViewData | null>(null);
 
-  // Generate data factor based on selection
-  // For periods: more days = more data = better metrics
-  // For cohorts: more months = more mature = better metrics
-  const dataFactor = isPeriod
-    ? Math.min(days / 60, 1) // 7d = 0.12, 60d = 1.0
-    : monthsAvailable / 6;   // 0m = 0, 6m = 1.0
+  // Fetch data when range changes
+  useEffect(() => {
+    async function fetchData() {
+      // Only fetch for period-based ranges (7d, 14d, 30d, 60d)
+      // Cohort-based will use mock data for now
+      if (!isPeriod) {
+        setLoading(false);
+        setData(null);
+        return;
+      }
 
-  // KPIs scale with data factor
-  const kpis = {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const range = `${days}d`;
+        const result = await api.getGlobalView(range);
+        setData(result);
+      } catch (err) {
+        console.error('Failed to fetch global view data:', err);
+        setError(err instanceof Error ? err.message : 'Error desconocido');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, [isPeriod, days]);
+
+  // Calculate KPIs from real data or use mock for cohorts
+  const kpis = data ? {
     weeklyProfit: {
-      value: Math.round(BASE_KPIS.weeklyProfit * (0.5 + dataFactor * 0.8)),
-      status: getKpiStatus(BASE_KPIS.weeklyProfit * (0.5 + dataFactor * 0.8), { green: 0, yellow: -1000 }),
+      value: data.kpis.weeklyProfit,
+      status: getKpiStatus(data.kpis.weeklyProfit, { green: 0, yellow: -1000 }),
       target: '>€0',
     },
-    paybackM1: {
-      value: +(BASE_KPIS.paybackM1 + dataFactor * 0.3).toFixed(2),
-      status: getKpiStatus(BASE_KPIS.paybackM1 + dataFactor * 0.3, { green: 1.2, yellow: 1.0 }),
-      target: '≥1.20',
-    },
     cpt: {
-      value: Math.round(BASE_KPIS.cpt * (1.2 - dataFactor * 0.3)),
-      status: getKpiStatus(BASE_KPIS.cpt * (1.2 - dataFactor * 0.3), { green: 50, yellow: 70 }, true),
+      value: data.kpis.cpt,
+      status: getKpiStatus(data.kpis.cpt, { green: 50, yellow: 70 }, true),
       target: '≤€50',
     },
     frr: {
-      value: +(BASE_KPIS.frr + dataFactor * 8).toFixed(1),
-      status: getKpiStatus(BASE_KPIS.frr + dataFactor * 8, { green: 35, yellow: 25 }),
+      value: data.kpis.frr,
+      status: getKpiStatus(data.kpis.frr, { green: 35, yellow: 25 }),
       target: '≥35%',
     },
     refundRateM1: {
-      value: +(BASE_KPIS.refundRateM1 * (1.1 - dataFactor * 0.2)).toFixed(1),
-      status: getKpiStatus(BASE_KPIS.refundRateM1 * (1.1 - dataFactor * 0.2), { green: 5, yellow: 8 }, true),
+      value: data.kpis.refundRate,
+      status: getKpiStatus(data.kpis.refundRate, { green: 5, yellow: 8 }, true),
       target: '≤5%',
     },
     disputeRate: {
-      value: +(BASE_KPIS.disputeRate * (1.1 - dataFactor * 0.15)).toFixed(2),
-      status: getKpiStatus(BASE_KPIS.disputeRate * (1.1 - dataFactor * 0.15), { green: 0.5, yellow: 1 }, true),
+      value: data.kpis.disputeRate,
+      status: getKpiStatus(data.kpis.disputeRate, { green: 0.5, yellow: 1 }, true),
       target: '≤1%',
     },
-  };
+  } : getMockKpis(monthsAvailable / 6);
 
-  // Daily pulse scales with data
-  const dailyPulse = {
+  // Daily pulse from real data or mock
+  const dailyPulse = data ? {
     acquisitions: {
-      today: Math.round(BASE_DAILY_PULSE.acquisitions.today * (0.8 + dataFactor * 0.4)),
-      lastWeek: Math.round(BASE_DAILY_PULSE.acquisitions.lastWeek * (0.8 + dataFactor * 0.4)),
-      change: +((dataFactor - 0.5) * 30).toFixed(1),
+      today: data.dailyPulse.acquisitions.today,
+      lastWeek: data.dailyPulse.acquisitions.lastWeek,
+      change: calculateChange(data.dailyPulse.acquisitions.today, data.dailyPulse.acquisitions.lastWeek),
     },
     firstRebills: {
-      today: Math.round(BASE_DAILY_PULSE.firstRebills.today * (0.6 + dataFactor * 0.6)),
-      lastWeek: Math.round(BASE_DAILY_PULSE.firstRebills.lastWeek * (0.6 + dataFactor * 0.6)),
-      change: +((dataFactor - 0.4) * 25).toFixed(1),
+      today: data.dailyPulse.firstRebills.today,
+      lastWeek: data.dailyPulse.firstRebills.lastWeek,
+      change: calculateChange(data.dailyPulse.firstRebills.today, data.dailyPulse.firstRebills.lastWeek),
     },
     refunds: {
-      today: Math.round(BASE_DAILY_PULSE.refunds.today * (1.2 - dataFactor * 0.3)),
-      lastWeek: Math.round(BASE_DAILY_PULSE.refunds.lastWeek * (1.2 - dataFactor * 0.3)),
-      change: +((0.5 - dataFactor) * 40).toFixed(1),
+      today: data.dailyPulse.refunds.today,
+      lastWeek: data.dailyPulse.refunds.lastWeek,
+      change: calculateChange(data.dailyPulse.refunds.today, data.dailyPulse.refunds.lastWeek),
     },
     grossRevenue: {
-      today: Math.round(BASE_DAILY_PULSE.grossRevenue.today * (0.6 + dataFactor * 0.6)),
-      lastWeek: Math.round(BASE_DAILY_PULSE.grossRevenue.lastWeek * (0.6 + dataFactor * 0.6)),
-      change: +((dataFactor - 0.3) * 20).toFixed(1),
+      today: data.dailyPulse.grossRevenue.today,
+      lastWeek: data.dailyPulse.grossRevenue.lastWeek,
+      change: calculateChange(data.dailyPulse.grossRevenue.today, data.dailyPulse.grossRevenue.lastWeek),
     },
-  };
+  } : getMockDailyPulse(monthsAvailable / 6);
 
-  // Payback by website scales with data factor
-  const paybackByWebsite: PaybackWebsite[] = BASE_PAYBACK_BY_WEBSITE.map((site) => {
-    const payback = +(site.basePayback + dataFactor * 0.8).toFixed(2);
-    return {
-      website: site.website,
-      payback,
-      status: getKpiStatus(payback, { green: 1.2, yellow: 1.0 }),
-    };
-  });
+  // Payback by website from real data or mock
+  const paybackByWebsite: PaybackWebsite[] = data
+    ? data.paybackByWebsite.map((site) => ({
+        website: site.websiteName,
+        payback: site.paybackM1,
+        status: getKpiStatus(site.paybackM1, { green: 1.2, yellow: 1.0 }),
+      }))
+    : getMockPaybackByWebsite(monthsAvailable / 6);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <RefreshCw className="w-8 h-8 animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-400 text-lg">{error}</p>
+          <p className="text-gray-500 mt-2">No se pudieron cargar los datos</p>
+        </div>
       </div>
     );
   }
@@ -282,6 +290,8 @@ export function GlobalView() {
         <h1 className="text-2xl font-bold mb-2">Vista Global</h1>
         <p className="text-gray-400">
           Resumen agregado - {selectedRange.label}
+          {data && <span className="ml-2 text-green-400 text-sm">(Datos reales)</span>}
+          {!data && isCohort && <span className="ml-2 text-yellow-400 text-sm">(Datos simulados)</span>}
         </p>
       </div>
 
@@ -301,45 +311,38 @@ export function GlobalView() {
           <span className="w-2 h-2 rounded-full bg-blue-500" />
           Semáforo Principal
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <KpiCardNew
             title="Weekly Profit"
-            value={`€${kpis.weeklyProfit.value.toLocaleString()}`}
+            value={`€${Math.round(kpis.weeklyProfit.value).toLocaleString()}`}
             status={kpis.weeklyProfit.status}
             target={kpis.weeklyProfit.target}
             icon={PiggyBank}
           />
           <KpiCardNew
-            title="Payback M1"
-            value={`${kpis.paybackM1.value}x`}
-            status={kpis.paybackM1.status}
-            target={kpis.paybackM1.target}
-            icon={Target}
-          />
-          <KpiCardNew
             title="Cost Per Trial"
-            value={`€${kpis.cpt.value}`}
+            value={`€${Math.round(kpis.cpt.value)}`}
             status={kpis.cpt.status}
             target={kpis.cpt.target}
             icon={DollarSign}
           />
           <KpiCardNew
             title="FRR (2do Pago)"
-            value={`${kpis.frr.value}%`}
+            value={`${kpis.frr.value.toFixed(1)}%`}
             status={kpis.frr.status}
             target={kpis.frr.target}
             icon={Users}
           />
           <KpiCardNew
-            title="Refund Rate M1"
-            value={`${kpis.refundRateM1.value}%`}
+            title="Refund Rate"
+            value={`${kpis.refundRateM1.value.toFixed(1)}%`}
             status={kpis.refundRateM1.status}
             target={kpis.refundRateM1.target}
             icon={Percent}
           />
           <KpiCardNew
             title="Dispute Rate"
-            value={`${kpis.disputeRate.value}%`}
+            value={`${kpis.disputeRate.value.toFixed(2)}%`}
             status={kpis.disputeRate.status}
             target={kpis.disputeRate.target}
             icon={AlertTriangle}
@@ -395,4 +398,98 @@ export function GlobalView() {
       </section>
     </div>
   );
+}
+
+// Helper function to calculate percentage change
+function calculateChange(current: number, previous: number): number {
+  if (previous === 0) return current > 0 ? 100 : 0;
+  return ((current - previous) / previous) * 100;
+}
+
+// Mock data functions for cohort-based views (until cohort API is implemented)
+function getMockKpis(dataFactor: number) {
+  const BASE_KPIS = {
+    weeklyProfit: 4250,
+    cpt: 55,
+    frr: 38.2,
+    refundRateM1: 4.8,
+    disputeRate: 0.42,
+  };
+
+  return {
+    weeklyProfit: {
+      value: Math.round(BASE_KPIS.weeklyProfit * (0.5 + dataFactor * 0.8)),
+      status: getKpiStatus(BASE_KPIS.weeklyProfit * (0.5 + dataFactor * 0.8), { green: 0, yellow: -1000 }),
+      target: '>€0',
+    },
+    cpt: {
+      value: Math.round(BASE_KPIS.cpt * (1.2 - dataFactor * 0.3)),
+      status: getKpiStatus(BASE_KPIS.cpt * (1.2 - dataFactor * 0.3), { green: 50, yellow: 70 }, true),
+      target: '≤€50',
+    },
+    frr: {
+      value: +(BASE_KPIS.frr + dataFactor * 8).toFixed(1),
+      status: getKpiStatus(BASE_KPIS.frr + dataFactor * 8, { green: 35, yellow: 25 }),
+      target: '≥35%',
+    },
+    refundRateM1: {
+      value: +(BASE_KPIS.refundRateM1 * (1.1 - dataFactor * 0.2)).toFixed(1),
+      status: getKpiStatus(BASE_KPIS.refundRateM1 * (1.1 - dataFactor * 0.2), { green: 5, yellow: 8 }, true),
+      target: '≤5%',
+    },
+    disputeRate: {
+      value: +(BASE_KPIS.disputeRate * (1.1 - dataFactor * 0.15)).toFixed(2),
+      status: getKpiStatus(BASE_KPIS.disputeRate * (1.1 - dataFactor * 0.15), { green: 0.5, yellow: 1 }, true),
+      target: '≤1%',
+    },
+  };
+}
+
+function getMockDailyPulse(dataFactor: number) {
+  const BASE_DAILY_PULSE = {
+    acquisitions: { today: 45, lastWeek: 38 },
+    firstRebills: { today: 22, lastWeek: 25 },
+    refunds: { today: 3, lastWeek: 5 },
+    grossRevenue: { today: 2850, lastWeek: 2620 },
+  };
+
+  return {
+    acquisitions: {
+      today: Math.round(BASE_DAILY_PULSE.acquisitions.today * (0.8 + dataFactor * 0.4)),
+      lastWeek: Math.round(BASE_DAILY_PULSE.acquisitions.lastWeek * (0.8 + dataFactor * 0.4)),
+      change: +((dataFactor - 0.5) * 30).toFixed(1),
+    },
+    firstRebills: {
+      today: Math.round(BASE_DAILY_PULSE.firstRebills.today * (0.6 + dataFactor * 0.6)),
+      lastWeek: Math.round(BASE_DAILY_PULSE.firstRebills.lastWeek * (0.6 + dataFactor * 0.6)),
+      change: +((dataFactor - 0.4) * 25).toFixed(1),
+    },
+    refunds: {
+      today: Math.round(BASE_DAILY_PULSE.refunds.today * (1.2 - dataFactor * 0.3)),
+      lastWeek: Math.round(BASE_DAILY_PULSE.refunds.lastWeek * (1.2 - dataFactor * 0.3)),
+      change: +((0.5 - dataFactor) * 40).toFixed(1),
+    },
+    grossRevenue: {
+      today: Math.round(BASE_DAILY_PULSE.grossRevenue.today * (0.6 + dataFactor * 0.6)),
+      lastWeek: Math.round(BASE_DAILY_PULSE.grossRevenue.lastWeek * (0.6 + dataFactor * 0.6)),
+      change: +((dataFactor - 0.3) * 20).toFixed(1),
+    },
+  };
+}
+
+function getMockPaybackByWebsite(dataFactor: number): PaybackWebsite[] {
+  const BASE_PAYBACK_BY_WEBSITE = [
+    { website: 'ConversiePDF', basePayback: 0.52 },
+    { website: 'DeviceFinder', basePayback: 0.47 },
+    { website: 'ConviertePDF', basePayback: 0.21 },
+  ];
+
+  return BASE_PAYBACK_BY_WEBSITE.map((site) => {
+    const payback = +(site.basePayback + dataFactor * 0.8).toFixed(2);
+    return {
+      website: site.website,
+      payback,
+      status: getKpiStatus(payback, { green: 1.2, yellow: 1.0 }),
+    };
+  });
 }

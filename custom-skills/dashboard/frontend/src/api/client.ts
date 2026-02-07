@@ -139,6 +139,43 @@ export interface AllWebsitesPayback {
   websites: WebsitePaybackData[];
 }
 
+// Global View KPIs
+export interface GlobalViewKpis {
+  weeklyProfit: number;
+  grossRevenueEur: number;
+  refundsEur: number;
+  adSpendEur: number;
+  trialCount: number;
+  firstRebillCount: number;
+  cpt: number;
+  frr: number;
+  refundRate: number;
+  disputeRate: number;
+}
+
+export interface GlobalPaybackByWebsite {
+  websiteId: number;
+  websiteName: string;
+  cohortSize: number;
+  firstRebillCount: number;
+  revenueM1Eur: number;
+  adSpendEur: number;
+  paybackM1: number;
+}
+
+export interface GlobalDailyPulse {
+  acquisitions: { today: number; lastWeek: number };
+  firstRebills: { today: number; lastWeek: number };
+  refunds: { today: number; lastWeek: number };
+  grossRevenue: { today: number; lastWeek: number };
+}
+
+export interface GlobalViewData {
+  kpis: GlobalViewKpis;
+  paybackByWebsite: GlobalPaybackByWebsite[];
+  dailyPulse: GlobalDailyPulse;
+}
+
 // Customer Counts
 export interface CohortDistributionItem {
   cohortMonth: string;
@@ -352,6 +389,7 @@ export const api = {
   getDailyComparison: (websiteId: number) => fetchAPI<DailyComparison>(`/business/daily?websiteId=${websiteId}`),
   getAllWebsitesPayback: () => fetchAPI<AllWebsitesPayback>(`/business/all-websites-payback`),
   getCohortDistribution: (websiteId: number) => fetchAPI<CohortDistribution>(`/business/cohort-distribution?websiteId=${websiteId}`),
+  getGlobalView: (range: string = '7d') => fetchAPI<GlobalViewData>(`/business/global?range=${range}`),
 
   // Tasks
   getTasks: (status?: string) => {

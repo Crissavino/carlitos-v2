@@ -86,6 +86,17 @@ import {
 } from "./db.js";
 import { CurrencyConverter } from "../core/currency.js";
 import { validateWebsiteId, VALID_WEBSITE_IDS, getWebsiteConfig } from "../core/websites.js";
+import {
+  grossRevenueQuery,
+  refundsQuery,
+  adSpendQuery,
+  trialsCountQuery,
+  firstRebillsQuery,
+  disputeRateQuery,
+  paybackByWebsiteQuery,
+  dailyPulseQuery,
+  type DateRangeConfig,
+} from "../skills/db-reader/queries/global-view-kpis.js";
 
 const app = express();
 const PORT = parseInt(process.env.DASHBOARD_PORT || "3002", 10);
@@ -145,20 +156,25 @@ async function sessionAuth(req: Request, res: Response, next: NextFunction): Pro
     return;
   }
 
-  // First try session token
-  const user = await validateSession(token);
-  if (user) {
-    req.user = user;
-    next();
-    return;
-  }
-
-  // Fallback to legacy API token for backwards compatibility
+  // First try legacy API token (avoids DB dependency for dev/testing)
   if (token === DASHBOARD_TOKEN) {
     // Create a synthetic admin user for API token access
     req.user = { id: 0, email: "api@system", scope: "admin" };
     next();
     return;
+  }
+
+  // Then try session token (requires DB_OPENCLAW_* configured)
+  try {
+    const user = await validateSession(token);
+    if (user) {
+      req.user = user;
+      next();
+      return;
+    }
+  } catch (err) {
+    // DB not configured - only legacy token auth available
+    console.warn("[sessionAuth] Session validation failed, DB may not be configured");
   }
 
   res.status(401).json({ error: "Invalid session" });
@@ -1945,6 +1961,174 @@ app.get("/api/business/recommendations", async (req: Request, res: Response) => 
     }
     res.json({ success: true, data });
   } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/business/global - Global View KPIs
+// Supports date ranges: 7d, 14d, 30d, 60d
+app.get("/api/business/global", async (req: Request, res: Response) => {
+  console.log("[/api/business/global] Request received, range:", req.query.range);
+  try {
+    const range = (req.query.range as string) || "7d";
+    const daysMatch = range.match(/^(\d+)d$/);
+
+    if (!daysMatch) {
+      res.status(400).json({
+        error: "INVALID_DATE_RANGE",
+        message: "Range must be in format: 7d, 14d, 30d, or 60d",
+      });
+      return;
+    }
+
+    const days = parseInt(daysMatch[1], 10);
+    if (![7, 14, 30, 60].includes(days)) {
+      res.status(400).json({
+        error: "INVALID_DATE_RANGE",
+        message: "Supported ranges: 7d, 14d, 30d, 60d",
+      });
+      return;
+    }
+
+    const dateRange: DateRangeConfig = { days, type: "period" };
+    console.log("[/api/business/global] Date range parsed:", dateRange);
+
+    // Import executeRawQuery dynamically to avoid circular dependency
+    const { executeRawQuery } = await import("../skills/db-reader/executor.js");
+    console.log("[/api/business/global] executeRawQuery imported, starting queries...");
+
+    // Execute queries one by one for debugging
+    console.log("[/api/business/global] Query 1: grossRevenue...");
+    const grossRevenueRows = await executeRawQuery(grossRevenueQuery(dateRange).sql);
+    console.log("[/api/business/global] Query 2: refunds...");
+    const refundsRows = await executeRawQuery(refundsQuery(dateRange).sql);
+    console.log("[/api/business/global] Query 3: adSpend...");
+    const adSpendRows = await executeRawQuery(adSpendQuery(dateRange).sql);
+    console.log("[/api/business/global] Query 4: trials...");
+    const trialsRows = await executeRawQuery(trialsCountQuery(dateRange).sql);
+    console.log("[/api/business/global] Query 5: firstRebills...");
+    const firstRebillsRows = await executeRawQuery(firstRebillsQuery(dateRange).sql);
+    console.log("[/api/business/global] Query 6: dispute...");
+    const disputeRows = await executeRawQuery(disputeRateQuery(dateRange).sql);
+    console.log("[/api/business/global] Query 7: dailyPulse...");
+    const dailyPulseRows = await executeRawQuery(dailyPulseQuery().sql);
+    console.log("[/api/business/global] All queries complete!");
+
+    // Use cached payback data instead of slow query
+    console.log("[/api/business/global] Getting payback from cache...");
+    const paybackResults = await Promise.all(
+      VALID_WEBSITE_IDS.map(async (websiteId) => {
+        const websiteConfig = getWebsiteConfig(websiteId);
+        try {
+          const metrics = await fetchRawMetrics(websiteId);
+          if (!metrics) throw new Error("No metrics");
+          const kpis = calculateCoreKpis(metrics);
+          return {
+            websiteId,
+            websiteName: websiteConfig.name,
+            cohortSize: metrics.firstRebillsCohorte30d || 0,
+            firstRebillCount: metrics.firstRebills || 0,
+            revenueM1Eur: metrics.netRevenueEur || 0,
+            adSpendEur: metrics.totalAdSpendEur || 0,
+            paybackM1: kpis.paybackM1?.value || 0,
+          };
+        } catch {
+          return {
+            websiteId,
+            websiteName: websiteConfig.name,
+            cohortSize: 0,
+            firstRebillCount: 0,
+            revenueM1Eur: 0,
+            adSpendEur: 0,
+            paybackM1: 0,
+          };
+        }
+      })
+    );
+    const paybackRows = paybackResults;
+
+    // Parse results
+    const grossRevenue = (grossRevenueRows[0] as any) || {};
+    const refunds = (refundsRows[0] as any) || {};
+    const adSpend = (adSpendRows[0] as any) || {};
+    const trials = (trialsRows[0] as any) || {};
+    const firstRebills = (firstRebillsRows[0] as any) || {};
+    const disputes = (disputeRows[0] as any) || {};
+
+    // Calculate KPIs
+    const grossRevenueEur = Number(grossRevenue.gross_revenue_eur) || 0;
+    const totalRefundsEur = Number(refunds.total_refunds_eur) || 0;
+    const totalSpendEur = Number(adSpend.total_spend_eur) || 0;
+    const trialCount = Number(trials.trial_count) || 0;
+    const firstRebillCount = Number(firstRebills.first_rebill_count) || 0;
+    const trialsInCohort = Number(firstRebills.trial_count) || 0;
+    const totalTransactions = Number(disputes.total_transactions) || 0;
+    const chargebackCount = Number(disputes.chargeback_count) || 0;
+
+    // Weekly Profit = Gross Revenue - Refunds - Ad Spend
+    const weeklyProfit = grossRevenueEur - totalRefundsEur - totalSpendEur;
+
+    // CPT = Ad Spend / Trials (avoid division by zero)
+    const cpt = trialCount > 0 ? totalSpendEur / trialCount : 0;
+
+    // FRR = First Rebills / Trials * 100 (avoid division by zero)
+    const frr = trialsInCohort > 0 ? (firstRebillCount / trialsInCohort) * 100 : 0;
+
+    // Refund Rate = Refunds / (Gross Revenue + Refunds) * 100
+    const totalGross = grossRevenueEur + totalRefundsEur;
+    const refundRate = totalGross > 0 ? (totalRefundsEur / totalGross) * 100 : 0;
+
+    // Dispute Rate = Chargebacks / Transactions * 100
+    const disputeRate = totalTransactions > 0 ? (chargebackCount / totalTransactions) * 100 : 0;
+
+    // Payback by website (already in correct format from cache)
+    const paybackByWebsite = paybackRows;
+
+    // Parse daily pulse
+    const todayData = (dailyPulseRows as any[]).find((r) => r.period === "today") || {};
+    const lastWeekData = (dailyPulseRows as any[]).find((r) => r.period === "last_week") || {};
+
+    const dailyPulse = {
+      acquisitions: {
+        today: Number(todayData.acquisitions) || 0,
+        lastWeek: Number(lastWeekData.acquisitions) || 0,
+      },
+      firstRebills: {
+        today: Number(todayData.first_rebills) || 0,
+        lastWeek: Number(lastWeekData.first_rebills) || 0,
+      },
+      refunds: {
+        today: Number(todayData.refund_count) || 0,
+        lastWeek: Number(lastWeekData.refund_count) || 0,
+      },
+      grossRevenue: {
+        today: Number(todayData.gross_revenue_eur) || 0,
+        lastWeek: Number(lastWeekData.gross_revenue_eur) || 0,
+      },
+    };
+
+    res.json({
+      success: true,
+      range,
+      data: {
+        kpis: {
+          weeklyProfit: Math.round(weeklyProfit * 100) / 100,
+          grossRevenueEur: Math.round(grossRevenueEur * 100) / 100,
+          refundsEur: Math.round(totalRefundsEur * 100) / 100,
+          adSpendEur: Math.round(totalSpendEur * 100) / 100,
+          trialCount,
+          firstRebillCount,
+          cpt: Math.round(cpt * 100) / 100,
+          frr: Math.round(frr * 10) / 10,
+          refundRate: Math.round(refundRate * 10) / 10,
+          disputeRate: Math.round(disputeRate * 100) / 100,
+        },
+        paybackByWebsite,
+        dailyPulse,
+      },
+    });
+  } catch (error) {
+    console.error("[/api/business/global] Error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
   }
 });
