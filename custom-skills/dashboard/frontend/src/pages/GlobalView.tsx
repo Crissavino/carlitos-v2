@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { TrendingUp, TrendingDown, Minus, RefreshCw, Users, CreditCard, AlertTriangle, Percent, PiggyBank } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, RefreshCw, Users, AlertTriangle, Percent, PiggyBank, Target, DollarSign, X } from 'lucide-react';
+import { useCohort } from '../contexts/CohortContext';
 
 // Placeholder data - will be replaced with real API calls
 const MOCK_KPIS = {
-  netRoas: { value: 1.54, status: 'yellow' as const, target: '≥2.0' },
-  frrGlobal: { value: 38.2, status: 'green' as const, target: '≥35%' },
-  cpfrGlobal: { value: 82, status: 'green' as const, target: '≤€90' },
+  weeklyProfit: { value: 4250, status: 'green' as const, target: '>€0' },
+  paybackM1: { value: 1.17, status: 'yellow' as const, target: '≥1.20' },
+  cpt: { value: 55, status: 'yellow' as const, target: '≤€50' },
+  frr: { value: 38.2, status: 'green' as const, target: '≥35%' },
   refundRateM1: { value: 4.8, status: 'green' as const, target: '≤5%' },
   disputeRate: { value: 0.42, status: 'green' as const, target: '≤1%' },
-  profitLoss: { value: 12450, status: 'green' as const, target: '>€0' },
 };
 
 const MOCK_DAILY_PULSE = {
@@ -18,19 +19,11 @@ const MOCK_DAILY_PULSE = {
   grossRevenue: { today: 2850, lastWeek: 2620, change: 8.8 },
 };
 
-const MOCK_REVENUE_HISTORY = [
-  { month: 'Mar', value: 42000 },
-  { month: 'Abr', value: 45000 },
-  { month: 'May', value: 48000 },
-  { month: 'Jun', value: 52000 },
-  { month: 'Jul', value: 49000 },
-  { month: 'Ago', value: 55000 },
-  { month: 'Sep', value: 58000 },
-  { month: 'Oct', value: 62000 },
-  { month: 'Nov', value: 59000 },
-  { month: 'Dic', value: 68000 },
-  { month: 'Ene', value: 71000 },
-  { month: 'Feb', value: 65000 },
+// Payback M1 by Website for comparison chart
+const MOCK_PAYBACK_BY_WEBSITE = [
+  { website: 'ConversiePDF', payback: 0.52, status: 'red' as const },
+  { website: 'DeviceFinder', payback: 0.47, status: 'red' as const },
+  { website: 'ConviertePDF', payback: 0.21, status: 'red' as const },
 ];
 
 type KpiStatus = 'green' | 'yellow' | 'red';
@@ -42,6 +35,12 @@ const statusColors: Record<KpiStatus, string> = {
 };
 
 const statusDots: Record<KpiStatus, string> = {
+  green: 'bg-green-500',
+  yellow: 'bg-yellow-500',
+  red: 'bg-red-500',
+};
+
+const barColors: Record<KpiStatus, string> = {
   green: 'bg-green-500',
   yellow: 'bg-yellow-500',
   red: 'bg-red-500',
@@ -112,24 +111,58 @@ function PulseCard({ title, today, lastWeek, change, format = 'number' }: PulseC
   );
 }
 
-function RevenueChart({ data }: { data: typeof MOCK_REVENUE_HISTORY }) {
-  const maxValue = Math.max(...data.map(d => d.value));
+function PaybackByWebsiteChart({ data }: { data: typeof MOCK_PAYBACK_BY_WEBSITE }) {
+  const maxPayback = 0.6; // For scale reference
 
   return (
     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
-      <h3 className="text-lg font-semibold mb-4">Evolución Gross Revenue (12 Meses)</h3>
-      <div className="flex items-end gap-2 h-48">
+      <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">
+        Payback M1 por Website
+      </h3>
+      <div className="space-y-4">
         {data.map((item) => (
-          <div key={item.month} className="flex-1 flex flex-col items-center gap-2">
-            <div
-              className="w-full bg-blue-500/30 rounded-t hover:bg-blue-500/50 transition-colors relative group"
-              style={{ height: `${(item.value / maxValue) * 100}%` }}
-            >
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 px-2 py-1 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                €{item.value.toLocaleString()}
+          <div key={item.website} className="flex items-center gap-4">
+            <div className="w-28 text-sm text-gray-400 truncate">{item.website}</div>
+            <div className="flex-1 relative">
+              {/* Scale markers */}
+              <div className="absolute inset-0 flex justify-between pointer-events-none">
+                {[0, 0.1, 0.2, 0.3, 0.4, 0.5].map((mark) => (
+                  <div key={mark} className="border-l border-gray-700/50 h-full" />
+                ))}
+              </div>
+              {/* Bar */}
+              <div className="h-8 relative">
+                <div
+                  className={`h-full ${barColors[item.status]} rounded-r`}
+                  style={{ width: `${(item.payback / maxPayback) * 100}%` }}
+                />
               </div>
             </div>
-            <span className="text-xs text-gray-500">{item.month}</span>
+          </div>
+        ))}
+        {/* Scale labels */}
+        <div className="flex justify-between text-xs text-gray-500 ml-32">
+          <span>0.0x</span>
+          <span>0.1x</span>
+          <span>0.2x</span>
+          <span>0.3x</span>
+          <span>0.4x</span>
+          <span>0.5x</span>
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div className="mt-6 pt-4 border-t border-gray-700/50 space-y-2">
+        {data.map((item) => (
+          <div key={item.website} className="flex items-center justify-between text-sm">
+            <span className="text-gray-400">{item.website}</span>
+            <div className="flex items-center gap-2">
+              <span className={`font-medium ${item.status === 'red' ? 'text-red-400' : item.status === 'yellow' ? 'text-yellow-400' : 'text-green-400'}`}>
+                {item.payback.toFixed(2)}x
+              </span>
+              <X className="w-4 h-4 text-red-400" />
+              <span className="text-gray-500">Revisar</span>
+            </div>
           </div>
         ))}
       </div>
@@ -139,6 +172,7 @@ function RevenueChart({ data }: { data: typeof MOCK_REVENUE_HISTORY }) {
 
 export function GlobalView() {
   const [loading] = useState(false);
+  const { selectedCohort } = useCohort();
 
   if (loading) {
     return (
@@ -153,10 +187,12 @@ export function GlobalView() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-2">Vista Global</h1>
-        <p className="text-gray-400">Resumen agregado de todas las empresas, websites y países</p>
+        <p className="text-gray-400">
+          Resumen agregado - Cohorte: {selectedCohort.label} ({selectedCohort.monthsAvailable}m data)
+        </p>
       </div>
 
-      {/* KPIs Section */}
+      {/* KPIs Section - Reorganized */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-blue-500" />
@@ -164,25 +200,32 @@ export function GlobalView() {
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <KpiCardNew
-            title="Net ROAS"
-            value={`${MOCK_KPIS.netRoas.value}x`}
-            status={MOCK_KPIS.netRoas.status}
-            target={MOCK_KPIS.netRoas.target}
-            icon={TrendingUp}
+            title="Weekly Profit"
+            value={`€${MOCK_KPIS.weeklyProfit.value.toLocaleString()}`}
+            status={MOCK_KPIS.weeklyProfit.status}
+            target={MOCK_KPIS.weeklyProfit.target}
+            icon={PiggyBank}
           />
           <KpiCardNew
-            title="FRR Global"
-            value={`${MOCK_KPIS.frrGlobal.value}%`}
-            status={MOCK_KPIS.frrGlobal.status}
-            target={MOCK_KPIS.frrGlobal.target}
+            title="Payback M1"
+            value={`${MOCK_KPIS.paybackM1.value}x`}
+            status={MOCK_KPIS.paybackM1.status}
+            target={MOCK_KPIS.paybackM1.target}
+            icon={Target}
+          />
+          <KpiCardNew
+            title="Cost Per Trial"
+            value={`€${MOCK_KPIS.cpt.value}`}
+            status={MOCK_KPIS.cpt.status}
+            target={MOCK_KPIS.cpt.target}
+            icon={DollarSign}
+          />
+          <KpiCardNew
+            title="FRR (2do Pago)"
+            value={`${MOCK_KPIS.frr.value}%`}
+            status={MOCK_KPIS.frr.status}
+            target={MOCK_KPIS.frr.target}
             icon={Users}
-          />
-          <KpiCardNew
-            title="CPFR Global"
-            value={`€${MOCK_KPIS.cpfrGlobal.value}`}
-            status={MOCK_KPIS.cpfrGlobal.status}
-            target={MOCK_KPIS.cpfrGlobal.target}
-            icon={CreditCard}
           />
           <KpiCardNew
             title="Refund Rate M1"
@@ -197,13 +240,6 @@ export function GlobalView() {
             status={MOCK_KPIS.disputeRate.status}
             target={MOCK_KPIS.disputeRate.target}
             icon={AlertTriangle}
-          />
-          <KpiCardNew
-            title="Profit/Loss"
-            value={`€${MOCK_KPIS.profitLoss.value.toLocaleString()}`}
-            status={MOCK_KPIS.profitLoss.status}
-            target={MOCK_KPIS.profitLoss.target}
-            icon={PiggyBank}
           />
         </div>
       </section>
@@ -244,13 +280,15 @@ export function GlobalView() {
         </div>
       </section>
 
-      {/* Revenue Chart Section */}
+      {/* Executive Charts Section */}
       <section>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-green-500" />
-          Tendencia de Revenue
+          Gráficos Ejecutivos
         </h2>
-        <RevenueChart data={MOCK_REVENUE_HISTORY} />
+        <div className="grid lg:grid-cols-1 gap-6">
+          <PaybackByWebsiteChart data={MOCK_PAYBACK_BY_WEBSITE} />
+        </div>
       </section>
     </div>
   );

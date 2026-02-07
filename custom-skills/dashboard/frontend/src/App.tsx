@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Kanban as KanbanIcon, Users, LogOut, Loader2, MessageSquare, Menu, X, ChevronDown, Globe, Building2, Activity, Map, Megaphone, GitBranch } from 'lucide-react';
+import { LayoutDashboard, Kanban as KanbanIcon, Users, LogOut, Loader2, MessageSquare, Menu, X, ChevronDown, Globe, Building2, Activity, Map, Megaphone, GitBranch, Calendar } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
+import { CohortProvider, useCohort } from './contexts/CohortContext';
 import { Login } from './pages/Login';
 import { Kanban } from './pages/Kanban';
 import { Chat } from './pages/Chat';
@@ -14,18 +15,24 @@ import { FunnelView } from './pages/FunnelView';
 
 type Page = 'global' | 'companies' | 'websites' | 'countries' | 'campaigns' | 'funnel' | 'kanban' | 'users' | 'chat';
 
-function App() {
+function AppContent() {
   const { user, isLoading, isAdmin, logout } = useAuth();
+  const { selectedCohort, setSelectedCohort, availableCohorts } = useCohort();
   const [page, setPage] = useState<Page>('global');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardDropdownOpen, setDashboardDropdownOpen] = useState(false);
+  const [cohortDropdownOpen, setCohortDropdownOpen] = useState(false);
   const dashboardDropdownRef = useRef<HTMLDivElement>(null);
+  const cohortDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dashboardDropdownRef.current && !dashboardDropdownRef.current.contains(event.target as Node)) {
         setDashboardDropdownOpen(false);
+      }
+      if (cohortDropdownRef.current && !cohortDropdownRef.current.contains(event.target as Node)) {
+        setCohortDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -129,6 +136,40 @@ function App() {
                   </div>
                 )}
               </div>
+
+              {/* Cohort Selector - only show when on dashboard pages */}
+              {isDashboardPage && (
+                <div className="relative" ref={cohortDropdownRef}>
+                  <button
+                    onClick={() => setCohortDropdownOpen(!cohortDropdownOpen)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-gray-400 hover:text-white hover:bg-gray-800/50 border border-gray-700"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span>Cohorte: {selectedCohort.label}</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${cohortDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {cohortDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[180px] z-50">
+                      {availableCohorts.map((cohort) => (
+                        <button
+                          key={cohort.id}
+                          onClick={() => {
+                            setSelectedCohort(cohort);
+                            setCohortDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
+                            selectedCohort.id === cohort.id ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                          }`}
+                        >
+                          <span>{cohort.label}</span>
+                          <span className="text-xs text-gray-500">{cohort.monthsAvailable}m data</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <NavButton targetPage="kanban" icon={KanbanIcon} label="Kanban" />
 
@@ -253,6 +294,14 @@ function App() {
         {page === 'chat' && isAdmin && <Chat />}
       </main>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <CohortProvider>
+      <AppContent />
+    </CohortProvider>
   );
 }
 

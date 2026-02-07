@@ -1,6 +1,7 @@
 import { GitBranch, TrendingDown } from 'lucide-react';
+import { useCohort } from '../contexts/CohortContext';
 
-// Mock data
+// Mock data - in real implementation this would come from API
 const MOCK_MARKETING_FUNNEL = [
   { stage: 'Impresiones', value: 850000, cr: null },
   { stage: 'Clicks', value: 28500, cr: 3.35 },
@@ -19,18 +20,22 @@ const MOCK_COHORT_FRR = [
   { cohort: 'Sem -1', frr: 39.5 },
 ];
 
-const MOCK_RETENTION = [
+// Full retention data (for mature cohorts)
+const FULL_RETENTION_DATA = [
   { month: 'M1', customers: 520, rate: 100 },
   { month: 'M2', customers: 312, rate: 60 },
   { month: 'M3', customers: 218, rate: 42 },
   { month: 'M4', customers: 176, rate: 34 },
   { month: 'M5', customers: 151, rate: 29 },
   { month: 'M6', customers: 135, rate: 26 },
-  { month: 'M7', customers: 124, rate: 24 },
-  { month: 'M8', customers: 117, rate: 23 },
-  { month: 'M9', customers: 112, rate: 22 },
-  { month: 'M10', customers: 109, rate: 21 },
 ];
+
+// LTV values by month
+const LTV_BY_MONTH: Record<number, number> = {
+  1: 48,
+  2: 85,
+  3: 112,
+};
 
 const MOCK_RISK_TRENDS = [
   { month: 'Sep', refundRate: 4.2, disputeRate: 0.3 },
@@ -42,8 +47,20 @@ const MOCK_RISK_TRENDS = [
 ];
 
 export function FunnelView() {
+  const { selectedCohort } = useCohort();
   const maxFunnelValue = MOCK_MARKETING_FUNNEL[0].value;
   const maxFrr = Math.max(...MOCK_COHORT_FRR.map(c => c.frr));
+
+  // Generate retention data based on cohort's available months
+  const retentionData = FULL_RETENTION_DATA.map((data, index) => {
+    const monthNumber = index + 1;
+    const hasData = monthNumber <= selectedCohort.monthsAvailable;
+    return {
+      ...data,
+      customers: hasData ? data.customers : null,
+      rate: hasData ? data.rate : null,
+    };
+  });
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -102,35 +119,51 @@ export function FunnelView() {
 
         {/* Retention Table */}
         <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6">
-          <h3 className="text-lg font-semibold mb-4">Retención por Mes (Cohorte Ene 2026)</h3>
-          <div className="grid grid-cols-5 gap-2">
-            {MOCK_RETENTION.map((month) => (
-              <div
-                key={month.month}
-                className="text-center p-2 rounded"
-                style={{
-                  backgroundColor: `rgba(34, 197, 94, ${month.rate / 100 * 0.4})`,
-                }}
-              >
-                <div className="text-xs text-gray-400 mb-1">{month.month}</div>
-                <div className="text-lg font-bold">{month.customers}</div>
-                <div className="text-xs text-gray-400">{month.rate}%</div>
-              </div>
-            ))}
+          <h3 className="text-lg font-semibold mb-4">
+            Retención por Mes (Cohorte {selectedCohort.label})
+          </h3>
+          <div className="grid grid-cols-6 gap-2">
+            {retentionData.map((month) => {
+              const hasData = month.customers !== null;
+              return (
+                <div
+                  key={month.month}
+                  className={`text-center p-2 rounded ${!hasData ? 'border border-dashed border-gray-600' : ''}`}
+                  style={{
+                    backgroundColor: hasData
+                      ? `rgba(34, 197, 94, ${(month.rate ?? 0) / 100 * 0.4})`
+                      : 'rgba(55, 65, 81, 0.3)',
+                  }}
+                >
+                  <div className="text-xs text-gray-400 mb-1">{month.month}</div>
+                  <div className={`text-lg font-bold ${!hasData ? 'text-gray-600' : ''}`}>
+                    {hasData ? month.customers : '—'}
+                  </div>
+                  <div className={`text-xs ${!hasData ? 'text-gray-600' : 'text-gray-400'}`}>
+                    {hasData ? `${month.rate}%` : 'pendiente'}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <div className="mt-4 pt-4 border-t border-gray-700/50 grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-sm text-gray-400">LTV 30d</div>
-              <div className="text-xl font-bold text-green-400">€48</div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-400">LTV 60d</div>
-              <div className="text-xl font-bold text-green-400">€85</div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-400">LTV 90d</div>
-              <div className="text-xl font-bold text-green-400">€112</div>
-            </div>
+            {[1, 2, 3].map((monthNum) => {
+              const hasData = monthNum <= selectedCohort.monthsAvailable;
+              const ltv = LTV_BY_MONTH[monthNum];
+              return (
+                <div key={monthNum}>
+                  <div className="text-sm text-gray-400">LTV {monthNum * 30}d</div>
+                  {hasData ? (
+                    <div className="text-xl font-bold text-green-400">€{ltv}</div>
+                  ) : (
+                    <>
+                      <div className="text-xl font-bold text-gray-600">—</div>
+                      <div className="text-xs text-gray-600">pendiente</div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
