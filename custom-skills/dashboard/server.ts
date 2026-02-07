@@ -98,6 +98,14 @@ import {
   refundRateM1Query,
   type DateRangeConfig,
 } from "../skills/db-reader/queries/global-view-kpis.js";
+import {
+  revenueByCompanyQuery,
+  refundsByCompanyQuery,
+  adSpendByCompanyQuery,
+  frrByCompanyQuery,
+  refundRateM1ByCompanyQuery,
+  disputeRateByCompanyQuery,
+} from "../skills/db-reader/queries/companies-view-kpis.js";
 
 const app = express();
 const PORT = parseInt(process.env.DASHBOARD_PORT || "3002", 10);
@@ -2134,6 +2142,137 @@ app.get("/api/business/global", async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("[/api/business/global] Error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// Company names mapping
+const COMPANY_NAMES: Record<number, string> = {
+  1: 'Avocode',
+  2: 'KiwiKode',
+  3: 'Jackcode',
+};
+
+// GET /api/business/companies - Companies View KPIs
+app.get("/api/business/companies", async (req: Request, res: Response) => {
+  console.log("[/api/business/companies] Request received, range:", req.query.range);
+
+  try {
+    const rangeParam = (req.query.range as string) || "7d";
+    const validRanges = ["7d", "14d", "30d", "60d"];
+
+    if (!validRanges.includes(rangeParam)) {
+      res.status(400).json({ error: `Invalid range. Valid: ${validRanges.join(", ")}` });
+      return;
+    }
+
+    const days = parseInt(rangeParam.replace("d", ""), 10);
+    const dateRange: DateRangeConfig = { days, type: "period" };
+
+    const { executeRawQuery } = await import("../skills/db-reader/executor.js");
+
+    // Execute all queries
+    console.log("[/api/business/companies] Executing queries...");
+    const [revenueRows, refundsRows, adSpendRows, frrRows, refundRateRows, disputeRows] = await Promise.all([
+      executeRawQuery(revenueByCompanyQuery(dateRange).sql),
+      executeRawQuery(refundsByCompanyQuery(dateRange).sql),
+      executeRawQuery(adSpendByCompanyQuery(dateRange).sql),
+      executeRawQuery(frrByCompanyQuery(dateRange).sql),
+      executeRawQuery(refundRateM1ByCompanyQuery(dateRange).sql),
+      executeRawQuery(disputeRateByCompanyQuery(dateRange).sql),
+    ]);
+    console.log("[/api/business/companies] All queries complete!");
+
+    // Build company data map
+    const companyData: Record<number, any> = {
+      1: { companyId: 1, name: 'Avocode', grossRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
+      2: { companyId: 2, name: 'KiwiKode', grossRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
+      3: { companyId: 3, name: 'Jackcode', grossRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
+    };
+
+    // Parse revenue
+    for (const row of revenueRows as any[]) {
+      const cid = Number(row.company_id);
+      if (companyData[cid]) {
+        companyData[cid].grossRevenueEur = Number(row.gross_revenue_eur) || 0;
+        companyData[cid].trialCount = Number(row.trial_count) || 0;
+      }
+    }
+
+    // Parse refunds
+    for (const row of refundsRows as any[]) {
+      const cid = Number(row.company_id);
+      if (companyData[cid]) {
+        companyData[cid].refundsEur = Number(row.total_refunds_eur) || 0;
+      }
+    }
+
+    // Parse ad spend
+    for (const row of adSpendRows as any[]) {
+      const cid = Number(row.company_id);
+      if (companyData[cid]) {
+        companyData[cid].adSpendEur = Number(row.total_spend_eur) || 0;
+      }
+    }
+
+    // Parse FRR
+    for (const row of frrRows as any[]) {
+      const cid = Number(row.company_id);
+      if (companyData[cid]) {
+        companyData[cid].trialCount = Number(row.trial_count) || 0;
+        companyData[cid].firstRebillCount = Number(row.first_rebill_count) || 0;
+      }
+    }
+
+    // Parse refund rate M1
+    for (const row of refundRateRows as any[]) {
+      const cid = Number(row.company_id);
+      if (companyData[cid]) {
+        companyData[cid].totalFirstRebillsM1 = Number(row.total_first_rebills) || 0;
+        companyData[cid].refundedFirstRebillsM1 = Number(row.refunded_first_rebills) || 0;
+      }
+    }
+
+    // Parse dispute rate
+    for (const row of disputeRows as any[]) {
+      const cid = Number(row.company_id);
+      if (companyData[cid]) {
+        companyData[cid].totalTransactions = Number(row.total_transactions) || 0;
+        companyData[cid].chargebackCount = Number(row.chargeback_count) || 0;
+      }
+    }
+
+    // Calculate derived KPIs and format response
+    const companies = Object.values(companyData).map((c: any) => {
+      const profit = c.grossRevenueEur - c.refundsEur - c.adSpendEur;
+      const frr = c.trialCount > 0 ? (c.firstRebillCount / c.trialCount) * 100 : 0;
+      const refundRateM1 = c.totalFirstRebillsM1 > 0 ? (c.refundedFirstRebillsM1 / c.totalFirstRebillsM1) * 100 : 0;
+      const disputeRate = c.totalTransactions > 0 ? (c.chargebackCount / c.totalTransactions) * 100 : 0;
+
+      return {
+        companyId: c.companyId,
+        name: c.name,
+        kpis: {
+          profit: Math.round(profit * 100) / 100,
+          grossRevenueEur: Math.round(c.grossRevenueEur * 100) / 100,
+          refundsEur: Math.round(c.refundsEur * 100) / 100,
+          adSpendEur: Math.round(c.adSpendEur * 100) / 100,
+          trialCount: c.trialCount,
+          firstRebillCount: c.firstRebillCount,
+          frr: Math.round(frr * 10) / 10,
+          refundRateM1: Math.round(refundRateM1 * 10) / 10,
+          disputeRate: Math.round(disputeRate * 100) / 100,
+        },
+      };
+    });
+
+    res.json({
+      success: true,
+      range: rangeParam,
+      data: { companies },
+    });
+  } catch (error) {
+    console.error("[/api/business/companies] Error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
   }
 });

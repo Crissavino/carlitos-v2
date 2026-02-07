@@ -176,6 +176,29 @@ export interface GlobalViewData {
   dailyPulse: GlobalDailyPulse;
 }
 
+// Companies View
+export interface CompanyKpis {
+  profit: number;
+  grossRevenueEur: number;
+  refundsEur: number;
+  adSpendEur: number;
+  trialCount: number;
+  firstRebillCount: number;
+  frr: number;
+  refundRateM1: number;
+  disputeRate: number;
+}
+
+export interface CompanyData {
+  companyId: number;
+  name: string;
+  kpis: CompanyKpis;
+}
+
+export interface CompaniesViewData {
+  companies: CompanyData[];
+}
+
 // Customer Counts
 export interface CohortDistributionItem {
   cohortMonth: string;
@@ -390,6 +413,7 @@ export const api = {
   getAllWebsitesPayback: () => fetchAPI<AllWebsitesPayback>(`/business/all-websites-payback`),
   getCohortDistribution: (websiteId: number) => fetchAPI<CohortDistribution>(`/business/cohort-distribution?websiteId=${websiteId}`),
   getGlobalView: (range: string = '7d') => fetchAPI<GlobalViewData>(`/business/global?range=${range}`),
+  getCompaniesView: (range: string = '7d') => fetchAPI<CompaniesViewData>(`/business/companies?range=${range}`),
 
   // Tasks
   getTasks: (status?: string) => {

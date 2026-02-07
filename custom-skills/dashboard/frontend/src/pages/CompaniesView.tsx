@@ -1,41 +1,9 @@
-import { Building2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Building2, RefreshCw } from 'lucide-react';
 import { useCohort } from '../contexts/CohortContext';
+import { api, type CompaniesViewData } from '../api/client';
 
 type Status = 'green' | 'yellow' | 'red';
-
-// Base mock data - values will be adjusted based on cohort
-const BASE_COMPANIES = [
-  {
-    name: 'Avocode',
-    baseKpis: {
-      grossRevenue: 45000,
-      refundRate: 4.2,
-      disputeRate: 0.3,
-      activeCustomers: 1250,
-      churnRate: 3.1,
-    }
-  },
-  {
-    name: 'KiwiKode',
-    baseKpis: {
-      grossRevenue: 28000,
-      refundRate: 6.8,
-      disputeRate: 0.8,
-      activeCustomers: 820,
-      churnRate: 4.5,
-    }
-  },
-  {
-    name: 'Jackcode',
-    baseKpis: {
-      grossRevenue: 12000,
-      refundRate: 3.5,
-      disputeRate: 0.2,
-      activeCustomers: 450,
-      churnRate: 2.8,
-    }
-  },
-];
 
 function getStatus(value: number, thresholds: { green: number; yellow: number }, inverse = false): Status {
   if (inverse) {
@@ -60,71 +28,90 @@ const statusBg: Record<Status, string> = {
   red: 'bg-red-500/20',
 };
 
-function ChangeIndicator({ value }: { value: number }) {
-  const isPositive = value > 0;
-  const isNeutral = value === 0;
-  const Icon = isNeutral ? Minus : isPositive ? TrendingUp : TrendingDown;
-  const color = isNeutral ? 'text-gray-400' : isPositive ? 'text-green-400' : 'text-red-400';
-
-  return (
-    <span className={`flex items-center gap-1 text-xs ${color}`}>
-      <Icon className="w-3 h-3" />
-      {Math.abs(value).toFixed(1)}%
-    </span>
-  );
-}
-
 export function CompaniesView() {
-  const { selectedRange, isPeriod, days, monthsAvailable } = useCohort();
+  const { selectedRange, isPeriod, days } = useCohort();
+  const [data, setData] = useState<CompaniesViewData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Generate data factor based on selection
-  const dataFactor = isPeriod
-    ? Math.min(days / 60, 1)
-    : monthsAvailable / 6;
-
-  const companies = BASE_COMPANIES.map((company, index) => {
-    // Vary data based on cohort - older cohorts show more accumulated data
-    const revenueMultiplier = 0.5 + (dataFactor * 0.5) + (index * 0.1);
-    const customerMultiplier = 0.6 + (dataFactor * 0.4);
-
-    // Rates improve slightly with maturity (more data = more accurate)
-    const rateVariation = (1 - dataFactor) * 0.3;
-
-    const grossRevenue = Math.round(company.baseKpis.grossRevenue * revenueMultiplier);
-    const activeCustomers = Math.round(company.baseKpis.activeCustomers * customerMultiplier);
-    const refundRate = +(company.baseKpis.refundRate * (1 + rateVariation)).toFixed(1);
-    const disputeRate = +(company.baseKpis.disputeRate * (1 + rateVariation)).toFixed(2);
-    const churnRate = +(company.baseKpis.churnRate * (1 + rateVariation * 0.5)).toFixed(1);
-
-    // Change percentages vary by cohort
-    const changeBase = (dataFactor - 0.5) * 20;
-
-    return {
-      name: company.name,
-      kpis: {
-        grossRevenue: {
-          value: grossRevenue,
-          change: +(changeBase + (index - 1) * 8).toFixed(1)
-        },
-        refundRate: {
-          value: refundRate,
-          status: getStatus(refundRate, { green: 5, yellow: 8 }, true)
-        },
-        disputeRate: {
-          value: disputeRate,
-          status: getStatus(disputeRate, { green: 0.5, yellow: 1 }, true)
-        },
-        activeCustomers: {
-          value: activeCustomers,
-          change: +(changeBase + index * 5).toFixed(1)
-        },
-        churnRate: {
-          value: churnRate,
-          status: getStatus(churnRate, { green: 4, yellow: 6 }, true)
-        },
+  useEffect(() => {
+    async function fetchData() {
+      // Only fetch for period-based ranges
+      if (!isPeriod) {
+        setLoading(false);
+        setData(null);
+        return;
       }
-    };
-  });
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const range = `${days}d`;
+        const result = await api.getCompaniesView(range);
+        setData(result);
+      } catch (err) {
+        console.error('Error fetching companies data:', err);
+        setError(err instanceof Error ? err.message : 'Error fetching data');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, [days, isPeriod]);
+
+  if (!isPeriod) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold mb-2 flex items-center gap-3">
+            <Building2 className="w-7 h-7 text-blue-400" />
+            Vista Empresas
+          </h1>
+        </div>
+        <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-8 text-center">
+          <p className="text-gray-400">Selecciona un rango de tiempo (7d, 14d, 30d, 60d) para ver los datos.</p>
+          <p className="text-gray-500 text-sm mt-2">Los rangos de cohorte no están soportados en esta vista.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold mb-2 flex items-center gap-3">
+            <Building2 className="w-7 h-7 text-blue-400" />
+            Vista Empresas
+          </h1>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
+          <span className="ml-3 text-gray-400">Cargando datos...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold mb-2 flex items-center gap-3">
+            <Building2 className="w-7 h-7 text-blue-400" />
+            Vista Empresas
+          </h1>
+        </div>
+        <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-6 text-center">
+          <p className="text-red-400">Error: {error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const companies = data?.companies || [];
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -141,54 +128,77 @@ export function CompaniesView() {
 
       {/* Companies Grid */}
       <div className="grid gap-6">
-        {companies.map((company) => (
-          <div key={company.name} className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6">
-            <h3 className="text-lg font-semibold mb-4">{company.name}</h3>
+        {companies.map((company) => {
+          const frrStatus = getStatus(company.kpis.frr, { green: 35, yellow: 25 });
+          const refundRateStatus = getStatus(company.kpis.refundRateM1, { green: 5, yellow: 10 }, true);
+          const disputeStatus = getStatus(company.kpis.disputeRate, { green: 0.5, yellow: 1 }, true);
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {/* Gross Revenue */}
-              <div className="bg-gray-900/50 rounded-lg p-4">
-                <div className="text-xs text-gray-500 mb-1">Gross Revenue</div>
-                <div className="text-xl font-bold">€{company.kpis.grossRevenue.value.toLocaleString()}</div>
-                <ChangeIndicator value={company.kpis.grossRevenue.change} />
+          return (
+            <div key={company.companyId} className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">{company.name}</h3>
+                <span className={`text-2xl font-bold ${company.kpis.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {company.kpis.profit >= 0 ? '+' : ''}€{Math.round(company.kpis.profit).toLocaleString()}
+                </span>
               </div>
 
-              {/* Refund Rate */}
-              <div className={`rounded-lg p-4 ${statusBg[company.kpis.refundRate.status]}`}>
-                <div className="text-xs text-gray-500 mb-1">Refund Rate</div>
-                <div className={`text-xl font-bold ${statusColors[company.kpis.refundRate.status]}`}>
-                  {company.kpis.refundRate.value}%
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                {/* Gross Revenue */}
+                <div className="bg-gray-900/50 rounded-lg p-4">
+                  <div className="text-xs text-gray-500 mb-1">Gross Revenue</div>
+                  <div className="text-xl font-bold">€{Math.round(company.kpis.grossRevenueEur).toLocaleString()}</div>
                 </div>
-                <div className="text-xs text-gray-500">Meta: ≤5%</div>
-              </div>
 
-              {/* Dispute Rate */}
-              <div className={`rounded-lg p-4 ${statusBg[company.kpis.disputeRate.status]}`}>
-                <div className="text-xs text-gray-500 mb-1">Dispute Rate</div>
-                <div className={`text-xl font-bold ${statusColors[company.kpis.disputeRate.status]}`}>
-                  {company.kpis.disputeRate.value}%
+                {/* Refunds */}
+                <div className="bg-gray-900/50 rounded-lg p-4">
+                  <div className="text-xs text-gray-500 mb-1">Refunds</div>
+                  <div className="text-xl font-bold text-red-400">-€{Math.round(company.kpis.refundsEur).toLocaleString()}</div>
                 </div>
-                <div className="text-xs text-gray-500">Meta: ≤1%</div>
-              </div>
 
-              {/* Active Customers */}
-              <div className="bg-gray-900/50 rounded-lg p-4">
-                <div className="text-xs text-gray-500 mb-1">Clientes Activos</div>
-                <div className="text-xl font-bold">{company.kpis.activeCustomers.value.toLocaleString()}</div>
-                <ChangeIndicator value={company.kpis.activeCustomers.change} />
-              </div>
-
-              {/* Churn Rate */}
-              <div className={`rounded-lg p-4 ${statusBg[company.kpis.churnRate.status]}`}>
-                <div className="text-xs text-gray-500 mb-1">Churn Rate</div>
-                <div className={`text-xl font-bold ${statusColors[company.kpis.churnRate.status]}`}>
-                  {company.kpis.churnRate.value}%
+                {/* Ad Spend */}
+                <div className="bg-gray-900/50 rounded-lg p-4">
+                  <div className="text-xs text-gray-500 mb-1">Ad Spend</div>
+                  <div className="text-xl font-bold text-orange-400">
+                    {company.kpis.adSpendEur > 0 ? `-€${Math.round(company.kpis.adSpendEur).toLocaleString()}` : '€0'}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500">Meta: ≤4%</div>
+
+                {/* FRR */}
+                <div className={`rounded-lg p-4 ${statusBg[frrStatus]}`}>
+                  <div className="text-xs text-gray-500 mb-1">FRR</div>
+                  <div className={`text-xl font-bold ${statusColors[frrStatus]}`}>
+                    {company.kpis.frr.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-gray-500">Meta: ≥35%</div>
+                </div>
+
+                {/* Refund Rate M1 */}
+                <div className={`rounded-lg p-4 ${statusBg[refundRateStatus]}`}>
+                  <div className="text-xs text-gray-500 mb-1">Refund Rate M1</div>
+                  <div className={`text-xl font-bold ${statusColors[refundRateStatus]}`}>
+                    {company.kpis.refundRateM1.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-gray-500">Meta: ≤5%</div>
+                </div>
+
+                {/* Dispute Rate */}
+                <div className={`rounded-lg p-4 ${statusBg[disputeStatus]}`}>
+                  <div className="text-xs text-gray-500 mb-1">Dispute Rate</div>
+                  <div className={`text-xl font-bold ${statusColors[disputeStatus]}`}>
+                    {company.kpis.disputeRate.toFixed(2)}%
+                  </div>
+                  <div className="text-xs text-gray-500">Meta: ≤0.5%</div>
+                </div>
+              </div>
+
+              {/* Bottom row: Trials and First Rebills */}
+              <div className="mt-4 pt-4 border-t border-gray-700/50 flex gap-6 text-sm text-gray-400">
+                <span>Trials: <strong className="text-white">{company.kpis.trialCount.toLocaleString()}</strong></span>
+                <span>First Rebills: <strong className="text-white">{company.kpis.firstRebillCount.toLocaleString()}</strong></span>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
