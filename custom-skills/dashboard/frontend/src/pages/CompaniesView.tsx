@@ -1,40 +1,52 @@
 import { Building2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { useCohort } from '../contexts/CohortContext';
 
-// Mock data for companies
-const MOCK_COMPANIES = [
+type Status = 'green' | 'yellow' | 'red';
+
+// Base mock data - values will be adjusted based on cohort
+const BASE_COMPANIES = [
   {
     name: 'Avocode',
-    kpis: {
-      grossRevenue: { value: 45000, change: 12.5 },
-      refundRate: { value: 4.2, status: 'green' as const },
-      disputeRate: { value: 0.3, status: 'green' as const },
-      activeCustomers: { value: 1250, change: 8.2 },
-      churnRate: { value: 3.1, status: 'green' as const },
+    baseKpis: {
+      grossRevenue: 45000,
+      refundRate: 4.2,
+      disputeRate: 0.3,
+      activeCustomers: 1250,
+      churnRate: 3.1,
     }
   },
   {
     name: 'KiwiKode',
-    kpis: {
-      grossRevenue: { value: 28000, change: -5.3 },
-      refundRate: { value: 6.8, status: 'yellow' as const },
-      disputeRate: { value: 0.8, status: 'yellow' as const },
-      activeCustomers: { value: 820, change: -2.1 },
-      churnRate: { value: 4.5, status: 'yellow' as const },
+    baseKpis: {
+      grossRevenue: 28000,
+      refundRate: 6.8,
+      disputeRate: 0.8,
+      activeCustomers: 820,
+      churnRate: 4.5,
     }
   },
   {
     name: 'Jackcode',
-    kpis: {
-      grossRevenue: { value: 12000, change: 22.1 },
-      refundRate: { value: 3.5, status: 'green' as const },
-      disputeRate: { value: 0.2, status: 'green' as const },
-      activeCustomers: { value: 450, change: 15.3 },
-      churnRate: { value: 2.8, status: 'green' as const },
+    baseKpis: {
+      grossRevenue: 12000,
+      refundRate: 3.5,
+      disputeRate: 0.2,
+      activeCustomers: 450,
+      churnRate: 2.8,
     }
   },
 ];
 
-type Status = 'green' | 'yellow' | 'red';
+function getStatus(value: number, thresholds: { green: number; yellow: number }, inverse = false): Status {
+  if (inverse) {
+    if (value <= thresholds.green) return 'green';
+    if (value <= thresholds.yellow) return 'yellow';
+    return 'red';
+  }
+  if (value >= thresholds.green) return 'green';
+  if (value >= thresholds.yellow) return 'yellow';
+  return 'red';
+}
 
 const statusColors: Record<Status, string> = {
   green: 'text-green-400',
@@ -63,6 +75,56 @@ function ChangeIndicator({ value }: { value: number }) {
 }
 
 export function CompaniesView() {
+  const { selectedCohort } = useCohort();
+
+  // Generate cohort-adjusted data
+  // More mature cohorts have more stable/better metrics
+  const maturityFactor = selectedCohort.monthsAvailable / 6; // 0.16 to 1.0
+
+  const companies = BASE_COMPANIES.map((company, index) => {
+    // Vary data based on cohort - older cohorts show more accumulated data
+    const revenueMultiplier = 0.5 + (maturityFactor * 0.5) + (index * 0.1);
+    const customerMultiplier = 0.6 + (maturityFactor * 0.4);
+
+    // Rates improve slightly with maturity (more data = more accurate)
+    const rateVariation = (1 - maturityFactor) * 0.3;
+
+    const grossRevenue = Math.round(company.baseKpis.grossRevenue * revenueMultiplier);
+    const activeCustomers = Math.round(company.baseKpis.activeCustomers * customerMultiplier);
+    const refundRate = +(company.baseKpis.refundRate * (1 + rateVariation)).toFixed(1);
+    const disputeRate = +(company.baseKpis.disputeRate * (1 + rateVariation)).toFixed(2);
+    const churnRate = +(company.baseKpis.churnRate * (1 + rateVariation * 0.5)).toFixed(1);
+
+    // Change percentages vary by cohort
+    const changeBase = (maturityFactor - 0.5) * 20;
+
+    return {
+      name: company.name,
+      kpis: {
+        grossRevenue: {
+          value: grossRevenue,
+          change: +(changeBase + (index - 1) * 8).toFixed(1)
+        },
+        refundRate: {
+          value: refundRate,
+          status: getStatus(refundRate, { green: 5, yellow: 8 }, true)
+        },
+        disputeRate: {
+          value: disputeRate,
+          status: getStatus(disputeRate, { green: 0.5, yellow: 1 }, true)
+        },
+        activeCustomers: {
+          value: activeCustomers,
+          change: +(changeBase + index * 5).toFixed(1)
+        },
+        churnRate: {
+          value: churnRate,
+          status: getStatus(churnRate, { green: 4, yellow: 6 }, true)
+        },
+      }
+    };
+  });
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -71,12 +133,14 @@ export function CompaniesView() {
           <Building2 className="w-7 h-7 text-blue-400" />
           Vista Empresas
         </h1>
-        <p className="text-gray-400">Comparativa de KPIs por empresa - Riesgo Financiero/Operativo</p>
+        <p className="text-gray-400">
+          Comparativa de KPIs por empresa - Cohorte: {selectedCohort.label} ({selectedCohort.monthsAvailable}m data)
+        </p>
       </div>
 
       {/* Companies Grid */}
       <div className="grid gap-6">
-        {MOCK_COMPANIES.map((company) => (
+        {companies.map((company) => (
           <div key={company.name} className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6">
             <h3 className="text-lg font-semibold mb-4">{company.name}</h3>
 

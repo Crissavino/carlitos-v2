@@ -1,92 +1,73 @@
 import { useState } from 'react';
 import { Megaphone, Filter, ChevronDown } from 'lucide-react';
+import { useCohort } from '../contexts/CohortContext';
 
-// Mock data for campaigns
-const MOCK_CAMPAIGNS = [
+// Base mock data for campaigns
+const BASE_CAMPAIGNS = [
   {
     id: 1,
     name: 'NL - PDF Converter - Search',
-    type: 'ACQ',
-    status: 'active',
+    type: 'ACQ' as const,
+    status: 'active' as const,
     spend: 2450,
     impressions: 45000,
     clicks: 1250,
     ctr: 2.78,
     trials: 42,
-    cpt: 58.33,
     firstRebills: 18,
-    frr: 42.9,
-    cpfr: 136.11,
     roiReal: 1.45,
-    action: '',
   },
   {
     id: 2,
     name: 'BE - Device Finder - Display',
-    type: 'ACQ',
-    status: 'active',
+    type: 'ACQ' as const,
+    status: 'active' as const,
     spend: 1850,
     impressions: 120000,
     clicks: 980,
     ctr: 0.82,
     trials: 28,
-    cpt: 66.07,
     firstRebills: 9,
-    frr: 32.1,
-    cpfr: 205.56,
     roiReal: 0.72,
-    action: '',
   },
   {
     id: 3,
     name: 'DE - PDF Tools - Search Brand',
-    type: 'ACQ',
-    status: 'active',
+    type: 'ACQ' as const,
+    status: 'active' as const,
     spend: 890,
     impressions: 12000,
     clicks: 850,
     ctr: 7.08,
     trials: 35,
-    cpt: 25.43,
     firstRebills: 16,
-    frr: 45.7,
-    cpfr: 55.63,
     roiReal: 2.85,
-    action: '',
   },
   {
     id: 4,
     name: 'ES - Convierte PDF - Search',
-    type: 'ACQ',
-    status: 'paused',
+    type: 'ACQ' as const,
+    status: 'paused' as const,
     spend: 520,
     impressions: 8500,
     clicks: 320,
     ctr: 3.76,
     trials: 12,
-    cpt: 43.33,
     firstRebills: 3,
-    frr: 25.0,
-    cpfr: 173.33,
     roiReal: 0.65,
-    action: 'PAUSAR',
   },
   {
     id: 5,
     name: 'NL - PDF Converter - Rebill',
-    type: 'REBILL',
-    status: 'active',
+    type: 'REBILL' as const,
+    status: 'active' as const,
     spend: 450,
     impressions: 5000,
     clicks: 180,
     ctr: 3.60,
     trials: 0,
-    cpt: 0,
     firstRebills: 0,
-    frr: 0,
-    cpfr: 0,
     roiReal: 3.20,
-    action: '',
   },
 ];
 
@@ -110,11 +91,39 @@ const statusColors: Record<Status, string> = {
 };
 
 export function CampaignsView() {
-  const [cohortFilter, setCohortFilter] = useState<'all' | 'mature' | 'immature'>('all');
+  const { selectedCohort } = useCohort();
   const [typeFilter, setTypeFilter] = useState<'all' | 'ACQ' | 'REBILL'>('all');
   const [actions, setActions] = useState<Record<number, string>>({});
 
-  const filteredCampaigns = MOCK_CAMPAIGNS.filter(c => {
+  // Generate cohort-adjusted campaign data
+  const maturityFactor = selectedCohort.monthsAvailable / 6;
+
+  const campaigns = BASE_CAMPAIGNS.map((campaign) => {
+    // Older cohorts have more accumulated conversions and better metrics
+    const trialsMultiplier = 0.5 + (maturityFactor * 0.5);
+    const rebillMultiplier = 0.4 + (maturityFactor * 0.6);
+    const roiBoost = maturityFactor * 0.5;
+
+    const trials = Math.round(campaign.trials * trialsMultiplier);
+    const firstRebills = Math.round(campaign.firstRebills * rebillMultiplier);
+    const frr = trials > 0 ? +((firstRebills / trials) * 100).toFixed(1) : 0;
+    const cpt = trials > 0 ? +(campaign.spend / trials).toFixed(2) : 0;
+    const cpfr = firstRebills > 0 ? +(campaign.spend / firstRebills).toFixed(2) : 0;
+    const roiReal = +(campaign.roiReal + roiBoost).toFixed(2);
+
+    return {
+      ...campaign,
+      trials,
+      firstRebills,
+      frr,
+      cpt,
+      cpfr,
+      roiReal,
+      action: campaign.roiReal < 1 ? 'PAUSAR' : '',
+    };
+  });
+
+  const filteredCampaigns = campaigns.filter(c => {
     if (typeFilter !== 'all' && c.type !== typeFilter) return false;
     return true;
   });
@@ -131,7 +140,9 @@ export function CampaignsView() {
           <Megaphone className="w-7 h-7 text-orange-400" />
           Vista Campañas
         </h1>
-        <p className="text-gray-400">Decisiones de Ads - Métricas de monetización de cohortes maduras</p>
+        <p className="text-gray-400">
+          Decisiones de Ads - Cohorte: {selectedCohort.label} ({selectedCohort.monthsAvailable}m data)
+        </p>
       </div>
 
       {/* Filters */}
@@ -139,19 +150,6 @@ export function CampaignsView() {
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-gray-400" />
           <span className="text-sm text-gray-400">Filtros:</span>
-        </div>
-
-        <div className="relative">
-          <select
-            value={cohortFilter}
-            onChange={(e) => setCohortFilter(e.target.value as typeof cohortFilter)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm appearance-none pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">Todos los Cohortes</option>
-            <option value="mature">Maduros (30-60d)</option>
-            <option value="immature">Inmaduros (&lt;30d)</option>
-          </select>
-          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
 
         <div className="relative">

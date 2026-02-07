@@ -1,7 +1,8 @@
 import { Map, Flag } from 'lucide-react';
+import { useCohort } from '../contexts/CohortContext';
 
-// Mock data for countries
-const MOCK_COUNTRIES = [
+// Base mock data for countries
+const BASE_COUNTRIES = [
   { code: 'NL', name: 'Netherlands', frr: 45.2, cpfr: 72, refundRate: 3.2, disputeRate: 0.2, trials: 89, revenue: 28500 },
   { code: 'BE', name: 'Belgium', frr: 41.8, cpfr: 78, refundRate: 4.1, disputeRate: 0.3, trials: 56, revenue: 18200 },
   { code: 'DE', name: 'Germany', frr: 38.5, cpfr: 85, refundRate: 4.8, disputeRate: 0.4, trials: 124, revenue: 42000 },
@@ -31,7 +32,34 @@ const statusColors: Record<Status, string> = {
 };
 
 export function CountriesView() {
-  const sortedCountries = [...MOCK_COUNTRIES].sort((a, b) => b.revenue - a.revenue);
+  const { selectedCohort } = useCohort();
+
+  // Generate cohort-adjusted data
+  const maturityFactor = selectedCohort.monthsAvailable / 6;
+
+  const countries = BASE_COUNTRIES.map((country) => {
+    // Older cohorts have more accumulated revenue and trials
+    const revenueMultiplier = 0.4 + (maturityFactor * 0.6);
+    const trialsMultiplier = 0.5 + (maturityFactor * 0.5);
+
+    // FRR improves with maturity (more time to convert)
+    const frrBoost = maturityFactor * 5;
+
+    // Rates stabilize with more data
+    const rateVariation = (1 - maturityFactor) * 0.2;
+
+    return {
+      ...country,
+      frr: +(country.frr + frrBoost).toFixed(1),
+      cpfr: Math.round(country.cpfr * (1 - maturityFactor * 0.1)),
+      refundRate: +(country.refundRate * (1 + rateVariation)).toFixed(1),
+      disputeRate: +(country.disputeRate * (1 + rateVariation)).toFixed(2),
+      trials: Math.round(country.trials * trialsMultiplier),
+      revenue: Math.round(country.revenue * revenueMultiplier),
+    };
+  });
+
+  const sortedCountries = [...countries].sort((a, b) => b.revenue - a.revenue);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -41,7 +69,9 @@ export function CountriesView() {
           <Map className="w-7 h-7 text-green-400" />
           Vista Países
         </h1>
-        <p className="text-gray-400">Análisis Geográfico y de Riesgo - Cohortes Maduras (30-60d)</p>
+        <p className="text-gray-400">
+          Análisis Geográfico y de Riesgo - Cohorte: {selectedCohort.label} ({selectedCohort.monthsAvailable}m data)
+        </p>
       </div>
 
       {/* Table */}

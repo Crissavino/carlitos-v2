@@ -2,116 +2,43 @@ import { useState } from 'react';
 import { Activity, ChevronDown, ChevronUp } from 'lucide-react';
 import { useCohort } from '../contexts/CohortContext';
 
-// Mock data for websites
-const MOCK_WEBSITES = [
+// Base mock data for websites
+const BASE_WEBSITES = [
   {
     name: 'conversie-pdf.com',
     currency: 'EUR',
-    kpis: {
-      frr: { value: 42.5, status: 'green' as const },
-      cpfr: { value: 78, status: 'green' as const },
-      refundRate: { value: 3.8, status: 'green' as const },
-      paybackM1: { value: 1.35, status: 'green' as const },
-      trials: { value: 156, change: 12 },
-    },
-    funnel: {
-      adSpend: 6991.56,
-      trials: 128,
-      cpt: 55,
-      firstRebills: 77,
-      frr: 60,
-      revenueM1: 8354.42,
-      refunds: 158.34,
-      refundRate: 1.9,
-      netM1: 8196.08,
-      payback: 1.17,
-    },
-    customers: {
-      total: 1130,
-      byMonth: [
-        { month: 'M1', count: 207, percent: 18.3, color: 'bg-blue-500' },
-        { month: 'M2', count: 129, percent: 11.4, color: 'bg-purple-500' },
-        { month: 'M3', count: 109, percent: 9.6, color: 'bg-blue-400' },
-        { month: 'M4', count: 98, percent: 8.7, color: 'bg-yellow-500' },
-        { month: 'M5', count: 76, percent: 6.7, color: 'bg-yellow-400' },
-        { month: 'M6', count: 69, percent: 6.1, color: 'bg-red-500' },
-        { month: 'M7+', count: 442, percent: 39.1, color: 'bg-green-500' },
-      ],
-    },
+    baseKpis: { frr: 42.5, cpfr: 78, refundRate: 3.8, paybackM1: 1.35, trials: 156 },
+    baseFunnel: { adSpend: 6991.56, trials: 128, firstRebills: 77, revenueM1: 8354.42, refunds: 158.34 },
+    baseCustomers: { total: 1130, m1: 207, m2: 129, m3: 109, m4: 98, m5: 76, m6: 69, m7plus: 442 },
   },
   {
     name: 'convierte-pdf.com',
     currency: 'EUR',
-    kpis: {
-      frr: { value: 35.2, status: 'green' as const },
-      cpfr: { value: 95, status: 'yellow' as const },
-      refundRate: { value: 5.2, status: 'yellow' as const },
-      paybackM1: { value: 1.12, status: 'yellow' as const },
-      trials: { value: 89, change: -5 },
-    },
-    funnel: {
-      adSpend: 4250.00,
-      trials: 85,
-      cpt: 50,
-      firstRebills: 30,
-      frr: 35,
-      revenueM1: 4820.00,
-      refunds: 245.00,
-      refundRate: 5.1,
-      netM1: 4575.00,
-      payback: 1.08,
-    },
-    customers: {
-      total: 620,
-      byMonth: [
-        { month: 'M1', count: 89, percent: 14.4, color: 'bg-blue-500' },
-        { month: 'M2', count: 72, percent: 11.6, color: 'bg-purple-500' },
-        { month: 'M3', count: 65, percent: 10.5, color: 'bg-blue-400' },
-        { month: 'M4', count: 58, percent: 9.4, color: 'bg-yellow-500' },
-        { month: 'M5', count: 52, percent: 8.4, color: 'bg-yellow-400' },
-        { month: 'M6', count: 48, percent: 7.7, color: 'bg-red-500' },
-        { month: 'M7+', count: 236, percent: 38.1, color: 'bg-green-500' },
-      ],
-    },
+    baseKpis: { frr: 35.2, cpfr: 95, refundRate: 5.2, paybackM1: 1.12, trials: 89 },
+    baseFunnel: { adSpend: 4250.00, trials: 85, firstRebills: 30, revenueM1: 4820.00, refunds: 245.00 },
+    baseCustomers: { total: 620, m1: 89, m2: 72, m3: 65, m4: 58, m5: 52, m6: 48, m7plus: 236 },
   },
   {
     name: 'device-finder.com',
     currency: 'USD',
-    kpis: {
-      frr: { value: 28.1, status: 'yellow' as const },
-      cpfr: { value: 125, status: 'red' as const },
-      refundRate: { value: 8.5, status: 'red' as const },
-      paybackM1: { value: 0.85, status: 'red' as const },
-      trials: { value: 45, change: -18 },
-    },
-    funnel: {
-      adSpend: 3200.00,
-      trials: 45,
-      cpt: 71,
-      firstRebills: 13,
-      frr: 29,
-      revenueM1: 2720.00,
-      refunds: 312.00,
-      refundRate: 11.5,
-      netM1: 2408.00,
-      payback: 0.75,
-    },
-    customers: {
-      total: 280,
-      byMonth: [
-        { month: 'M1', count: 45, percent: 16.1, color: 'bg-blue-500' },
-        { month: 'M2', count: 32, percent: 11.4, color: 'bg-purple-500' },
-        { month: 'M3', count: 28, percent: 10.0, color: 'bg-blue-400' },
-        { month: 'M4', count: 25, percent: 8.9, color: 'bg-yellow-500' },
-        { month: 'M5', count: 22, percent: 7.9, color: 'bg-yellow-400' },
-        { month: 'M6', count: 20, percent: 7.1, color: 'bg-red-500' },
-        { month: 'M7+', count: 108, percent: 38.6, color: 'bg-green-500' },
-      ],
-    },
+    baseKpis: { frr: 28.1, cpfr: 125, refundRate: 8.5, paybackM1: 0.85, trials: 45 },
+    baseFunnel: { adSpend: 3200.00, trials: 45, firstRebills: 13, revenueM1: 2720.00, refunds: 312.00 },
+    baseCustomers: { total: 280, m1: 45, m2: 32, m3: 28, m4: 25, m5: 22, m6: 20, m7plus: 108 },
   },
 ];
 
 type Status = 'green' | 'yellow' | 'red';
+
+function getStatus(value: number, thresholds: { green: number; yellow: number }, inverse = false): Status {
+  if (inverse) {
+    if (value <= thresholds.green) return 'green';
+    if (value <= thresholds.yellow) return 'yellow';
+    return 'red';
+  }
+  if (value >= thresholds.green) return 'green';
+  if (value >= thresholds.yellow) return 'yellow';
+  return 'red';
+}
 
 const statusColors: Record<Status, string> = {
   green: 'text-green-400',
@@ -125,7 +52,20 @@ const statusBg: Record<Status, string> = {
   red: 'bg-red-500/10 border-red-500/30',
 };
 
-function ConversionFunnel({ data, currency }: { data: typeof MOCK_WEBSITES[0]['funnel']; currency: string }) {
+interface FunnelData {
+  adSpend: number;
+  trials: number;
+  cpt: number;
+  firstRebills: number;
+  frr: number;
+  revenueM1: number;
+  refunds: number;
+  refundRate: number;
+  netM1: number;
+  payback: number;
+}
+
+function ConversionFunnel({ data, currency }: { data: FunnelData; currency: string }) {
   const currencySymbol = currency === 'EUR' ? '€' : '$';
 
   const steps = [
@@ -144,7 +84,6 @@ function ConversionFunnel({ data, currency }: { data: typeof MOCK_WEBSITES[0]['f
       </h4>
       <div className="space-y-2">
         {steps.map((step, index) => {
-          // Calculate relative width based on value type
           let widthPercent: number;
           if (index === 0) widthPercent = 100;
           else if (index === 1) widthPercent = 85;
@@ -185,8 +124,20 @@ function ConversionFunnel({ data, currency }: { data: typeof MOCK_WEBSITES[0]['f
   );
 }
 
-function CustomerDistribution({ data }: { data: typeof MOCK_WEBSITES[0]['customers'] }) {
-  const maxCount = Math.max(...data.byMonth.map(m => m.count));
+interface CustomerMonth {
+  month: string;
+  count: number | null;
+  percent: number | null;
+  color: string;
+}
+
+interface CustomerData {
+  total: number;
+  byMonth: CustomerMonth[];
+}
+
+function CustomerDistribution({ data, monthsAvailable }: { data: CustomerData; monthsAvailable: number }) {
+  const maxCount = Math.max(...data.byMonth.filter(m => m.count !== null).map(m => m.count as number));
 
   return (
     <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4">
@@ -197,27 +148,44 @@ function CustomerDistribution({ data }: { data: typeof MOCK_WEBSITES[0]['custome
         <span className="text-sm text-gray-500">Total Activos: {data.total.toLocaleString()}</span>
       </div>
       <div className="space-y-2">
-        {data.byMonth.map((month) => (
-          <div key={month.month} className="flex items-center gap-3">
-            <div className="w-10 text-sm text-gray-500">{month.month}</div>
-            <div className="flex-1 relative h-7">
-              <div
-                className={`h-full ${month.color} rounded flex items-center px-3`}
-                style={{ width: `${(month.count / maxCount) * 100}%` }}
-              >
-                <span className="text-sm font-medium text-white">{month.count}</span>
+        {data.byMonth.map((month) => {
+          const hasData = month.count !== null;
+          return (
+            <div key={month.month} className="flex items-center gap-3">
+              <div className="w-10 text-sm text-gray-500">{month.month}</div>
+              <div className="flex-1 relative h-7">
+                {hasData ? (
+                  <div
+                    className={`h-full ${month.color} rounded flex items-center px-3`}
+                    style={{ width: `${((month.count as number) / maxCount) * 100}%` }}
+                  >
+                    <span className="text-sm font-medium text-white">{month.count}</span>
+                  </div>
+                ) : (
+                  <div className="h-full bg-gray-700/30 rounded border border-dashed border-gray-600 flex items-center px-3">
+                    <span className="text-sm text-gray-600">—</span>
+                  </div>
+                )}
+              </div>
+              <div className="w-16 text-right">
+                {hasData ? (
+                  <>
+                    <span className="font-medium">{month.count}</span>
+                    <span className="text-xs text-gray-500 ml-1">{month.percent}%</span>
+                  </>
+                ) : (
+                  <span className="text-xs text-gray-600">pendiente</span>
+                )}
               </div>
             </div>
-            <div className="w-16 text-right">
-              <span className="font-medium">{month.count}</span>
-              <span className="text-xs text-gray-500 ml-1">{month.percent}%</span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="mt-3 pt-3 border-t border-gray-700/50">
         <p className="text-xs text-cyan-400">
-          Revenue Legacy: Solo 18% en M1 - Depende de retención M2+.
+          {monthsAvailable >= 3
+            ? 'Revenue Legacy: Solo 18% en M1 - Depende de retención M2+.'
+            : `Cohorte inmadura (${monthsAvailable}m) - datos parciales.`}
         </p>
       </div>
     </div>
@@ -226,7 +194,78 @@ function CustomerDistribution({ data }: { data: typeof MOCK_WEBSITES[0]['custome
 
 export function WebsitesView() {
   const { selectedCohort } = useCohort();
-  const [expandedWebsite, setExpandedWebsite] = useState<string | null>(MOCK_WEBSITES[0].name);
+  const [expandedWebsite, setExpandedWebsite] = useState<string | null>(BASE_WEBSITES[0].name);
+
+  const maturityFactor = selectedCohort.monthsAvailable / 6;
+
+  // Generate cohort-adjusted website data
+  const websites = BASE_WEBSITES.map((site) => {
+    // KPIs improve with maturity
+    const frrValue = +(site.baseKpis.frr + maturityFactor * 5).toFixed(1);
+    const cpfrValue = Math.round(site.baseKpis.cpfr * (1.1 - maturityFactor * 0.15));
+    const refundValue = +(site.baseKpis.refundRate * (1.1 - maturityFactor * 0.15)).toFixed(1);
+    const paybackValue = +(site.baseKpis.paybackM1 + maturityFactor * 0.25).toFixed(2);
+    const trialsValue = Math.round(site.baseKpis.trials * (0.6 + maturityFactor * 0.5));
+    const trialsChange = Math.round((maturityFactor - 0.5) * 30);
+
+    // Funnel data
+    const trials = Math.round(site.baseFunnel.trials * (0.6 + maturityFactor * 0.5));
+    const firstRebills = Math.round(site.baseFunnel.firstRebills * (0.5 + maturityFactor * 0.6));
+    const cpt = trials > 0 ? Math.round(site.baseFunnel.adSpend / trials) : 0;
+    const frr = trials > 0 ? Math.round((firstRebills / trials) * 100) : 0;
+    const revenueM1 = +(site.baseFunnel.revenueM1 * (0.6 + maturityFactor * 0.5)).toFixed(2);
+    const refunds = +(site.baseFunnel.refunds * (1.1 - maturityFactor * 0.2)).toFixed(2);
+    const refundRate = revenueM1 > 0 ? +((refunds / revenueM1) * 100).toFixed(1) : 0;
+    const netM1 = +(revenueM1 - refunds).toFixed(2);
+    const payback = site.baseFunnel.adSpend > 0 ? +(netM1 / site.baseFunnel.adSpend).toFixed(2) : 0;
+
+    // Customer distribution - only show months with data based on cohort
+    const monthColors = ['bg-blue-500', 'bg-purple-500', 'bg-blue-400', 'bg-yellow-500', 'bg-yellow-400', 'bg-red-500', 'bg-green-500'];
+    const monthNames = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7+'];
+    const baseCounts = [site.baseCustomers.m1, site.baseCustomers.m2, site.baseCustomers.m3, site.baseCustomers.m4, site.baseCustomers.m5, site.baseCustomers.m6, site.baseCustomers.m7plus];
+
+    const customerTotal = Math.round(site.baseCustomers.total * (0.5 + maturityFactor * 0.6));
+    const byMonth: CustomerMonth[] = monthNames.map((name, i) => {
+      const monthNum = i + 1;
+      const hasData = monthNum <= selectedCohort.monthsAvailable || (i === 6 && selectedCohort.monthsAvailable >= 7);
+
+      if (!hasData) {
+        return { month: name, count: null, percent: null, color: monthColors[i] };
+      }
+
+      const count = Math.round(baseCounts[i] * (0.5 + maturityFactor * 0.6));
+      const percent = customerTotal > 0 ? +((count / customerTotal) * 100).toFixed(1) : 0;
+      return { month: name, count, percent, color: monthColors[i] };
+    });
+
+    return {
+      name: site.name,
+      currency: site.currency,
+      kpis: {
+        frr: { value: frrValue, status: getStatus(frrValue, { green: 35, yellow: 25 }) },
+        cpfr: { value: cpfrValue, status: getStatus(cpfrValue, { green: 90, yellow: 120 }, true) },
+        refundRate: { value: refundValue, status: getStatus(refundValue, { green: 5, yellow: 8 }, true) },
+        paybackM1: { value: paybackValue, status: getStatus(paybackValue, { green: 1.2, yellow: 1.0 }) },
+        trials: { value: trialsValue, change: trialsChange },
+      },
+      funnel: {
+        adSpend: site.baseFunnel.adSpend,
+        trials,
+        cpt,
+        firstRebills,
+        frr,
+        revenueM1,
+        refunds,
+        refundRate,
+        netM1,
+        payback,
+      },
+      customers: {
+        total: customerTotal,
+        byMonth,
+      },
+    };
+  });
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -237,18 +276,17 @@ export function WebsitesView() {
           Vista Websites
         </h1>
         <p className="text-gray-400">
-          Performance de Producto/Oferta por Website - Cohorte: {selectedCohort.label}
+          Performance de Producto/Oferta por Website - Cohorte: {selectedCohort.label} ({selectedCohort.monthsAvailable}m data)
         </p>
       </div>
 
-      {/* Websites List with Expandable Details */}
+      {/* Websites List */}
       <div className="space-y-4">
-        {MOCK_WEBSITES.map((website) => {
+        {websites.map((website) => {
           const isExpanded = expandedWebsite === website.name;
 
           return (
             <div key={website.name} className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
-              {/* Header Row - Always visible */}
               <button
                 onClick={() => setExpandedWebsite(isExpanded ? null : website.name)}
                 className="w-full p-4 flex items-center justify-between hover:bg-gray-800/30 transition-colors"
@@ -260,7 +298,6 @@ export function WebsitesView() {
                   </div>
                 </div>
 
-                {/* Quick KPIs */}
                 <div className="flex items-center gap-6">
                   <div className={`text-center px-3 py-1 rounded border ${statusBg[website.kpis.paybackM1.status]}`}>
                     <span className={`font-bold ${statusColors[website.kpis.paybackM1.status]}`}>
@@ -295,12 +332,11 @@ export function WebsitesView() {
                 </div>
               </button>
 
-              {/* Expanded Details */}
               {isExpanded && (
                 <div className="p-4 pt-0 border-t border-gray-700/50">
                   <div className="grid lg:grid-cols-2 gap-4 mt-4">
                     <ConversionFunnel data={website.funnel} currency={website.currency} />
-                    <CustomerDistribution data={website.customers} />
+                    <CustomerDistribution data={website.customers} monthsAvailable={selectedCohort.monthsAvailable} />
                   </div>
                 </div>
               )}

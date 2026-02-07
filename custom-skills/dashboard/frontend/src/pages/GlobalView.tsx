@@ -1,32 +1,42 @@
 import { useState } from 'react';
-import { TrendingUp, TrendingDown, Minus, RefreshCw, Users, AlertTriangle, Percent, PiggyBank, Target, DollarSign, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, RefreshCw, Users, AlertTriangle, Percent, PiggyBank, Target, DollarSign, X, Check } from 'lucide-react';
 import { useCohort } from '../contexts/CohortContext';
 
-// Placeholder data - will be replaced with real API calls
-const MOCK_KPIS = {
-  weeklyProfit: { value: 4250, status: 'green' as const, target: '>€0' },
-  paybackM1: { value: 1.17, status: 'yellow' as const, target: '≥1.20' },
-  cpt: { value: 55, status: 'yellow' as const, target: '≤€50' },
-  frr: { value: 38.2, status: 'green' as const, target: '≥35%' },
-  refundRateM1: { value: 4.8, status: 'green' as const, target: '≤5%' },
-  disputeRate: { value: 0.42, status: 'green' as const, target: '≤1%' },
+// Base KPI values - will be adjusted based on cohort
+const BASE_KPIS = {
+  weeklyProfit: 4250,
+  paybackM1: 1.17,
+  cpt: 55,
+  frr: 38.2,
+  refundRateM1: 4.8,
+  disputeRate: 0.42,
 };
 
-const MOCK_DAILY_PULSE = {
-  acquisitions: { today: 45, lastWeek: 38, change: 18.4 },
-  firstRebills: { today: 22, lastWeek: 25, change: -12.0 },
-  refunds: { today: 3, lastWeek: 5, change: -40.0 },
-  grossRevenue: { today: 2850, lastWeek: 2620, change: 8.8 },
+const BASE_DAILY_PULSE = {
+  acquisitions: { today: 45, lastWeek: 38 },
+  firstRebills: { today: 22, lastWeek: 25 },
+  refunds: { today: 3, lastWeek: 5 },
+  grossRevenue: { today: 2850, lastWeek: 2620 },
 };
 
-// Payback M1 by Website for comparison chart
-const MOCK_PAYBACK_BY_WEBSITE = [
-  { website: 'ConversiePDF', payback: 0.52, status: 'red' as const },
-  { website: 'DeviceFinder', payback: 0.47, status: 'red' as const },
-  { website: 'ConviertePDF', payback: 0.21, status: 'red' as const },
+const BASE_PAYBACK_BY_WEBSITE = [
+  { website: 'ConversiePDF', basePayback: 0.52 },
+  { website: 'DeviceFinder', basePayback: 0.47 },
+  { website: 'ConviertePDF', basePayback: 0.21 },
 ];
 
 type KpiStatus = 'green' | 'yellow' | 'red';
+
+function getKpiStatus(value: number, thresholds: { green: number; yellow: number }, inverse = false): KpiStatus {
+  if (inverse) {
+    if (value <= thresholds.green) return 'green';
+    if (value <= thresholds.yellow) return 'yellow';
+    return 'red';
+  }
+  if (value >= thresholds.green) return 'green';
+  if (value >= thresholds.yellow) return 'yellow';
+  return 'red';
+}
 
 const statusColors: Record<KpiStatus, string> = {
   green: 'bg-green-500/20 border-green-500/50 text-green-400',
@@ -81,7 +91,6 @@ function PulseCard({ title, today, lastWeek, change, format = 'number' }: PulseC
   const isNeutral = change === 0;
   const TrendIcon = isNeutral ? Minus : isPositive ? TrendingUp : TrendingDown;
 
-  // For refunds, negative change is good
   const isRefunds = title.toLowerCase().includes('refund');
   const colorClass = isNeutral
     ? 'text-gray-400'
@@ -111,8 +120,15 @@ function PulseCard({ title, today, lastWeek, change, format = 'number' }: PulseC
   );
 }
 
-function PaybackByWebsiteChart({ data }: { data: typeof MOCK_PAYBACK_BY_WEBSITE }) {
-  const maxPayback = 0.6; // For scale reference
+interface PaybackWebsite {
+  website: string;
+  payback: number;
+  status: KpiStatus;
+}
+
+function PaybackByWebsiteChart({ data }: { data: PaybackWebsite[] }) {
+  const maxPayback = Math.max(1.5, ...data.map(d => d.payback));
+  const scaleMarks = [0, 0.3, 0.6, 0.9, 1.2, maxPayback > 1.5 ? 1.5 : 1.2];
 
   return (
     <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50">
@@ -124,34 +140,27 @@ function PaybackByWebsiteChart({ data }: { data: typeof MOCK_PAYBACK_BY_WEBSITE 
           <div key={item.website} className="flex items-center gap-4">
             <div className="w-28 text-sm text-gray-400 truncate">{item.website}</div>
             <div className="flex-1 relative">
-              {/* Scale markers */}
               <div className="absolute inset-0 flex justify-between pointer-events-none">
-                {[0, 0.1, 0.2, 0.3, 0.4, 0.5].map((mark) => (
+                {scaleMarks.map((mark) => (
                   <div key={mark} className="border-l border-gray-700/50 h-full" />
                 ))}
               </div>
-              {/* Bar */}
               <div className="h-8 relative">
                 <div
                   className={`h-full ${barColors[item.status]} rounded-r`}
-                  style={{ width: `${(item.payback / maxPayback) * 100}%` }}
+                  style={{ width: `${Math.min((item.payback / maxPayback) * 100, 100)}%` }}
                 />
               </div>
             </div>
           </div>
         ))}
-        {/* Scale labels */}
         <div className="flex justify-between text-xs text-gray-500 ml-32">
-          <span>0.0x</span>
-          <span>0.1x</span>
-          <span>0.2x</span>
-          <span>0.3x</span>
-          <span>0.4x</span>
-          <span>0.5x</span>
+          {scaleMarks.map((mark) => (
+            <span key={mark}>{mark.toFixed(1)}x</span>
+          ))}
         </div>
       </div>
 
-      {/* Summary */}
       <div className="mt-6 pt-4 border-t border-gray-700/50 space-y-2">
         {data.map((item) => (
           <div key={item.website} className="flex items-center justify-between text-sm">
@@ -160,8 +169,17 @@ function PaybackByWebsiteChart({ data }: { data: typeof MOCK_PAYBACK_BY_WEBSITE 
               <span className={`font-medium ${item.status === 'red' ? 'text-red-400' : item.status === 'yellow' ? 'text-yellow-400' : 'text-green-400'}`}>
                 {item.payback.toFixed(2)}x
               </span>
-              <X className="w-4 h-4 text-red-400" />
-              <span className="text-gray-500">Revisar</span>
+              {item.status === 'green' ? (
+                <>
+                  <Check className="w-4 h-4 text-green-400" />
+                  <span className="text-gray-500">OK</span>
+                </>
+              ) : (
+                <>
+                  <X className="w-4 h-4 text-red-400" />
+                  <span className="text-gray-500">Revisar</span>
+                </>
+              )}
             </div>
           </div>
         ))}
@@ -173,6 +191,77 @@ function PaybackByWebsiteChart({ data }: { data: typeof MOCK_PAYBACK_BY_WEBSITE 
 export function GlobalView() {
   const [loading] = useState(false);
   const { selectedCohort } = useCohort();
+
+  // Generate cohort-adjusted data
+  const maturityFactor = selectedCohort.monthsAvailable / 6;
+
+  // KPIs improve with maturity
+  const kpis = {
+    weeklyProfit: {
+      value: Math.round(BASE_KPIS.weeklyProfit * (0.5 + maturityFactor * 0.8)),
+      status: getKpiStatus(BASE_KPIS.weeklyProfit * (0.5 + maturityFactor * 0.8), { green: 0, yellow: -1000 }),
+      target: '>€0',
+    },
+    paybackM1: {
+      value: +(BASE_KPIS.paybackM1 + maturityFactor * 0.3).toFixed(2),
+      status: getKpiStatus(BASE_KPIS.paybackM1 + maturityFactor * 0.3, { green: 1.2, yellow: 1.0 }),
+      target: '≥1.20',
+    },
+    cpt: {
+      value: Math.round(BASE_KPIS.cpt * (1.2 - maturityFactor * 0.3)),
+      status: getKpiStatus(BASE_KPIS.cpt * (1.2 - maturityFactor * 0.3), { green: 50, yellow: 70 }, true),
+      target: '≤€50',
+    },
+    frr: {
+      value: +(BASE_KPIS.frr + maturityFactor * 8).toFixed(1),
+      status: getKpiStatus(BASE_KPIS.frr + maturityFactor * 8, { green: 35, yellow: 25 }),
+      target: '≥35%',
+    },
+    refundRateM1: {
+      value: +(BASE_KPIS.refundRateM1 * (1.1 - maturityFactor * 0.2)).toFixed(1),
+      status: getKpiStatus(BASE_KPIS.refundRateM1 * (1.1 - maturityFactor * 0.2), { green: 5, yellow: 8 }, true),
+      target: '≤5%',
+    },
+    disputeRate: {
+      value: +(BASE_KPIS.disputeRate * (1.1 - maturityFactor * 0.15)).toFixed(2),
+      status: getKpiStatus(BASE_KPIS.disputeRate * (1.1 - maturityFactor * 0.15), { green: 0.5, yellow: 1 }, true),
+      target: '≤1%',
+    },
+  };
+
+  // Daily pulse varies slightly
+  const dailyPulse = {
+    acquisitions: {
+      today: Math.round(BASE_DAILY_PULSE.acquisitions.today * (0.8 + maturityFactor * 0.4)),
+      lastWeek: Math.round(BASE_DAILY_PULSE.acquisitions.lastWeek * (0.8 + maturityFactor * 0.4)),
+      change: +((maturityFactor - 0.5) * 30).toFixed(1),
+    },
+    firstRebills: {
+      today: Math.round(BASE_DAILY_PULSE.firstRebills.today * (0.6 + maturityFactor * 0.6)),
+      lastWeek: Math.round(BASE_DAILY_PULSE.firstRebills.lastWeek * (0.6 + maturityFactor * 0.6)),
+      change: +((maturityFactor - 0.4) * 25).toFixed(1),
+    },
+    refunds: {
+      today: Math.round(BASE_DAILY_PULSE.refunds.today * (1.2 - maturityFactor * 0.3)),
+      lastWeek: Math.round(BASE_DAILY_PULSE.refunds.lastWeek * (1.2 - maturityFactor * 0.3)),
+      change: +((0.5 - maturityFactor) * 40).toFixed(1),
+    },
+    grossRevenue: {
+      today: Math.round(BASE_DAILY_PULSE.grossRevenue.today * (0.6 + maturityFactor * 0.6)),
+      lastWeek: Math.round(BASE_DAILY_PULSE.grossRevenue.lastWeek * (0.6 + maturityFactor * 0.6)),
+      change: +((maturityFactor - 0.3) * 20).toFixed(1),
+    },
+  };
+
+  // Payback by website improves with maturity
+  const paybackByWebsite: PaybackWebsite[] = BASE_PAYBACK_BY_WEBSITE.map((site) => {
+    const payback = +(site.basePayback + maturityFactor * 0.8).toFixed(2);
+    return {
+      website: site.website,
+      payback,
+      status: getKpiStatus(payback, { green: 1.2, yellow: 1.0 }),
+    };
+  });
 
   if (loading) {
     return (
@@ -192,7 +281,7 @@ export function GlobalView() {
         </p>
       </div>
 
-      {/* KPIs Section - Reorganized */}
+      {/* KPIs Section */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-blue-500" />
@@ -201,44 +290,44 @@ export function GlobalView() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <KpiCardNew
             title="Weekly Profit"
-            value={`€${MOCK_KPIS.weeklyProfit.value.toLocaleString()}`}
-            status={MOCK_KPIS.weeklyProfit.status}
-            target={MOCK_KPIS.weeklyProfit.target}
+            value={`€${kpis.weeklyProfit.value.toLocaleString()}`}
+            status={kpis.weeklyProfit.status}
+            target={kpis.weeklyProfit.target}
             icon={PiggyBank}
           />
           <KpiCardNew
             title="Payback M1"
-            value={`${MOCK_KPIS.paybackM1.value}x`}
-            status={MOCK_KPIS.paybackM1.status}
-            target={MOCK_KPIS.paybackM1.target}
+            value={`${kpis.paybackM1.value}x`}
+            status={kpis.paybackM1.status}
+            target={kpis.paybackM1.target}
             icon={Target}
           />
           <KpiCardNew
             title="Cost Per Trial"
-            value={`€${MOCK_KPIS.cpt.value}`}
-            status={MOCK_KPIS.cpt.status}
-            target={MOCK_KPIS.cpt.target}
+            value={`€${kpis.cpt.value}`}
+            status={kpis.cpt.status}
+            target={kpis.cpt.target}
             icon={DollarSign}
           />
           <KpiCardNew
             title="FRR (2do Pago)"
-            value={`${MOCK_KPIS.frr.value}%`}
-            status={MOCK_KPIS.frr.status}
-            target={MOCK_KPIS.frr.target}
+            value={`${kpis.frr.value}%`}
+            status={kpis.frr.status}
+            target={kpis.frr.target}
             icon={Users}
           />
           <KpiCardNew
             title="Refund Rate M1"
-            value={`${MOCK_KPIS.refundRateM1.value}%`}
-            status={MOCK_KPIS.refundRateM1.status}
-            target={MOCK_KPIS.refundRateM1.target}
+            value={`${kpis.refundRateM1.value}%`}
+            status={kpis.refundRateM1.status}
+            target={kpis.refundRateM1.target}
             icon={Percent}
           />
           <KpiCardNew
             title="Dispute Rate"
-            value={`${MOCK_KPIS.disputeRate.value}%`}
-            status={MOCK_KPIS.disputeRate.status}
-            target={MOCK_KPIS.disputeRate.target}
+            value={`${kpis.disputeRate.value}%`}
+            status={kpis.disputeRate.status}
+            target={kpis.disputeRate.target}
             icon={AlertTriangle}
           />
         </div>
@@ -254,27 +343,27 @@ export function GlobalView() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <PulseCard
             title="Adquisiciones Hoy"
-            today={MOCK_DAILY_PULSE.acquisitions.today}
-            lastWeek={MOCK_DAILY_PULSE.acquisitions.lastWeek}
-            change={MOCK_DAILY_PULSE.acquisitions.change}
+            today={dailyPulse.acquisitions.today}
+            lastWeek={dailyPulse.acquisitions.lastWeek}
+            change={dailyPulse.acquisitions.change}
           />
           <PulseCard
             title="First Rebills Hoy"
-            today={MOCK_DAILY_PULSE.firstRebills.today}
-            lastWeek={MOCK_DAILY_PULSE.firstRebills.lastWeek}
-            change={MOCK_DAILY_PULSE.firstRebills.change}
+            today={dailyPulse.firstRebills.today}
+            lastWeek={dailyPulse.firstRebills.lastWeek}
+            change={dailyPulse.firstRebills.change}
           />
           <PulseCard
             title="Refunds Hoy"
-            today={MOCK_DAILY_PULSE.refunds.today}
-            lastWeek={MOCK_DAILY_PULSE.refunds.lastWeek}
-            change={MOCK_DAILY_PULSE.refunds.change}
+            today={dailyPulse.refunds.today}
+            lastWeek={dailyPulse.refunds.lastWeek}
+            change={dailyPulse.refunds.change}
           />
           <PulseCard
             title="Gross Revenue Hoy"
-            today={MOCK_DAILY_PULSE.grossRevenue.today}
-            lastWeek={MOCK_DAILY_PULSE.grossRevenue.lastWeek}
-            change={MOCK_DAILY_PULSE.grossRevenue.change}
+            today={dailyPulse.grossRevenue.today}
+            lastWeek={dailyPulse.grossRevenue.lastWeek}
+            change={dailyPulse.grossRevenue.change}
             format="currency"
           />
         </div>
@@ -287,7 +376,7 @@ export function GlobalView() {
           Gráficos Ejecutivos
         </h2>
         <div className="grid lg:grid-cols-1 gap-6">
-          <PaybackByWebsiteChart data={MOCK_PAYBACK_BY_WEBSITE} />
+          <PaybackByWebsiteChart data={paybackByWebsite} />
         </div>
       </section>
     </div>
