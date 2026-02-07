@@ -90,7 +90,6 @@ export function FunnelView() {
   const latestRisk = riskTrends.length > 0 ? riskTrends[riskTrends.length - 1] : null;
   const prevRisk = riskTrends.length > 1 ? riskTrends[riskTrends.length - 2] : null;
   const refundTrend = latestRisk && prevRisk ? latestRisk.refundRate - prevRisk.refundRate : 0;
-  const disputeTrend = latestRisk && prevRisk ? latestRisk.disputeRate - prevRisk.disputeRate : 0;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -296,45 +295,6 @@ export function FunnelView() {
                 </div>
               </div>
 
-              {/* Dispute Rate */}
-              <div>
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm font-medium text-gray-300">Dispute Rate</span>
-                  <div className="flex items-center gap-2">
-                    <span className={`font-medium ${(latestRisk?.disputeRate || 0) <= 0.5 ? 'text-green-400' : (latestRisk?.disputeRate || 0) <= 1 ? 'text-yellow-400' : 'text-red-400'}`}>
-                      {latestRisk?.disputeRate.toFixed(2) || 0}%
-                    </span>
-                    {disputeTrend !== 0 && (
-                      <>
-                        {disputeTrend < 0 ? (
-                          <TrendingDown className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <TrendingUp className="w-4 h-4 text-red-400" />
-                        )}
-                        <span className={`text-xs ${disputeTrend < 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {disputeTrend > 0 ? '+' : ''}{disputeTrend.toFixed(2)}%
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  {riskTrends.map((month) => {
-                    const maxDispute = Math.max(...riskTrends.map(r => r.disputeRate), 0.1);
-                    const barWidth = month.disputeRate > 0 ? Math.max((month.disputeRate / maxDispute) * 100, 2) : 0;
-                    const barColor = month.disputeRate <= 0.5 ? 'bg-green-500' : month.disputeRate <= 1 ? 'bg-yellow-500' : 'bg-red-500';
-                    return (
-                      <div key={month.month} className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500 w-8 flex-shrink-0">{month.monthLabel}</span>
-                        <div className="flex-1 h-5 bg-gray-700/50 rounded overflow-hidden relative">
-                          {barWidth > 0 && <div className={`h-full ${barColor} rounded`} style={{ width: `${barWidth}%` }} />}
-                        </div>
-                        <span className="text-xs text-gray-400 w-12 text-right flex-shrink-0">{month.disputeRate.toFixed(2)}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
             </div>
           )}
         </div>

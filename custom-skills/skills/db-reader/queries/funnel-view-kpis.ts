@@ -256,7 +256,8 @@ export function retentionByMonthQuery(websiteId?: number): QueryDefinition {
 }
 
 /**
- * Risk Trends: Monthly refund and dispute rates
+ * Risk Trends: Monthly refund rates
+ * Includes both invoice refunds (Avocode/KiwiKode) and Zoho refunds (Jackcode)
  */
 export function riskTrendsQuery(websiteId?: number): QueryDefinition {
   const websiteFilter = websiteId ? `AND s.website_id = ${websiteId}` : '';
@@ -264,30 +265,46 @@ export function riskTrendsQuery(websiteId?: number): QueryDefinition {
   return {
     id: "funnel-risk-trends" as any,
     name: "Risk Trends",
-    description: "Monthly refund and dispute rates",
+    description: "Monthly refund rates (invoice + zoho refunds)",
     sql: `
       SELECT
-        DATE_FORMAT(i.transacted_at, '%Y-%m') as month,
-        DATE_FORMAT(i.transacted_at, '%b') as month_label,
-        COUNT(DISTINCT CASE WHEN i.invoice_type_id IN (1, 2) THEN i.id END) as total_transactions,
-        COUNT(DISTINCT CASE WHEN i.invoice_type_id = 3 AND i.company_id != 3 THEN i.id END) as refunds,
-        COUNT(DISTINCT CASE WHEN i.invoice_type_id = 4 THEN i.id END) as chargebacks,
-        ROUND(
-          COUNT(DISTINCT CASE WHEN i.invoice_type_id = 3 AND i.company_id != 3 THEN i.id END) * 100.0 /
-          NULLIF(COUNT(DISTINCT CASE WHEN i.invoice_type_id IN (1, 2) THEN i.id END), 0),
-          2
-        ) as refund_rate,
-        ROUND(
-          COUNT(DISTINCT CASE WHEN i.invoice_type_id = 4 THEN i.id END) * 100.0 /
-          NULLIF(COUNT(DISTINCT CASE WHEN i.invoice_type_id IN (1, 2) THEN i.id END), 0),
-          2
-        ) as dispute_rate
-      FROM avocode.invoices i
-      JOIN avocode.subscriptions s ON s.customer_id = i.customer_id
-      WHERE i.transacted_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-        AND i.invoice_status_id = 1
-        ${websiteFilter}
-      GROUP BY DATE_FORMAT(i.transacted_at, '%Y-%m'), DATE_FORMAT(i.transacted_at, '%b')
+        month,
+        month_label,
+        SUM(transactions) as total_transactions,
+        SUM(refunds) as refunds,
+        ROUND(SUM(refunds) * 100.0 / NULLIF(SUM(transactions), 0), 2) as refund_rate
+      FROM (
+        -- Invoice transactions and refunds (Avocode/KiwiKode)
+        SELECT
+          DATE_FORMAT(i.transacted_at, '%Y-%m') as month,
+          DATE_FORMAT(i.transacted_at, '%b') as month_label,
+          COUNT(DISTINCT CASE WHEN i.invoice_type_id IN (1, 2) THEN i.id END) as transactions,
+          COUNT(DISTINCT CASE WHEN i.invoice_type_id = 3 AND i.company_id != 3 THEN i.id END) as refunds
+        FROM avocode.invoices i
+        JOIN avocode.subscriptions s ON s.customer_id = i.customer_id
+        WHERE i.transacted_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+          AND i.invoice_status_id = 1
+          ${websiteFilter}
+        GROUP BY DATE_FORMAT(i.transacted_at, '%Y-%m'), DATE_FORMAT(i.transacted_at, '%b')
+
+        UNION ALL
+
+        -- Zoho refunds (Jackcode)
+        SELECT
+          DATE_FORMAT(zr.created_at, '%Y-%m') as month,
+          DATE_FORMAT(zr.created_at, '%b') as month_label,
+          0 as transactions,
+          COUNT(DISTINCT zr.id) as refunds
+        FROM avocodebo.zoho_refunds zr
+        LEFT JOIN avocodebo.zoho_credit_notes zcn ON zr.zoho_credit_note_id = zcn.id
+        LEFT JOIN avocodebo.zoho_invoices zi ON zi.id = zcn.zoho_invoice_id
+        LEFT JOIN avocode.invoices inv ON inv.id = zi.invoice_id
+        LEFT JOIN avocode.subscriptions s ON s.customer_id = inv.customer_id
+        WHERE zr.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+          ${websiteFilter}
+        GROUP BY DATE_FORMAT(zr.created_at, '%Y-%m'), DATE_FORMAT(zr.created_at, '%b')
+      ) combined
+      GROUP BY month, month_label
       ORDER BY month ASC
     `,
     params: [],

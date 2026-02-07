@@ -2782,9 +2782,7 @@ app.get("/api/business/funnel", async (req: Request, res: Response) => {
       monthLabel: row.month_label,
       totalTransactions: Number(row.total_transactions) || 0,
       refunds: Number(row.refunds) || 0,
-      chargebacks: Number(row.chargebacks) || 0,
       refundRate: Number(row.refund_rate) || 0,
-      disputeRate: Number(row.dispute_rate) || 0,
     }));
 
     // Parse LTV

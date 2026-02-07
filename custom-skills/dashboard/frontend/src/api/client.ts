@@ -349,9 +349,7 @@ export interface RiskTrend {
   monthLabel: string;
   totalTransactions: number;
   refunds: number;
-  chargebacks: number;
   refundRate: number;
-  disputeRate: number;
 }
 
 export interface LtvData {
