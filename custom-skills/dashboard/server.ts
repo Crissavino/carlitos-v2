@@ -106,6 +106,14 @@ import {
   refundRateM1ByCompanyQuery,
   disputeRateByCompanyQuery,
 } from "../skills/db-reader/queries/companies-view-kpis.js";
+import {
+  revenueByWebsiteQuery,
+  refundsByWebsiteQuery,
+  adSpendByWebsiteQuery,
+  frrByWebsiteQuery,
+  refundRateM1ByWebsiteQuery,
+  disputeRateByWebsiteQuery,
+} from "../skills/db-reader/queries/websites-view-kpis.js";
 
 const app = express();
 const PORT = parseInt(process.env.DASHBOARD_PORT || "3002", 10);
@@ -2273,6 +2281,146 @@ app.get("/api/business/companies", async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("[/api/business/companies] Error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// Website names mapping
+const WEBSITE_NAMES: Record<number, string> = {
+  1: 'conversie-pdf.com',
+  3: 'convierte-pdf.com',
+  4: 'device-finder.com',
+};
+
+// GET /api/business/websites - Websites View KPIs
+app.get("/api/business/websites", async (req: Request, res: Response) => {
+  console.log("[/api/business/websites] Request received, range:", req.query.range);
+
+  try {
+    const rangeParam = (req.query.range as string) || "7d";
+    const validRanges = ["7d", "14d", "30d", "60d"];
+
+    if (!validRanges.includes(rangeParam)) {
+      res.status(400).json({ error: `Invalid range. Valid: ${validRanges.join(", ")}` });
+      return;
+    }
+
+    const days = parseInt(rangeParam.replace("d", ""), 10);
+    const dateRange: DateRangeConfig = { days, type: "period" };
+
+    const { executeRawQuery } = await import("../skills/db-reader/executor.js");
+
+    // Execute all queries in parallel
+    console.log("[/api/business/websites] Executing queries...");
+    const [revenueRows, refundsRows, adSpendRows, frrRows, refundRateRows, disputeRows] = await Promise.all([
+      executeRawQuery(revenueByWebsiteQuery(dateRange).sql),
+      executeRawQuery(refundsByWebsiteQuery(dateRange).sql),
+      executeRawQuery(adSpendByWebsiteQuery(dateRange).sql),
+      executeRawQuery(frrByWebsiteQuery(dateRange).sql),
+      executeRawQuery(refundRateM1ByWebsiteQuery(dateRange).sql),
+      executeRawQuery(disputeRateByWebsiteQuery(dateRange).sql),
+    ]);
+    console.log("[/api/business/websites] All queries complete!");
+
+    // Build website data map
+    const websiteData: Record<number, any> = {
+      1: { websiteId: 1, name: 'conversie-pdf.com', grossRevenueEur: 0, trialRevenueEur: 0, rebillRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
+      3: { websiteId: 3, name: 'convierte-pdf.com', grossRevenueEur: 0, trialRevenueEur: 0, rebillRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
+      4: { websiteId: 4, name: 'device-finder.com', grossRevenueEur: 0, trialRevenueEur: 0, rebillRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
+    };
+
+    // Parse revenue
+    for (const row of revenueRows as any[]) {
+      const wid = Number(row.website_id);
+      if (websiteData[wid]) {
+        websiteData[wid].grossRevenueEur = Number(row.gross_revenue_eur) || 0;
+        websiteData[wid].trialRevenueEur = Number(row.trial_revenue_eur) || 0;
+        websiteData[wid].rebillRevenueEur = Number(row.rebill_revenue_eur) || 0;
+      }
+    }
+
+    // Parse refunds
+    for (const row of refundsRows as any[]) {
+      const wid = Number(row.website_id);
+      if (websiteData[wid]) {
+        websiteData[wid].refundsEur = Number(row.total_refunds_eur) || 0;
+      }
+    }
+
+    // Parse ad spend
+    for (const row of adSpendRows as any[]) {
+      const wid = Number(row.website_id);
+      if (websiteData[wid]) {
+        websiteData[wid].adSpendEur = Number(row.total_spend_eur) || 0;
+      }
+    }
+
+    // Parse FRR
+    for (const row of frrRows as any[]) {
+      const wid = Number(row.website_id);
+      if (websiteData[wid]) {
+        websiteData[wid].trialCount = Number(row.trial_count) || 0;
+        websiteData[wid].firstRebillCount = Number(row.first_rebill_count) || 0;
+      }
+    }
+
+    // Parse refund rate M1
+    for (const row of refundRateRows as any[]) {
+      const wid = Number(row.website_id);
+      if (websiteData[wid]) {
+        websiteData[wid].totalFirstRebillsM1 = Number(row.total_first_rebills) || 0;
+        websiteData[wid].refundedFirstRebillsM1 = Number(row.refunded_first_rebills) || 0;
+      }
+    }
+
+    // Parse dispute rate
+    for (const row of disputeRows as any[]) {
+      const wid = Number(row.website_id);
+      if (websiteData[wid]) {
+        websiteData[wid].totalTransactions = Number(row.total_transactions) || 0;
+        websiteData[wid].chargebackCount = Number(row.chargeback_count) || 0;
+      }
+    }
+
+    // Calculate derived KPIs and format response
+    const websites = Object.values(websiteData).map((w: any) => {
+      const profit = w.grossRevenueEur - w.refundsEur - w.adSpendEur;
+      const netM1 = w.grossRevenueEur - w.refundsEur;
+      const frr = w.trialCount > 0 ? (w.firstRebillCount / w.trialCount) * 100 : 0;
+      const refundRateM1 = w.totalFirstRebillsM1 > 0 ? (w.refundedFirstRebillsM1 / w.totalFirstRebillsM1) * 100 : 0;
+      const disputeRate = w.totalTransactions > 0 ? (w.chargebackCount / w.totalTransactions) * 100 : 0;
+      const cpt = w.trialCount > 0 ? w.adSpendEur / w.trialCount : 0;
+      const payback = w.adSpendEur > 0 ? netM1 / w.adSpendEur : 0;
+
+      return {
+        websiteId: w.websiteId,
+        name: w.name,
+        kpis: {
+          profit: Math.round(profit * 100) / 100,
+          grossRevenueEur: Math.round(w.grossRevenueEur * 100) / 100,
+          trialRevenueEur: Math.round(w.trialRevenueEur * 100) / 100,
+          rebillRevenueEur: Math.round(w.rebillRevenueEur * 100) / 100,
+          refundsEur: Math.round(w.refundsEur * 100) / 100,
+          adSpendEur: Math.round(w.adSpendEur * 100) / 100,
+          netM1: Math.round(netM1 * 100) / 100,
+          trialCount: w.trialCount,
+          firstRebillCount: w.firstRebillCount,
+          frr: Math.round(frr * 10) / 10,
+          refundRateM1: Math.round(refundRateM1 * 10) / 10,
+          disputeRate: Math.round(disputeRate * 100) / 100,
+          cpt: Math.round(cpt * 100) / 100,
+          payback: Math.round(payback * 100) / 100,
+        },
+      };
+    });
+
+    res.json({
+      success: true,
+      range: rangeParam,
+      data: { websites },
+    });
+  } catch (error) {
+    console.error("[/api/business/websites] Error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
   }
 });

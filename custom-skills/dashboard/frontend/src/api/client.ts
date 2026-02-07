@@ -199,6 +199,34 @@ export interface CompaniesViewData {
   companies: CompanyData[];
 }
 
+// Websites View
+export interface WebsiteKpis {
+  profit: number;
+  grossRevenueEur: number;
+  trialRevenueEur: number;
+  rebillRevenueEur: number;
+  refundsEur: number;
+  adSpendEur: number;
+  netM1: number;
+  trialCount: number;
+  firstRebillCount: number;
+  frr: number;
+  refundRateM1: number;
+  disputeRate: number;
+  cpt: number;
+  payback: number;
+}
+
+export interface WebsiteData {
+  websiteId: number;
+  name: string;
+  kpis: WebsiteKpis;
+}
+
+export interface WebsitesViewData {
+  websites: WebsiteData[];
+}
+
 // Customer Counts
 export interface CohortDistributionItem {
   cohortMonth: string;
@@ -414,6 +442,7 @@ export const api = {
   getCohortDistribution: (websiteId: number) => fetchAPI<CohortDistribution>(`/business/cohort-distribution?websiteId=${websiteId}`),
   getGlobalView: (range: string = '7d') => fetchAPI<GlobalViewData>(`/business/global?range=${range}`),
   getCompaniesView: (range: string = '7d') => fetchAPI<CompaniesViewData>(`/business/companies?range=${range}`),
+  getWebsitesView: (range: string = '7d') => fetchAPI<WebsitesViewData>(`/business/websites?range=${range}`),
 
   // Tasks
   getTasks: (status?: string) => {
