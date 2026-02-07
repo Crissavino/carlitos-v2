@@ -34,9 +34,9 @@ const statusBg: Record<Status, string> = {
 // Website options
 const WEBSITES = [
   { id: undefined, name: 'Todos los Websites' },
-  { id: 1, name: 'ConversiePDF' },
-  { id: 3, name: 'ConvertPDF' },
-  { id: 4, name: 'DeviceFinder' },
+  { id: 1, name: 'conversie-pdf.com' },
+  { id: 3, name: 'convierte-pdf.com' },
+  { id: 4, name: 'device-finder.com' },
 ];
 
 export function CampaignsView() {

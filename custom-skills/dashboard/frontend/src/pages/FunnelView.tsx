@@ -6,9 +6,9 @@ import { api, type FunnelViewData } from '../api/client';
 // Website options
 const WEBSITES = [
   { id: undefined, name: 'Todos los Websites' },
-  { id: 1, name: 'ConversiePDF' },
-  { id: 3, name: 'ConvertPDF' },
-  { id: 4, name: 'DeviceFinder' },
+  { id: 1, name: 'conversie-pdf.com' },
+  { id: 3, name: 'convierte-pdf.com' },
+  { id: 4, name: 'device-finder.com' },
 ];
 
 export function FunnelView() {
@@ -183,7 +183,6 @@ export function FunnelView() {
               {cohortFrr.map((cohort) => {
                 const barWidth = Math.max((cohort.frr / 100) * 100, 2);
                 const barColor = cohort.frr >= 35 ? 'bg-green-500' : cohort.frr >= 25 ? 'bg-yellow-500' : 'bg-red-500';
-                const textColor = cohort.frr >= 35 ? 'text-green-400' : cohort.frr >= 25 ? 'text-yellow-400' : 'text-red-400';
                 return (
                   <div key={cohort.cohortWeek} className="flex items-center gap-3">
                     <span className="text-xs text-gray-500 w-14 flex-shrink-0">{cohort.weekLabel}</span>
@@ -193,7 +192,7 @@ export function FunnelView() {
                         style={{ width: `${barWidth}%` }}
                       />
                       <div className="absolute inset-0 flex items-center px-2">
-                        <span className={`text-xs font-medium ${textColor}`}>{cohort.frr.toFixed(1)}%</span>
+                        <span className="text-xs font-semibold text-gray-900 drop-shadow-sm">{cohort.frr.toFixed(1)}%</span>
                       </div>
                     </div>
                     <span className="text-xs text-gray-500 w-16 text-right flex-shrink-0">{cohort.trials} trials</span>
