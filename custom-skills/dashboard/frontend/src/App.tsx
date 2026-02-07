@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2, Key, Search, Users, LogOut, Loader2, MessageSquare, Menu, X, ChevronDown, Globe } from 'lucide-react';
+import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2, Key, Search, Users, LogOut, Loader2, MessageSquare, Menu, X, ChevronDown, Globe, Activity, Map, Megaphone, GitBranch } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { Login } from './pages/Login';
 import { Executive } from './pages/Executive';
@@ -10,13 +10,14 @@ import { Keywords } from './pages/Keywords';
 import { SearchTerms } from './pages/SearchTerms';
 import { Chat } from './pages/Chat';
 import { AdminUsers } from './components/AdminUsers';
+import { GlobalView } from './pages/GlobalView';
 import { WEBSITES, type WebsiteId } from './api/client';
 
-type Page = 'executive' | 'kanban' | 'campaigns' | 'keywords' | 'search-terms' | 'business' | 'users' | 'chat';
+type Page = 'executive' | 'kanban' | 'campaigns' | 'keywords' | 'search-terms' | 'business' | 'users' | 'chat' | 'global' | 'companies' | 'websites' | 'countries' | 'campaigns-v2' | 'funnel';
 
 function App() {
   const { user, isLoading, isAdmin, logout } = useAuth();
-  const [page, setPage] = useState<Page>('executive');
+  const [page, setPage] = useState<Page>('global');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [adsDropdownOpen, setAdsDropdownOpen] = useState(false);
   const [websiteId, setWebsiteId] = useState<WebsiteId>(() => {
@@ -25,7 +26,9 @@ function App() {
   });
   const dropdownRef = useRef<HTMLDivElement>(null);
   const websiteDropdownRef = useRef<HTMLDivElement>(null);
+  const dashboardDropdownRef = useRef<HTMLDivElement>(null);
   const [websiteDropdownOpen, setWebsiteDropdownOpen] = useState(false);
+  const [dashboardDropdownOpen, setDashboardDropdownOpen] = useState(false);
 
   // Save website selection
   useEffect(() => {
@@ -51,17 +54,22 @@ function App() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setAdsDropdownOpen(false);
       }
+      if (dashboardDropdownRef.current && !dashboardDropdownRef.current.contains(event.target as Node)) {
+        setDashboardDropdownOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const isAdsPage = page === 'campaigns' || page === 'keywords' || page === 'search-terms';
+  const isDashboardPage = page === 'global' || page === 'companies' || page === 'websites' || page === 'countries' || page === 'campaigns-v2' || page === 'funnel';
 
   const navigateTo = (newPage: Page) => {
     setPage(newPage);
     setMobileMenuOpen(false);
     setAdsDropdownOpen(false);
+    setDashboardDropdownOpen(false);
   };
 
   // Loading state
@@ -110,7 +118,82 @@ function App() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-1">
-              <NavButton targetPage="executive" icon={LayoutDashboard} label="Panel" />
+              {/* Dashboard Views Dropdown */}
+              <div className="relative" ref={dashboardDropdownRef}>
+                <button
+                  onClick={() => setDashboardDropdownOpen(!dashboardDropdownOpen)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    isDashboardPage
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                  }`}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span>Dashboard</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform ${dashboardDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {dashboardDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[200px] z-50">
+                    <button
+                      onClick={() => navigateTo('global')}
+                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        page === 'global' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <Globe className="w-4 h-4" />
+                      Global
+                    </button>
+                    <button
+                      onClick={() => navigateTo('companies')}
+                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        page === 'companies' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <Building2 className="w-4 h-4" />
+                      Empresas
+                    </button>
+                    <button
+                      onClick={() => navigateTo('websites')}
+                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        page === 'websites' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <Activity className="w-4 h-4" />
+                      Websites
+                    </button>
+                    <button
+                      onClick={() => navigateTo('countries')}
+                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        page === 'countries' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <Map className="w-4 h-4" />
+                      Países
+                    </button>
+                    <button
+                      onClick={() => navigateTo('campaigns-v2')}
+                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        page === 'campaigns-v2' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <Megaphone className="w-4 h-4" />
+                      Campañas
+                    </button>
+                    <button
+                      onClick={() => navigateTo('funnel')}
+                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        page === 'funnel' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <GitBranch className="w-4 h-4" />
+                      Funnel & Cohortes
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <NavButton targetPage="executive" icon={LayoutDashboard} label="Panel (legacy)" />
               <NavButton targetPage="kanban" icon={KanbanIcon} label="Kanban" />
 
               {/* Google Ads Dropdown */}
@@ -339,6 +422,15 @@ function App() {
 
       {/* Content */}
       <main className="pt-14">
+        {/* New Dashboard Views */}
+        {page === 'global' && <GlobalView />}
+        {page === 'companies' && <div className="p-6 text-center text-gray-400">Vista Empresas - Próximamente</div>}
+        {page === 'websites' && <div className="p-6 text-center text-gray-400">Vista Websites - Próximamente</div>}
+        {page === 'countries' && <div className="p-6 text-center text-gray-400">Vista Países - Próximamente</div>}
+        {page === 'campaigns-v2' && <div className="p-6 text-center text-gray-400">Vista Campañas v2 - Próximamente</div>}
+        {page === 'funnel' && <div className="p-6 text-center text-gray-400">Vista Funnel & Cohortes - Próximamente</div>}
+
+        {/* Legacy Views */}
         {page === 'executive' && <Executive websiteId={websiteId} />}
         {page === 'kanban' && <Kanban />}
         {page === 'campaigns' && <Campaigns />}
