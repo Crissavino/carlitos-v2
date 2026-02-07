@@ -9,6 +9,9 @@ import { buildCurrencyRateCase } from "../../../core/currency.js";
  */
 
 const RATE_CASE_INV = buildCurrencyRateCase('i.currency_code');
+const RATE_CASE_TRIAL = buildCurrencyRateCase('trial_inv.currency_code');
+const RATE_CASE_FR = buildCurrencyRateCase('fr_inv.currency_code');
+const RATE_CASE_REF = buildCurrencyRateCase('ref_inv.currency_code');
 const RON_RATE = 4.97;
 
 export interface DateRangeConfig {
@@ -35,11 +38,11 @@ export function revenueByWebsiteQuery(dateRange: DateRangeConfig): QueryDefiniti
       SELECT
         s.website_id,
         -- Trial revenue from cohort
-        COALESCE(SUM(trial_inv.amount / ${RATE_CASE_INV}), 0) as trial_revenue_eur,
+        COALESCE(SUM(trial_inv.amount / ${RATE_CASE_TRIAL}), 0) as trial_revenue_eur,
         -- First rebill revenue from cohort
-        COALESCE(SUM(fr_inv.amount / ${RATE_CASE_INV}), 0) as first_rebill_revenue_eur,
+        COALESCE(SUM(fr_inv.amount / ${RATE_CASE_FR}), 0) as first_rebill_revenue_eur,
         -- Total M1 revenue
-        COALESCE(SUM(trial_inv.amount / ${RATE_CASE_INV}), 0) + COALESCE(SUM(fr_inv.amount / ${RATE_CASE_INV}), 0) as gross_revenue_eur
+        COALESCE(SUM(trial_inv.amount / ${RATE_CASE_TRIAL}), 0) + COALESCE(SUM(fr_inv.amount / ${RATE_CASE_FR}), 0) as gross_revenue_eur
       FROM avocode.customers c
       INNER JOIN avocode.subscriptions s ON s.customer_id = c.id
       -- Trial invoice
@@ -89,7 +92,7 @@ export function refundsByWebsiteQuery(dateRange: DateRangeConfig): QueryDefiniti
         -- Invoice refunds (Avocode/KiwiKode) for cohort
         SELECT
           s.website_id,
-          SUM(ref_inv.amount / ${RATE_CASE_INV}) as refund_eur
+          SUM(ref_inv.amount / ${RATE_CASE_REF}) as refund_eur
         FROM avocode.customers c
         INNER JOIN avocode.subscriptions s ON s.customer_id = c.id
         INNER JOIN avocode.invoices ref_inv ON ref_inv.customer_id = c.id
