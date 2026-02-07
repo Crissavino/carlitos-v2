@@ -19,28 +19,48 @@ export interface DateRangeConfig {
 }
 
 /**
- * Revenue by website_id
+ * Revenue M1 by website_id (COHORT-BASED)
+ * Only includes trial revenue + first rebill revenue from customers ACQUIRED in the period
  */
 export function revenueByWebsiteQuery(dateRange: DateRangeConfig): QueryDefinition {
   const dateFilter = dateRange.type === 'period'
-    ? `i.transacted_at >= DATE_SUB(CURDATE(), INTERVAL ${dateRange.days} DAY)`
-    : `i.transacted_at >= '${dateRange.startDate}' AND i.transacted_at < '${dateRange.endDate}'`;
+    ? `c.create_time >= DATE_SUB(CURDATE(), INTERVAL ${dateRange.days} DAY)`
+    : `c.create_time >= '${dateRange.startDate}' AND c.create_time < '${dateRange.endDate}'`;
 
   return {
-    id: "websites-revenue" as any,
-    name: `Revenue by Website (${dateRange.type === 'period' ? dateRange.days + 'd' : 'cohort'})`,
-    description: "Gross revenue aggregated by website_id, converted to EUR",
+    id: "websites-revenue-m1" as any,
+    name: `Revenue M1 by Website (${dateRange.type === 'period' ? dateRange.days + 'd' : 'cohort'})`,
+    description: "Revenue M1 from cohort acquired in period (trials + first rebills only)",
     sql: `
       SELECT
         s.website_id,
-        SUM(i.amount / ${RATE_CASE_INV}) as gross_revenue_eur,
-        SUM(CASE WHEN i.invoice_type_id = 1 THEN i.amount / ${RATE_CASE_INV} ELSE 0 END) as trial_revenue_eur,
-        SUM(CASE WHEN i.invoice_type_id = 2 THEN i.amount / ${RATE_CASE_INV} ELSE 0 END) as rebill_revenue_eur
-      FROM avocode.invoices i
-      INNER JOIN avocode.subscriptions s ON s.customer_id = i.customer_id
+        -- Trial revenue from cohort
+        COALESCE(SUM(trial_inv.amount / ${RATE_CASE_INV}), 0) as trial_revenue_eur,
+        -- First rebill revenue from cohort
+        COALESCE(SUM(fr_inv.amount / ${RATE_CASE_INV}), 0) as first_rebill_revenue_eur,
+        -- Total M1 revenue
+        COALESCE(SUM(trial_inv.amount / ${RATE_CASE_INV}), 0) + COALESCE(SUM(fr_inv.amount / ${RATE_CASE_INV}), 0) as gross_revenue_eur
+      FROM avocode.customers c
+      INNER JOIN avocode.subscriptions s ON s.customer_id = c.id
+      -- Trial invoice
+      LEFT JOIN avocode.invoices trial_inv ON trial_inv.customer_id = c.id
+        AND trial_inv.invoice_type_id = 1
+        AND trial_inv.invoice_status_id = 1
+      -- First rebill invoice (only the first one)
+      LEFT JOIN (
+        SELECT i.customer_id, i.amount, i.currency_code
+        FROM avocode.invoices i
+        WHERE i.invoice_type_id = 2
+          AND i.invoice_status_id = 1
+          AND i.id = (
+            SELECT MIN(i2.id)
+            FROM avocode.invoices i2
+            WHERE i2.customer_id = i.customer_id
+              AND i2.invoice_type_id = 2
+              AND i2.invoice_status_id = 1
+          )
+      ) fr_inv ON fr_inv.customer_id = c.id
       WHERE ${dateFilter}
-        AND i.invoice_status_id = 1
-        AND i.invoice_type_id IN (1, 2)
       GROUP BY s.website_id
     `,
     params: [],
@@ -49,41 +69,39 @@ export function revenueByWebsiteQuery(dateRange: DateRangeConfig): QueryDefiniti
 }
 
 /**
- * Refunds by website_id (amount-based for display)
+ * Refunds M1 by website_id (COHORT-BASED)
+ * Only includes refunds from customers ACQUIRED in the period
  */
 export function refundsByWebsiteQuery(dateRange: DateRangeConfig): QueryDefinition {
-  const dateFilterInv = dateRange.type === 'period'
-    ? `i.transacted_at >= DATE_SUB(CURDATE(), INTERVAL ${dateRange.days} DAY)`
-    : `i.transacted_at >= '${dateRange.startDate}' AND i.transacted_at < '${dateRange.endDate}'`;
-
-  const dateFilterZoho = dateRange.type === 'period'
-    ? `zr.created_at >= DATE_SUB(CURDATE(), INTERVAL ${dateRange.days} DAY)`
-    : `zr.created_at >= '${dateRange.startDate}' AND zr.created_at < '${dateRange.endDate}'`;
+  const dateFilter = dateRange.type === 'period'
+    ? `c.create_time >= DATE_SUB(CURDATE(), INTERVAL ${dateRange.days} DAY)`
+    : `c.create_time >= '${dateRange.startDate}' AND c.create_time < '${dateRange.endDate}'`;
 
   return {
-    id: "websites-refunds" as any,
-    name: `Refunds by Website (${dateRange.type === 'period' ? dateRange.days + 'd' : 'cohort'})`,
-    description: "Refunds aggregated by website_id, converted to EUR",
+    id: "websites-refunds-m1" as any,
+    name: `Refunds M1 by Website (${dateRange.type === 'period' ? dateRange.days + 'd' : 'cohort'})`,
+    description: "Refunds from cohort acquired in period, converted to EUR",
     sql: `
       SELECT
         website_id,
         SUM(refund_eur) as total_refunds_eur
       FROM (
-        -- Invoice refunds (Avocode/KiwiKode) by website
+        -- Invoice refunds (Avocode/KiwiKode) for cohort
         SELECT
           s.website_id,
-          SUM(i.amount / ${RATE_CASE_INV}) as refund_eur
-        FROM avocode.invoices i
-        INNER JOIN avocode.subscriptions s ON s.customer_id = i.customer_id
-        WHERE ${dateFilterInv}
-          AND i.invoice_status_id = 1
-          AND i.invoice_type_id = 3
-          AND i.company_id != 3
+          SUM(ref_inv.amount / ${RATE_CASE_INV}) as refund_eur
+        FROM avocode.customers c
+        INNER JOIN avocode.subscriptions s ON s.customer_id = c.id
+        INNER JOIN avocode.invoices ref_inv ON ref_inv.customer_id = c.id
+          AND ref_inv.invoice_type_id = 3
+          AND ref_inv.invoice_status_id = 1
+          AND ref_inv.company_id != 3
+        WHERE ${dateFilter}
         GROUP BY s.website_id
 
         UNION ALL
 
-        -- Zoho refunds (Jackcode) - attributed to website via invoice
+        -- Zoho refunds (Jackcode) for cohort
         SELECT
           s.website_id,
           SUM(zr.amount / CASE
@@ -91,14 +109,16 @@ export function refundsByWebsiteQuery(dateRange: DateRangeConfig): QueryDefiniti
             WHEN COALESCE(zc.currency_code, zosc.currency_code) = 'RON' THEN ${RON_RATE}
             ELSE 1
           END) as refund_eur
-        FROM avocodebo.zoho_refunds zr
+        FROM avocode.customers c
+        INNER JOIN avocode.subscriptions s ON s.customer_id = c.id
+        INNER JOIN avocodebo.zoho_refunds zr ON 1=1
         LEFT JOIN avocodebo.zoho_credit_notes zcn ON zr.zoho_credit_note_id = zcn.id
         LEFT JOIN avocodebo.zoho_customers zc ON zcn.zoho_customer_id = zc.id
         LEFT JOIN avocodebo.zoho_one_shot_customers zosc ON zcn.zoho_one_shot_customer_id = zosc.id
         LEFT JOIN avocodebo.zoho_invoices zi ON zi.id = zcn.zoho_invoice_id
         LEFT JOIN avocode.invoices inv ON inv.id = zi.invoice_id
-        LEFT JOIN avocode.subscriptions s ON s.customer_id = inv.customer_id
-        WHERE ${dateFilterZoho}
+        WHERE ${dateFilter}
+          AND inv.customer_id = c.id
         GROUP BY s.website_id
       ) combined
       GROUP BY website_id

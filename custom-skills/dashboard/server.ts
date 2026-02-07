@@ -2324,9 +2324,9 @@ app.get("/api/business/websites", async (req: Request, res: Response) => {
 
     // Build website data map
     const websiteData: Record<number, any> = {
-      1: { websiteId: 1, name: 'conversie-pdf.com', grossRevenueEur: 0, trialRevenueEur: 0, rebillRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
-      3: { websiteId: 3, name: 'convierte-pdf.com', grossRevenueEur: 0, trialRevenueEur: 0, rebillRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
-      4: { websiteId: 4, name: 'device-finder.com', grossRevenueEur: 0, trialRevenueEur: 0, rebillRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
+      1: { websiteId: 1, name: 'conversie-pdf.com', grossRevenueEur: 0, trialRevenueEur: 0, firstRebillRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
+      3: { websiteId: 3, name: 'convierte-pdf.com', grossRevenueEur: 0, trialRevenueEur: 0, firstRebillRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
+      4: { websiteId: 4, name: 'device-finder.com', grossRevenueEur: 0, trialRevenueEur: 0, firstRebillRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
     };
 
     // Parse revenue
@@ -2335,7 +2335,7 @@ app.get("/api/business/websites", async (req: Request, res: Response) => {
       if (websiteData[wid]) {
         websiteData[wid].grossRevenueEur = Number(row.gross_revenue_eur) || 0;
         websiteData[wid].trialRevenueEur = Number(row.trial_revenue_eur) || 0;
-        websiteData[wid].rebillRevenueEur = Number(row.rebill_revenue_eur) || 0;
+        websiteData[wid].firstRebillRevenueEur = Number(row.first_rebill_revenue_eur) || 0;
       }
     }
 
@@ -2399,7 +2399,7 @@ app.get("/api/business/websites", async (req: Request, res: Response) => {
           profit: Math.round(profit * 100) / 100,
           grossRevenueEur: Math.round(w.grossRevenueEur * 100) / 100,
           trialRevenueEur: Math.round(w.trialRevenueEur * 100) / 100,
-          rebillRevenueEur: Math.round(w.rebillRevenueEur * 100) / 100,
+          firstRebillRevenueEur: Math.round(w.firstRebillRevenueEur * 100) / 100,
           refundsEur: Math.round(w.refundsEur * 100) / 100,
           adSpendEur: Math.round(w.adSpendEur * 100) / 100,
           netM1: Math.round(netM1 * 100) / 100,

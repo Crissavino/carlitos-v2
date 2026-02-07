@@ -202,9 +202,9 @@ export interface CompaniesViewData {
 // Websites View
 export interface WebsiteKpis {
   profit: number;
-  grossRevenueEur: number;
+  grossRevenueEur: number;        // Revenue M1 (trial + first rebill)
   trialRevenueEur: number;
-  rebillRevenueEur: number;
+  firstRebillRevenueEur: number;  // Only first rebill revenue from cohort
   refundsEur: number;
   adSpendEur: number;
   netM1: number;
