@@ -2701,6 +2701,123 @@ app.get("/api/business/campaigns", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/business/funnel - Funnel & Cohorts View KPIs
+app.get("/api/business/funnel", async (req: Request, res: Response) => {
+  console.log("[/api/business/funnel] Request received, range:", req.query.range, "websiteId:", req.query.websiteId);
+
+  try {
+    const rangeParam = (req.query.range as string) || "7d";
+    const websiteIdParam = req.query.websiteId as string | undefined;
+    const validRanges = ["7d", "14d", "30d", "60d"];
+
+    if (!validRanges.includes(rangeParam)) {
+      res.status(400).json({ error: `Invalid range. Valid: ${validRanges.join(", ")}` });
+      return;
+    }
+
+    const days = parseInt(rangeParam.replace("d", ""), 10);
+    const dateRange: CountryDateRangeConfig = { days, type: "period" };
+    const websiteId = websiteIdParam ? parseInt(websiteIdParam, 10) : undefined;
+
+    // Validate websiteId if provided
+    if (websiteId && ![1, 3, 4].includes(websiteId)) {
+      res.status(400).json({ error: "Invalid websiteId. Valid: 1, 3, 4" });
+      return;
+    }
+
+    const { executeRawQuery } = await import("../skills/db-reader/executor.js");
+    const {
+      marketingFunnelQuery,
+      frrByWeeklyCohortQuery,
+      retentionByMonthQuery,
+      riskTrendsQuery,
+      ltvByDaysQuery,
+    } = await import("../skills/db-reader/queries/funnel-view-kpis.js");
+
+    // Execute all queries in parallel
+    console.log("[/api/business/funnel] Executing queries...");
+    const [funnelRows, frrRows, retentionRows, riskRows, ltvRows] = await Promise.all([
+      executeRawQuery(marketingFunnelQuery(dateRange, websiteId).sql),
+      executeRawQuery(frrByWeeklyCohortQuery(websiteId).sql),
+      executeRawQuery(retentionByMonthQuery(websiteId).sql),
+      executeRawQuery(riskTrendsQuery(websiteId).sql),
+      executeRawQuery(ltvByDaysQuery(websiteId).sql),
+    ]);
+    console.log("[/api/business/funnel] Queries complete");
+
+    // Parse marketing funnel
+    const funnelData = (funnelRows as any[])[0] || {};
+    const impressions = Number(funnelData.impressions) || 0;
+    const clicks = Number(funnelData.clicks) || 0;
+    const trials = Number(funnelData.trials) || 0;
+    const firstRebills = Number(funnelData.first_rebills) || 0;
+    const adSpendEur = Number(funnelData.ad_spend_eur) || 0;
+
+    const marketingFunnel = [
+      { stage: 'Impresiones', value: impressions, cr: null },
+      { stage: 'Clicks', value: clicks, cr: impressions > 0 ? Math.round((clicks / impressions) * 10000) / 100 : 0 },
+      { stage: 'Trials', value: trials, cr: clicks > 0 ? Math.round((trials / clicks) * 10000) / 100 : 0 },
+      { stage: 'First Rebills', value: firstRebills, cr: trials > 0 ? Math.round((firstRebills / trials) * 10000) / 100 : 0 },
+    ];
+
+    // Parse FRR by weekly cohort
+    const cohortFrr = (frrRows as any[]).map((row: any) => ({
+      cohortWeek: row.cohort_week,
+      weekLabel: row.week_label,
+      trials: Number(row.trials) || 0,
+      firstRebills: Number(row.first_rebills) || 0,
+      frr: Number(row.trials) > 0 ? Math.round((Number(row.first_rebills) / Number(row.trials)) * 1000) / 10 : 0,
+    }));
+
+    // Parse retention data
+    const retention = (retentionRows as any[]).map((row: any) => ({
+      month: `M${row.month_number}`,
+      customers: Number(row.customers) || 0,
+      rate: Number(row.retention_rate) || 0,
+    }));
+
+    // Parse risk trends
+    const riskTrends = (riskRows as any[]).map((row: any) => ({
+      month: row.month,
+      monthLabel: row.month_label,
+      totalTransactions: Number(row.total_transactions) || 0,
+      refunds: Number(row.refunds) || 0,
+      chargebacks: Number(row.chargebacks) || 0,
+      refundRate: Number(row.refund_rate) || 0,
+      disputeRate: Number(row.dispute_rate) || 0,
+    }));
+
+    // Parse LTV
+    const ltvMap: Record<string, number> = {};
+    (ltvRows as any[]).forEach((row: any) => {
+      ltvMap[row.metric] = Number(row.value) || 0;
+    });
+
+    const ltv = {
+      ltv30d: ltvMap['ltv_30d'] || 0,
+      ltv60d: ltvMap['ltv_60d'] || 0,
+      ltv90d: ltvMap['ltv_90d'] || 0,
+    };
+
+    res.json({
+      success: true,
+      range: rangeParam,
+      websiteId: websiteId || null,
+      data: {
+        marketingFunnel,
+        cohortFrr,
+        retention,
+        riskTrends,
+        ltv,
+        adSpendEur: Math.round(adSpendEur * 100) / 100,
+      },
+    });
+  } catch (error) {
+    console.error("[/api/business/funnel] Error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
 // ============================================================================
 // SNAPSHOTS (Historical KPIs)
 // ============================================================================

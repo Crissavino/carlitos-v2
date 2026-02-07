@@ -323,6 +323,52 @@ export interface CampaignsViewData {
   campaigns: CampaignData[];
 }
 
+// Funnel View
+export interface FunnelStage {
+  stage: string;
+  value: number;
+  cr: number | null;
+}
+
+export interface CohortFrr {
+  cohortWeek: number;
+  weekLabel: string;
+  trials: number;
+  firstRebills: number;
+  frr: number;
+}
+
+export interface RetentionMonth {
+  month: string;
+  customers: number;
+  rate: number;
+}
+
+export interface RiskTrend {
+  month: string;
+  monthLabel: string;
+  totalTransactions: number;
+  refunds: number;
+  chargebacks: number;
+  refundRate: number;
+  disputeRate: number;
+}
+
+export interface LtvData {
+  ltv30d: number;
+  ltv60d: number;
+  ltv90d: number;
+}
+
+export interface FunnelViewData {
+  marketingFunnel: FunnelStage[];
+  cohortFrr: CohortFrr[];
+  retention: RetentionMonth[];
+  riskTrends: RiskTrend[];
+  ltv: LtvData;
+  adSpendEur: number;
+}
+
 // Customer Counts
 export interface CohortDistributionItem {
   cohortMonth: string;
@@ -549,6 +595,11 @@ export const api = {
     if (websiteId) params.append('websiteId', websiteId.toString());
     if (countryId) params.append('countryId', countryId.toString());
     return fetchAPI<CampaignsViewData>(`/business/campaigns?${params.toString()}`);
+  },
+  getFunnelView: (range: string = '7d', websiteId?: number) => {
+    const params = new URLSearchParams({ range });
+    if (websiteId) params.append('websiteId', websiteId.toString());
+    return fetchAPI<FunnelViewData>(`/business/funnel?${params.toString()}`);
   },
 
   // Tasks
