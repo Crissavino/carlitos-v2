@@ -313,7 +313,7 @@ export function GlobalView() {
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <KpiCardNew
-            title="Weekly Profit"
+            title="Profit"
             value={`€${Math.round(kpis.weeklyProfit.value).toLocaleString()}`}
             status={kpis.weeklyProfit.status}
             target={kpis.weeklyProfit.target}

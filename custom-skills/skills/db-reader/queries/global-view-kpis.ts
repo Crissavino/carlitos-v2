@@ -192,6 +192,63 @@ export function firstRebillsQuery(dateRange: DateRangeConfig): QueryDefinition {
 }
 
 /**
+ * Refund Rate M1 - Transaction-based (First Rebills Refunded / Total First Rebills)
+ * For Avocode/KiwiKode: first rebill that has a matching refund (invoice_type_id=3)
+ * For Jackcode (company_id=3): first rebill that has a matching zoho_refund
+ */
+export function refundRateM1Query(dateRange: DateRangeConfig): QueryDefinition {
+  const dateFilter = dateRange.type === 'period'
+    ? `c.create_time >= DATE_SUB(CURDATE(), INTERVAL ${dateRange.days} DAY)`
+    : `c.create_time >= '${dateRange.startDate}' AND c.create_time < '${dateRange.endDate}'`;
+
+  return {
+    id: "global-refund-rate-m1" as any,
+    name: `Refund Rate M1 (${dateRange.type === 'period' ? dateRange.days + 'd' : 'cohort'})`,
+    description: "Refund rate based on first rebill transactions refunded",
+    sql: `
+      SELECT
+        COUNT(DISTINCT fr.customer_id) as total_first_rebills,
+        COUNT(DISTINCT CASE
+          WHEN fr.company_id != 3 AND ref_inv.id IS NOT NULL THEN fr.customer_id
+          WHEN fr.company_id = 3 AND zr.id IS NOT NULL THEN fr.customer_id
+          ELSE NULL
+        END) as refunded_first_rebills
+      FROM avocode.customers c
+      INNER JOIN (
+        -- First rebill per customer with company info
+        SELECT
+          i.customer_id,
+          i.id as first_rebill_id,
+          i.amount,
+          i.currency_code,
+          i.transacted_at,
+          i.company_id
+        FROM avocode.invoices i
+        WHERE i.invoice_type_id = 2
+          AND i.invoice_status_id = 1
+          AND i.id = (
+            SELECT MIN(i2.id)
+            FROM avocode.invoices i2
+            WHERE i2.customer_id = i.customer_id
+              AND i2.invoice_type_id = 2
+              AND i2.invoice_status_id = 1
+          )
+      ) fr ON fr.customer_id = c.id
+      -- Check for refund invoice (Avocode/KiwiKode)
+      LEFT JOIN avocode.invoices ref_inv ON ref_inv.customer_id = c.id
+        AND ref_inv.invoice_type_id = 3
+        AND ref_inv.invoice_status_id = 1
+        AND ref_inv.company_id != 3
+      -- Check for Zoho refund (Jackcode)
+      LEFT JOIN avocodebo.zoho_refunds zr ON zr.customer_id = c.id
+      WHERE ${dateFilter}
+    `,
+    params: [],
+    permissions: ["SELECT"],
+  };
+}
+
+/**
  * Dispute Rate - Chargebacks / Total Transactions
  */
 export function disputeRateQuery(dateRange: DateRangeConfig): QueryDefinition {

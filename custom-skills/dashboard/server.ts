@@ -95,6 +95,7 @@ import {
   disputeRateQuery,
   paybackByWebsiteQuery,
   dailyPulseQuery,
+  refundRateM1Query,
   type DateRangeConfig,
 } from "../skills/db-reader/queries/global-view-kpis.js";
 
@@ -2010,7 +2011,9 @@ app.get("/api/business/global", async (req: Request, res: Response) => {
     const firstRebillsRows = await executeRawQuery(firstRebillsQuery(dateRange).sql);
     console.log("[/api/business/global] Query 6: dispute...");
     const disputeRows = await executeRawQuery(disputeRateQuery(dateRange).sql);
-    console.log("[/api/business/global] Query 7: dailyPulse...");
+    console.log("[/api/business/global] Query 7: refundRateM1...");
+    const refundRateM1Rows = await executeRawQuery(refundRateM1Query(dateRange).sql);
+    console.log("[/api/business/global] Query 8: dailyPulse...");
     const dailyPulseRows = await executeRawQuery(dailyPulseQuery().sql);
     console.log("[/api/business/global] All queries complete!");
 
@@ -2054,6 +2057,7 @@ app.get("/api/business/global", async (req: Request, res: Response) => {
     const trials = (trialsRows[0] as any) || {};
     const firstRebills = (firstRebillsRows[0] as any) || {};
     const disputes = (disputeRows[0] as any) || {};
+    const refundRateM1 = (refundRateM1Rows[0] as any) || {};
 
     // Calculate KPIs
     const grossRevenueEur = Number(grossRevenue.gross_revenue_eur) || 0;
@@ -2074,9 +2078,10 @@ app.get("/api/business/global", async (req: Request, res: Response) => {
     // FRR = First Rebills / Trials * 100 (avoid division by zero)
     const frr = trialsInCohort > 0 ? (firstRebillCount / trialsInCohort) * 100 : 0;
 
-    // Refund Rate = Refunds / (Gross Revenue + Refunds) * 100
-    const totalGross = grossRevenueEur + totalRefundsEur;
-    const refundRate = totalGross > 0 ? (totalRefundsEur / totalGross) * 100 : 0;
+    // Refund Rate M1 = First Rebills Refunded / Total First Rebills * 100 (transaction-based)
+    const totalFirstRebillsM1 = Number(refundRateM1.total_first_rebills) || 0;
+    const refundedFirstRebillsM1 = Number(refundRateM1.refunded_first_rebills) || 0;
+    const refundRate = totalFirstRebillsM1 > 0 ? (refundedFirstRebillsM1 / totalFirstRebillsM1) * 100 : 0;
 
     // Dispute Rate = Chargebacks / Transactions * 100
     const disputeRate = totalTransactions > 0 ? (chargebackCount / totalTransactions) * 100 : 0;
