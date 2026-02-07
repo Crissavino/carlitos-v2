@@ -36,7 +36,7 @@ const WEBSITES = [
   { id: undefined, name: 'Todos los Websites' },
   { id: 1, name: 'ConversiePDF' },
   { id: 3, name: 'ConvertPDF' },
-  { id: 4, name: 'Smallpdf.tools' },
+  { id: 4, name: 'DeviceFinder' },
 ];
 
 export function CampaignsView() {

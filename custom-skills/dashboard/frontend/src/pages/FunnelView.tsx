@@ -8,7 +8,7 @@ const WEBSITES = [
   { id: undefined, name: 'Todos los Websites' },
   { id: 1, name: 'ConversiePDF' },
   { id: 3, name: 'ConvertPDF' },
-  { id: 4, name: 'Smallpdf.tools' },
+  { id: 4, name: 'DeviceFinder' },
 ];
 
 export function FunnelView() {
@@ -85,7 +85,6 @@ export function FunnelView() {
   const { marketingFunnel, cohortFrr, retention, riskTrends, ltv, adSpendEur } = data;
 
   const maxFunnelValue = marketingFunnel.length > 0 ? marketingFunnel[0].value : 1;
-  const maxFrr = cohortFrr.length > 0 ? Math.max(...cohortFrr.map(c => c.frr), 1) : 1;
 
   // Get latest risk values for trend indicators
   const latestRisk = riskTrends.length > 0 ? riskTrends[riskTrends.length - 1] : null;
@@ -181,22 +180,27 @@ export function FunnelView() {
               No hay datos de cohortes
             </div>
           ) : (
-            <div className="flex items-end gap-2 h-40">
-              {cohortFrr.map((cohort) => (
-                <div key={cohort.cohortWeek} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className={`w-full rounded-t hover:opacity-80 transition-colors ${
-                      cohort.frr >= 35 ? 'bg-green-500/40' : cohort.frr >= 25 ? 'bg-yellow-500/40' : 'bg-red-500/40'
-                    }`}
-                    style={{ height: `${Math.max((cohort.frr / maxFrr) * 100, 5)}%` }}
-                    title={`Trials: ${cohort.trials}, Rebills: ${cohort.firstRebills}`}
-                  />
-                  <span className="text-xs text-gray-500">{cohort.weekLabel}</span>
-                  <span className={`text-xs font-medium ${
-                    cohort.frr >= 35 ? 'text-green-400' : cohort.frr >= 25 ? 'text-yellow-400' : 'text-red-400'
-                  }`}>{cohort.frr.toFixed(1)}%</span>
-                </div>
-              ))}
+            <div className="space-y-2">
+              {cohortFrr.map((cohort) => {
+                const barWidth = Math.max((cohort.frr / 100) * 100, 2);
+                const barColor = cohort.frr >= 35 ? 'bg-green-500' : cohort.frr >= 25 ? 'bg-yellow-500' : 'bg-red-500';
+                const textColor = cohort.frr >= 35 ? 'text-green-400' : cohort.frr >= 25 ? 'text-yellow-400' : 'text-red-400';
+                return (
+                  <div key={cohort.cohortWeek} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 w-14 flex-shrink-0">{cohort.weekLabel}</span>
+                    <div className="flex-1 h-6 bg-gray-700/50 rounded overflow-hidden relative">
+                      <div
+                        className={`h-full ${barColor} rounded transition-all`}
+                        style={{ width: `${barWidth}%` }}
+                      />
+                      <div className="absolute inset-0 flex items-center px-2">
+                        <span className={`text-xs font-medium ${textColor}`}>{cohort.frr.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-500 w-16 text-right flex-shrink-0">{cohort.trials} trials</span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -251,11 +255,11 @@ export function FunnelView() {
               No hay datos de riesgo
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {/* Refund Rate */}
               <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-400">Refund Rate</span>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm font-medium text-gray-300">Refund Rate</span>
                   <div className="flex items-center gap-2">
                     <span className={`font-medium ${(latestRisk?.refundRate || 0) <= 5 ? 'text-green-400' : (latestRisk?.refundRate || 0) <= 10 ? 'text-yellow-400' : 'text-red-400'}`}>
                       {latestRisk?.refundRate.toFixed(1) || 0}%
@@ -274,24 +278,28 @@ export function FunnelView() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-end gap-1 h-16">
-                  {riskTrends.map((month) => (
-                    <div key={month.month} className="flex-1 flex flex-col items-center">
-                      <div
-                        className={`w-full rounded-t ${month.refundRate <= 5 ? 'bg-green-500/30' : month.refundRate <= 10 ? 'bg-yellow-500/30' : 'bg-red-500/30'}`}
-                        style={{ height: `${Math.min(month.refundRate * 5, 100)}%` }}
-                        title={`${month.refundRate.toFixed(1)}%`}
-                      />
-                      <span className="text-xs text-gray-500 mt-1">{month.monthLabel}</span>
-                    </div>
-                  ))}
+                <div className="space-y-1">
+                  {riskTrends.map((month) => {
+                    const maxRefund = Math.max(...riskTrends.map(r => r.refundRate), 1);
+                    const barWidth = Math.max((month.refundRate / maxRefund) * 100, 2);
+                    const barColor = month.refundRate <= 5 ? 'bg-green-500' : month.refundRate <= 10 ? 'bg-yellow-500' : 'bg-red-500';
+                    return (
+                      <div key={month.month} className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-8 flex-shrink-0">{month.monthLabel}</span>
+                        <div className="flex-1 h-5 bg-gray-700/50 rounded overflow-hidden relative">
+                          <div className={`h-full ${barColor} rounded`} style={{ width: `${barWidth}%` }} />
+                        </div>
+                        <span className="text-xs text-gray-400 w-12 text-right flex-shrink-0">{month.refundRate.toFixed(1)}%</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Dispute Rate */}
               <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-400">Dispute Rate</span>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm font-medium text-gray-300">Dispute Rate</span>
                   <div className="flex items-center gap-2">
                     <span className={`font-medium ${(latestRisk?.disputeRate || 0) <= 0.5 ? 'text-green-400' : (latestRisk?.disputeRate || 0) <= 1 ? 'text-yellow-400' : 'text-red-400'}`}>
                       {latestRisk?.disputeRate.toFixed(2) || 0}%
@@ -310,17 +318,21 @@ export function FunnelView() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-end gap-1 h-16">
-                  {riskTrends.map((month) => (
-                    <div key={month.month} className="flex-1 flex flex-col items-center">
-                      <div
-                        className={`w-full rounded-t ${month.disputeRate <= 0.5 ? 'bg-green-500/30' : month.disputeRate <= 1 ? 'bg-yellow-500/30' : 'bg-red-500/30'}`}
-                        style={{ height: `${Math.min(month.disputeRate * 50, 100)}%` }}
-                        title={`${month.disputeRate.toFixed(2)}%`}
-                      />
-                      <span className="text-xs text-gray-500 mt-1">{month.monthLabel}</span>
-                    </div>
-                  ))}
+                <div className="space-y-1">
+                  {riskTrends.map((month) => {
+                    const maxDispute = Math.max(...riskTrends.map(r => r.disputeRate), 0.1);
+                    const barWidth = month.disputeRate > 0 ? Math.max((month.disputeRate / maxDispute) * 100, 2) : 0;
+                    const barColor = month.disputeRate <= 0.5 ? 'bg-green-500' : month.disputeRate <= 1 ? 'bg-yellow-500' : 'bg-red-500';
+                    return (
+                      <div key={month.month} className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-8 flex-shrink-0">{month.monthLabel}</span>
+                        <div className="flex-1 h-5 bg-gray-700/50 rounded overflow-hidden relative">
+                          {barWidth > 0 && <div className={`h-full ${barColor} rounded`} style={{ width: `${barWidth}%` }} />}
+                        </div>
+                        <span className="text-xs text-gray-400 w-12 text-right flex-shrink-0">{month.disputeRate.toFixed(2)}%</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
