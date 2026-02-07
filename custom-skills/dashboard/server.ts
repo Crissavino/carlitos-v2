@@ -1918,8 +1918,8 @@ app.get("/api/business/websites", async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/business/companies - Aggregated metrics by company
-app.get("/api/business/companies", async (req: Request, res: Response) => {
+// GET /api/business/companies-legacy - Old aggregated metrics by company (ads-focused)
+app.get("/api/business/companies-legacy", async (req: Request, res: Response) => {
   try {
     const data = await getCompanyView();
     if (!data) {
