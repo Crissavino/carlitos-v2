@@ -1,59 +1,29 @@
 import { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Kanban as KanbanIcon, BarChart3, Building2, Key, Search, Users, LogOut, Loader2, MessageSquare, Menu, X, ChevronDown, Globe, Activity, Map, Megaphone, GitBranch } from 'lucide-react';
+import { LayoutDashboard, Kanban as KanbanIcon, Users, LogOut, Loader2, MessageSquare, Menu, X, ChevronDown, Globe, Building2, Activity, Map, Megaphone, GitBranch } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { Login } from './pages/Login';
-import { Executive } from './pages/Executive';
 import { Kanban } from './pages/Kanban';
-import { Campaigns } from './pages/Campaigns';
-import { BusinessViews } from './pages/BusinessViews';
-import { Keywords } from './pages/Keywords';
-import { SearchTerms } from './pages/SearchTerms';
 import { Chat } from './pages/Chat';
 import { AdminUsers } from './components/AdminUsers';
 import { GlobalView } from './pages/GlobalView';
-import { WEBSITES, type WebsiteId } from './api/client';
+import { CompaniesView } from './pages/CompaniesView';
+import { WebsitesView } from './pages/WebsitesView';
+import { CountriesView } from './pages/CountriesView';
+import { CampaignsView } from './pages/CampaignsView';
+import { FunnelView } from './pages/FunnelView';
 
-type Page = 'executive' | 'kanban' | 'campaigns' | 'keywords' | 'search-terms' | 'business' | 'users' | 'chat' | 'global' | 'companies' | 'websites' | 'countries' | 'campaigns-v2' | 'funnel';
+type Page = 'global' | 'companies' | 'websites' | 'countries' | 'campaigns' | 'funnel' | 'kanban' | 'users' | 'chat';
 
 function App() {
   const { user, isLoading, isAdmin, logout } = useAuth();
   const [page, setPage] = useState<Page>('global');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [adsDropdownOpen, setAdsDropdownOpen] = useState(false);
-  const [websiteId, setWebsiteId] = useState<WebsiteId>(() => {
-    const saved = localStorage.getItem('selectedWebsiteId');
-    return (saved ? parseInt(saved, 10) : 1) as WebsiteId;
-  });
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const websiteDropdownRef = useRef<HTMLDivElement>(null);
-  const dashboardDropdownRef = useRef<HTMLDivElement>(null);
-  const [websiteDropdownOpen, setWebsiteDropdownOpen] = useState(false);
   const [dashboardDropdownOpen, setDashboardDropdownOpen] = useState(false);
-
-  // Save website selection
-  useEffect(() => {
-    localStorage.setItem('selectedWebsiteId', websiteId.toString());
-  }, [websiteId]);
-
-  // Close website dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (websiteDropdownRef.current && !websiteDropdownRef.current.contains(event.target as Node)) {
-        setWebsiteDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const selectedWebsite = WEBSITES.find(w => w.id === websiteId) || WEBSITES[0];
+  const dashboardDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setAdsDropdownOpen(false);
-      }
       if (dashboardDropdownRef.current && !dashboardDropdownRef.current.contains(event.target as Node)) {
         setDashboardDropdownOpen(false);
       }
@@ -62,13 +32,11 @@ function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isAdsPage = page === 'campaigns' || page === 'keywords' || page === 'search-terms';
-  const isDashboardPage = page === 'global' || page === 'companies' || page === 'websites' || page === 'countries' || page === 'campaigns-v2' || page === 'funnel';
+  const isDashboardPage = ['global', 'companies', 'websites', 'countries', 'campaigns', 'funnel'].includes(page);
 
   const navigateTo = (newPage: Page) => {
     setPage(newPage);
     setMobileMenuOpen(false);
-    setAdsDropdownOpen(false);
     setDashboardDropdownOpen(false);
   };
 
@@ -103,6 +71,17 @@ function App() {
     </button>
   );
 
+  const dashboardPages = [
+    { id: 'global' as const, label: 'Global', icon: Globe },
+    { id: 'companies' as const, label: 'Empresas', icon: Building2 },
+    { id: 'websites' as const, label: 'Websites', icon: Activity },
+    { id: 'countries' as const, label: 'Países', icon: Map },
+    { id: 'campaigns' as const, label: 'Campañas', icon: Megaphone },
+    { id: 'funnel' as const, label: 'Funnel & Cohortes', icon: GitBranch },
+  ];
+
+  const currentDashboardPage = dashboardPages.find(p => p.id === page);
+
   // Authenticated - show dashboard
   return (
     <div className="min-h-screen">
@@ -129,122 +108,29 @@ function App() {
                   }`}
                 >
                   <LayoutDashboard className="w-4 h-4" />
-                  <span>Dashboard</span>
+                  <span>{currentDashboardPage ? currentDashboardPage.label : 'Dashboard'}</span>
                   <ChevronDown className={`w-3 h-3 transition-transform ${dashboardDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {dashboardDropdownOpen && (
                   <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[200px] z-50">
-                    <button
-                      onClick={() => navigateTo('global')}
-                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-                        page === 'global' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      }`}
-                    >
-                      <Globe className="w-4 h-4" />
-                      Global
-                    </button>
-                    <button
-                      onClick={() => navigateTo('companies')}
-                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-                        page === 'companies' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      }`}
-                    >
-                      <Building2 className="w-4 h-4" />
-                      Empresas
-                    </button>
-                    <button
-                      onClick={() => navigateTo('websites')}
-                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-                        page === 'websites' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      }`}
-                    >
-                      <Activity className="w-4 h-4" />
-                      Websites
-                    </button>
-                    <button
-                      onClick={() => navigateTo('countries')}
-                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-                        page === 'countries' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      }`}
-                    >
-                      <Map className="w-4 h-4" />
-                      Países
-                    </button>
-                    <button
-                      onClick={() => navigateTo('campaigns-v2')}
-                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-                        page === 'campaigns-v2' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      }`}
-                    >
-                      <Megaphone className="w-4 h-4" />
-                      Campañas
-                    </button>
-                    <button
-                      onClick={() => navigateTo('funnel')}
-                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-                        page === 'funnel' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      }`}
-                    >
-                      <GitBranch className="w-4 h-4" />
-                      Funnel & Cohortes
-                    </button>
+                    {dashboardPages.map(({ id, label, icon: Icon }) => (
+                      <button
+                        key={id}
+                        onClick={() => navigateTo(id)}
+                        className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                          page === id ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
 
-              <NavButton targetPage="executive" icon={LayoutDashboard} label="Panel (legacy)" />
               <NavButton targetPage="kanban" icon={KanbanIcon} label="Kanban" />
-
-              {/* Google Ads Dropdown */}
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setAdsDropdownOpen(!adsDropdownOpen)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    isAdsPage
-                      ? 'bg-gray-800 text-white'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  <span>Google Ads</span>
-                  <ChevronDown className={`w-3 h-3 transition-transform ${adsDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {adsDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[160px] z-50">
-                    <button
-                      onClick={() => navigateTo('campaigns')}
-                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-                        page === 'campaigns' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      }`}
-                    >
-                      <BarChart3 className="w-4 h-4" />
-                      Campañas
-                    </button>
-                    <button
-                      onClick={() => navigateTo('keywords')}
-                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-                        page === 'keywords' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      }`}
-                    >
-                      <Key className="w-4 h-4" />
-                      Keywords
-                    </button>
-                    <button
-                      onClick={() => navigateTo('search-terms')}
-                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-                        page === 'search-terms' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      }`}
-                    >
-                      <Search className="w-4 h-4" />
-                      Términos de Búsqueda
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <NavButton targetPage="business" icon={Building2} label="Negocio" />
 
               {isAdmin && (
                 <>
@@ -254,42 +140,9 @@ function App() {
               )}
             </div>
 
-            {/* Website Selector + User info and logout (Desktop) */}
+            {/* User info and logout (Desktop) */}
             <div className="hidden md:flex items-center gap-3">
-              {/* Website Selector */}
-              <div className="relative" ref={websiteDropdownRef}>
-                <button
-                  onClick={() => setWebsiteDropdownOpen(!websiteDropdownOpen)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm hover:bg-gray-700 transition-colors"
-                >
-                  <Globe className="w-4 h-4 text-gray-400" />
-                  <span>{selectedWebsite.name}</span>
-                  <span className="text-xs text-gray-500">({selectedWebsite.currency})</span>
-                  <ChevronDown className={`w-3 h-3 transition-transform ${websiteDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {websiteDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[180px] z-50">
-                    {WEBSITES.map(website => (
-                      <button
-                        key={website.id}
-                        onClick={() => {
-                          setWebsiteId(website.id as WebsiteId);
-                          setWebsiteDropdownOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
-                          websiteId === website.id ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                        }`}
-                      >
-                        <span>{website.name}</span>
-                        <span className="text-xs text-gray-500">{website.currency}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <span className="text-sm text-gray-400 truncate max-w-[150px]">{user.email}</span>
+              <span className="text-sm text-gray-400 truncate max-w-[200px]">{user.email}</span>
               <button
                 onClick={logout}
                 className="flex items-center gap-2 px-2 py-1.5 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-lg transition-colors"
@@ -313,15 +166,26 @@ function App() {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gray-800 bg-gray-900">
             <div className="px-4 py-3 space-y-1">
-              <button
-                onClick={() => navigateTo('executive')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
-                  page === 'executive' ? 'bg-gray-800 text-white' : 'text-gray-400'
-                }`}
-              >
-                <LayoutDashboard className="w-5 h-5" />
-                Panel
-              </button>
+              {/* Dashboard Section */}
+              <div className="pb-1">
+                <span className="px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Dashboard</span>
+              </div>
+              {dashboardPages.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => navigateTo(id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
+                    page === id ? 'bg-gray-800 text-white' : 'text-gray-400'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {label}
+                </button>
+              ))}
+
+              <div className="pt-2 pb-1">
+                <span className="px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Herramientas</span>
+              </div>
               <button
                 onClick={() => navigateTo('kanban')}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
@@ -331,50 +195,6 @@ function App() {
                 <KanbanIcon className="w-5 h-5" />
                 Kanban
               </button>
-
-              {/* Google Ads Section */}
-              <div className="pt-2 pb-1">
-                <span className="px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Google Ads</span>
-              </div>
-              <button
-                onClick={() => navigateTo('campaigns')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
-                  page === 'campaigns' ? 'bg-gray-800 text-white' : 'text-gray-400'
-                }`}
-              >
-                <BarChart3 className="w-5 h-5" />
-                Campañas
-              </button>
-              <button
-                onClick={() => navigateTo('keywords')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
-                  page === 'keywords' ? 'bg-gray-800 text-white' : 'text-gray-400'
-                }`}
-              >
-                <Key className="w-5 h-5" />
-                Keywords
-              </button>
-              <button
-                onClick={() => navigateTo('search-terms')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
-                  page === 'search-terms' ? 'bg-gray-800 text-white' : 'text-gray-400'
-                }`}
-              >
-                <Search className="w-5 h-5" />
-                Términos de Búsqueda
-              </button>
-
-              <div className="pt-2">
-                <button
-                  onClick={() => navigateTo('business')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
-                    page === 'business' ? 'bg-gray-800 text-white' : 'text-gray-400'
-                  }`}
-                >
-                  <Building2 className="w-5 h-5" />
-                  Negocio
-                </button>
-              </div>
 
               {isAdmin && (
                 <>
@@ -411,7 +231,7 @@ function App() {
                     className="flex items-center gap-2 px-3 py-1.5 text-gray-400 hover:text-white bg-gray-800 rounded-lg text-sm"
                   >
                     <LogOut className="w-4 h-4" />
-                    Cerrar sesión
+                    Salir
                   </button>
                 </div>
               </div>
@@ -422,21 +242,13 @@ function App() {
 
       {/* Content */}
       <main className="pt-14">
-        {/* New Dashboard Views */}
         {page === 'global' && <GlobalView />}
-        {page === 'companies' && <div className="p-6 text-center text-gray-400">Vista Empresas - Próximamente</div>}
-        {page === 'websites' && <div className="p-6 text-center text-gray-400">Vista Websites - Próximamente</div>}
-        {page === 'countries' && <div className="p-6 text-center text-gray-400">Vista Países - Próximamente</div>}
-        {page === 'campaigns-v2' && <div className="p-6 text-center text-gray-400">Vista Campañas v2 - Próximamente</div>}
-        {page === 'funnel' && <div className="p-6 text-center text-gray-400">Vista Funnel & Cohortes - Próximamente</div>}
-
-        {/* Legacy Views */}
-        {page === 'executive' && <Executive websiteId={websiteId} />}
+        {page === 'companies' && <CompaniesView />}
+        {page === 'websites' && <WebsitesView />}
+        {page === 'countries' && <CountriesView />}
+        {page === 'campaigns' && <CampaignsView />}
+        {page === 'funnel' && <FunnelView />}
         {page === 'kanban' && <Kanban />}
-        {page === 'campaigns' && <Campaigns />}
-        {page === 'keywords' && <Keywords />}
-        {page === 'search-terms' && <SearchTerms />}
-        {page === 'business' && <BusinessViews />}
         {page === 'users' && isAdmin && <AdminUsers />}
         {page === 'chat' && isAdmin && <Chat />}
       </main>
