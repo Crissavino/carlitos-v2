@@ -160,12 +160,12 @@ export function CountriesView() {
             <p className="text-gray-400">No hay datos de países para este período.</p>
           </div>
         ) : (
-          countries.map((country) => {
+          countries.filter(c => c && c.kpis).map((country) => {
             const isExpanded = expandedCountry === country.countryId;
-            const paybackStatus = getStatus(country.kpis.paybackM1, { green: 1.2, yellow: 1.0 });
-            const frrStatus = getStatus(country.kpis.frr, { green: 35, yellow: 25 });
-            const refundStatus = getStatus(country.kpis.refundRateM1, { green: 5, yellow: 10 }, true);
             const kpis = country.kpis;
+            const paybackStatus = getStatus(kpis.paybackM1, { green: 1.2, yellow: 1.0 });
+            const frrStatus = getStatus(kpis.frr, { green: 35, yellow: 25 });
+            const refundStatus = getStatus(kpis.refundRateM1, { green: 5, yellow: 10 }, true);
 
             return (
               <div key={country.countryId} className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">

@@ -2530,6 +2530,7 @@ app.get("/api/business/countries", async (req: Request, res: Response) => {
     // Initialize from revenue query (most complete dataset)
     for (const row of revenueM1Rows as any[]) {
       const cid = Number(row.country_id);
+      if (!cid || isNaN(cid)) continue; // Skip null/invalid country_id
       if (!countryData.has(cid)) {
         countryData.set(cid, {
           countryId: cid,
@@ -2552,6 +2553,7 @@ app.get("/api/business/countries", async (req: Request, res: Response) => {
     // Parse M1 refunds
     for (const row of refundsM1Rows as any[]) {
       const cid = Number(row.country_id);
+      if (!cid || isNaN(cid)) continue;
       if (countryData.has(cid)) {
         countryData.get(cid)!.refundsM1Eur = Number(row.total_refunds_eur) || 0;
       }
@@ -2560,6 +2562,7 @@ app.get("/api/business/countries", async (req: Request, res: Response) => {
     // Parse Total revenue
     for (const row of totalRevenueRows as any[]) {
       const cid = Number(row.country_id);
+      if (!cid || isNaN(cid)) continue;
       if (!countryData.has(cid)) {
         countryData.set(cid, {
           countryId: cid,
@@ -2578,6 +2581,7 @@ app.get("/api/business/countries", async (req: Request, res: Response) => {
     // Parse Total refunds
     for (const row of totalRefundsRows as any[]) {
       const cid = Number(row.country_id);
+      if (!cid || isNaN(cid)) continue;
       if (countryData.has(cid)) {
         countryData.get(cid)!.totalRefundsEur = Number(row.total_refunds_eur) || 0;
       }
@@ -2586,6 +2590,7 @@ app.get("/api/business/countries", async (req: Request, res: Response) => {
     // Parse ad spend
     for (const row of adSpendRows as any[]) {
       const cid = Number(row.country_id);
+      if (!cid || isNaN(cid)) continue;
       if (!countryData.has(cid)) {
         countryData.set(cid, {
           countryId: cid,
@@ -2602,6 +2607,7 @@ app.get("/api/business/countries", async (req: Request, res: Response) => {
     // Parse FRR
     for (const row of frrRows as any[]) {
       const cid = Number(row.country_id);
+      if (!cid || isNaN(cid)) continue;
       if (countryData.has(cid)) {
         const c = countryData.get(cid)!;
         c.trialCount = Number(row.trial_count) || 0;
@@ -2612,6 +2618,7 @@ app.get("/api/business/countries", async (req: Request, res: Response) => {
     // Parse refund rate M1
     for (const row of refundRateRows as any[]) {
       const cid = Number(row.country_id);
+      if (!cid || isNaN(cid)) continue;
       if (countryData.has(cid)) {
         const c = countryData.get(cid)!;
         c.totalFirstRebillsM1 = Number(row.total_first_rebills) || 0;
@@ -2622,6 +2629,7 @@ app.get("/api/business/countries", async (req: Request, res: Response) => {
     // Parse dispute rate
     for (const row of disputeRows as any[]) {
       const cid = Number(row.country_id);
+      if (!cid || isNaN(cid)) continue;
       if (countryData.has(cid)) {
         const c = countryData.get(cid)!;
         c.totalTransactions = Number(row.total_transactions) || 0;
