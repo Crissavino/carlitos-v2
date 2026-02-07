@@ -193,28 +193,31 @@ function CustomerDistribution({ data, monthsAvailable }: { data: CustomerData; m
 }
 
 export function WebsitesView() {
-  const { selectedCohort } = useCohort();
+  const { selectedRange, isPeriod, days, monthsAvailable } = useCohort();
   const [expandedWebsite, setExpandedWebsite] = useState<string | null>(BASE_WEBSITES[0].name);
 
-  const maturityFactor = selectedCohort.monthsAvailable / 6;
+  // Generate data factor based on selection
+  const dataFactor = isPeriod
+    ? Math.min(days / 60, 1)
+    : monthsAvailable / 6;
 
   // Generate cohort-adjusted website data
   const websites = BASE_WEBSITES.map((site) => {
     // KPIs improve with maturity
-    const frrValue = +(site.baseKpis.frr + maturityFactor * 5).toFixed(1);
-    const cpfrValue = Math.round(site.baseKpis.cpfr * (1.1 - maturityFactor * 0.15));
-    const refundValue = +(site.baseKpis.refundRate * (1.1 - maturityFactor * 0.15)).toFixed(1);
-    const paybackValue = +(site.baseKpis.paybackM1 + maturityFactor * 0.25).toFixed(2);
-    const trialsValue = Math.round(site.baseKpis.trials * (0.6 + maturityFactor * 0.5));
-    const trialsChange = Math.round((maturityFactor - 0.5) * 30);
+    const frrValue = +(site.baseKpis.frr + dataFactor * 5).toFixed(1);
+    const cpfrValue = Math.round(site.baseKpis.cpfr * (1.1 - dataFactor * 0.15));
+    const refundValue = +(site.baseKpis.refundRate * (1.1 - dataFactor * 0.15)).toFixed(1);
+    const paybackValue = +(site.baseKpis.paybackM1 + dataFactor * 0.25).toFixed(2);
+    const trialsValue = Math.round(site.baseKpis.trials * (0.6 + dataFactor * 0.5));
+    const trialsChange = Math.round((dataFactor - 0.5) * 30);
 
     // Funnel data
-    const trials = Math.round(site.baseFunnel.trials * (0.6 + maturityFactor * 0.5));
-    const firstRebills = Math.round(site.baseFunnel.firstRebills * (0.5 + maturityFactor * 0.6));
+    const trials = Math.round(site.baseFunnel.trials * (0.6 + dataFactor * 0.5));
+    const firstRebills = Math.round(site.baseFunnel.firstRebills * (0.5 + dataFactor * 0.6));
     const cpt = trials > 0 ? Math.round(site.baseFunnel.adSpend / trials) : 0;
     const frr = trials > 0 ? Math.round((firstRebills / trials) * 100) : 0;
-    const revenueM1 = +(site.baseFunnel.revenueM1 * (0.6 + maturityFactor * 0.5)).toFixed(2);
-    const refunds = +(site.baseFunnel.refunds * (1.1 - maturityFactor * 0.2)).toFixed(2);
+    const revenueM1 = +(site.baseFunnel.revenueM1 * (0.6 + dataFactor * 0.5)).toFixed(2);
+    const refunds = +(site.baseFunnel.refunds * (1.1 - dataFactor * 0.2)).toFixed(2);
     const refundRate = revenueM1 > 0 ? +((refunds / revenueM1) * 100).toFixed(1) : 0;
     const netM1 = +(revenueM1 - refunds).toFixed(2);
     const payback = site.baseFunnel.adSpend > 0 ? +(netM1 / site.baseFunnel.adSpend).toFixed(2) : 0;
@@ -224,16 +227,16 @@ export function WebsitesView() {
     const monthNames = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7+'];
     const baseCounts = [site.baseCustomers.m1, site.baseCustomers.m2, site.baseCustomers.m3, site.baseCustomers.m4, site.baseCustomers.m5, site.baseCustomers.m6, site.baseCustomers.m7plus];
 
-    const customerTotal = Math.round(site.baseCustomers.total * (0.5 + maturityFactor * 0.6));
+    const customerTotal = Math.round(site.baseCustomers.total * (0.5 + dataFactor * 0.6));
     const byMonth: CustomerMonth[] = monthNames.map((name, i) => {
       const monthNum = i + 1;
-      const hasData = monthNum <= selectedCohort.monthsAvailable || (i === 6 && selectedCohort.monthsAvailable >= 7);
+      const hasData = monthNum <= monthsAvailable || (i === 6 && monthsAvailable >= 7);
 
       if (!hasData) {
         return { month: name, count: null, percent: null, color: monthColors[i] };
       }
 
-      const count = Math.round(baseCounts[i] * (0.5 + maturityFactor * 0.6));
+      const count = Math.round(baseCounts[i] * (0.5 + dataFactor * 0.6));
       const percent = customerTotal > 0 ? +((count / customerTotal) * 100).toFixed(1) : 0;
       return { month: name, count, percent, color: monthColors[i] };
     });
@@ -276,7 +279,7 @@ export function WebsitesView() {
           Vista Websites
         </h1>
         <p className="text-gray-400">
-          Performance de Producto/Oferta por Website - Cohorte: {selectedCohort.label} ({selectedCohort.monthsAvailable}m data)
+          Performance de Producto/Oferta por Website - {selectedRange.label}
         </p>
       </div>
 
@@ -336,7 +339,7 @@ export function WebsitesView() {
                 <div className="p-4 pt-0 border-t border-gray-700/50">
                   <div className="grid lg:grid-cols-2 gap-4 mt-4">
                     <ConversionFunnel data={website.funnel} currency={website.currency} />
-                    <CustomerDistribution data={website.customers} monthsAvailable={selectedCohort.monthsAvailable} />
+                    <CustomerDistribution data={website.customers} monthsAvailable={monthsAvailable} />
                   </div>
                 </div>
               )}

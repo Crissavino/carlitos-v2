@@ -190,72 +190,76 @@ function PaybackByWebsiteChart({ data }: { data: PaybackWebsite[] }) {
 
 export function GlobalView() {
   const [loading] = useState(false);
-  const { selectedCohort } = useCohort();
+  const { selectedRange, isPeriod, isCohort, days, monthsAvailable } = useCohort();
 
-  // Generate cohort-adjusted data
-  const maturityFactor = selectedCohort.monthsAvailable / 6;
+  // Generate data factor based on selection
+  // For periods: more days = more data = better metrics
+  // For cohorts: more months = more mature = better metrics
+  const dataFactor = isPeriod
+    ? Math.min(days / 60, 1) // 7d = 0.12, 60d = 1.0
+    : monthsAvailable / 6;   // 0m = 0, 6m = 1.0
 
-  // KPIs improve with maturity
+  // KPIs scale with data factor
   const kpis = {
     weeklyProfit: {
-      value: Math.round(BASE_KPIS.weeklyProfit * (0.5 + maturityFactor * 0.8)),
-      status: getKpiStatus(BASE_KPIS.weeklyProfit * (0.5 + maturityFactor * 0.8), { green: 0, yellow: -1000 }),
+      value: Math.round(BASE_KPIS.weeklyProfit * (0.5 + dataFactor * 0.8)),
+      status: getKpiStatus(BASE_KPIS.weeklyProfit * (0.5 + dataFactor * 0.8), { green: 0, yellow: -1000 }),
       target: '>€0',
     },
     paybackM1: {
-      value: +(BASE_KPIS.paybackM1 + maturityFactor * 0.3).toFixed(2),
-      status: getKpiStatus(BASE_KPIS.paybackM1 + maturityFactor * 0.3, { green: 1.2, yellow: 1.0 }),
+      value: +(BASE_KPIS.paybackM1 + dataFactor * 0.3).toFixed(2),
+      status: getKpiStatus(BASE_KPIS.paybackM1 + dataFactor * 0.3, { green: 1.2, yellow: 1.0 }),
       target: '≥1.20',
     },
     cpt: {
-      value: Math.round(BASE_KPIS.cpt * (1.2 - maturityFactor * 0.3)),
-      status: getKpiStatus(BASE_KPIS.cpt * (1.2 - maturityFactor * 0.3), { green: 50, yellow: 70 }, true),
+      value: Math.round(BASE_KPIS.cpt * (1.2 - dataFactor * 0.3)),
+      status: getKpiStatus(BASE_KPIS.cpt * (1.2 - dataFactor * 0.3), { green: 50, yellow: 70 }, true),
       target: '≤€50',
     },
     frr: {
-      value: +(BASE_KPIS.frr + maturityFactor * 8).toFixed(1),
-      status: getKpiStatus(BASE_KPIS.frr + maturityFactor * 8, { green: 35, yellow: 25 }),
+      value: +(BASE_KPIS.frr + dataFactor * 8).toFixed(1),
+      status: getKpiStatus(BASE_KPIS.frr + dataFactor * 8, { green: 35, yellow: 25 }),
       target: '≥35%',
     },
     refundRateM1: {
-      value: +(BASE_KPIS.refundRateM1 * (1.1 - maturityFactor * 0.2)).toFixed(1),
-      status: getKpiStatus(BASE_KPIS.refundRateM1 * (1.1 - maturityFactor * 0.2), { green: 5, yellow: 8 }, true),
+      value: +(BASE_KPIS.refundRateM1 * (1.1 - dataFactor * 0.2)).toFixed(1),
+      status: getKpiStatus(BASE_KPIS.refundRateM1 * (1.1 - dataFactor * 0.2), { green: 5, yellow: 8 }, true),
       target: '≤5%',
     },
     disputeRate: {
-      value: +(BASE_KPIS.disputeRate * (1.1 - maturityFactor * 0.15)).toFixed(2),
-      status: getKpiStatus(BASE_KPIS.disputeRate * (1.1 - maturityFactor * 0.15), { green: 0.5, yellow: 1 }, true),
+      value: +(BASE_KPIS.disputeRate * (1.1 - dataFactor * 0.15)).toFixed(2),
+      status: getKpiStatus(BASE_KPIS.disputeRate * (1.1 - dataFactor * 0.15), { green: 0.5, yellow: 1 }, true),
       target: '≤1%',
     },
   };
 
-  // Daily pulse varies slightly
+  // Daily pulse scales with data
   const dailyPulse = {
     acquisitions: {
-      today: Math.round(BASE_DAILY_PULSE.acquisitions.today * (0.8 + maturityFactor * 0.4)),
-      lastWeek: Math.round(BASE_DAILY_PULSE.acquisitions.lastWeek * (0.8 + maturityFactor * 0.4)),
-      change: +((maturityFactor - 0.5) * 30).toFixed(1),
+      today: Math.round(BASE_DAILY_PULSE.acquisitions.today * (0.8 + dataFactor * 0.4)),
+      lastWeek: Math.round(BASE_DAILY_PULSE.acquisitions.lastWeek * (0.8 + dataFactor * 0.4)),
+      change: +((dataFactor - 0.5) * 30).toFixed(1),
     },
     firstRebills: {
-      today: Math.round(BASE_DAILY_PULSE.firstRebills.today * (0.6 + maturityFactor * 0.6)),
-      lastWeek: Math.round(BASE_DAILY_PULSE.firstRebills.lastWeek * (0.6 + maturityFactor * 0.6)),
-      change: +((maturityFactor - 0.4) * 25).toFixed(1),
+      today: Math.round(BASE_DAILY_PULSE.firstRebills.today * (0.6 + dataFactor * 0.6)),
+      lastWeek: Math.round(BASE_DAILY_PULSE.firstRebills.lastWeek * (0.6 + dataFactor * 0.6)),
+      change: +((dataFactor - 0.4) * 25).toFixed(1),
     },
     refunds: {
-      today: Math.round(BASE_DAILY_PULSE.refunds.today * (1.2 - maturityFactor * 0.3)),
-      lastWeek: Math.round(BASE_DAILY_PULSE.refunds.lastWeek * (1.2 - maturityFactor * 0.3)),
-      change: +((0.5 - maturityFactor) * 40).toFixed(1),
+      today: Math.round(BASE_DAILY_PULSE.refunds.today * (1.2 - dataFactor * 0.3)),
+      lastWeek: Math.round(BASE_DAILY_PULSE.refunds.lastWeek * (1.2 - dataFactor * 0.3)),
+      change: +((0.5 - dataFactor) * 40).toFixed(1),
     },
     grossRevenue: {
-      today: Math.round(BASE_DAILY_PULSE.grossRevenue.today * (0.6 + maturityFactor * 0.6)),
-      lastWeek: Math.round(BASE_DAILY_PULSE.grossRevenue.lastWeek * (0.6 + maturityFactor * 0.6)),
-      change: +((maturityFactor - 0.3) * 20).toFixed(1),
+      today: Math.round(BASE_DAILY_PULSE.grossRevenue.today * (0.6 + dataFactor * 0.6)),
+      lastWeek: Math.round(BASE_DAILY_PULSE.grossRevenue.lastWeek * (0.6 + dataFactor * 0.6)),
+      change: +((dataFactor - 0.3) * 20).toFixed(1),
     },
   };
 
-  // Payback by website improves with maturity
+  // Payback by website scales with data factor
   const paybackByWebsite: PaybackWebsite[] = BASE_PAYBACK_BY_WEBSITE.map((site) => {
-    const payback = +(site.basePayback + maturityFactor * 0.8).toFixed(2);
+    const payback = +(site.basePayback + dataFactor * 0.8).toFixed(2);
     return {
       website: site.website,
       payback,
@@ -277,15 +281,15 @@ export function GlobalView() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-2">Vista Global</h1>
         <p className="text-gray-400">
-          Resumen agregado - Cohorte: {selectedCohort.label} ({selectedCohort.monthsAvailable}m data)
+          Resumen agregado - {selectedRange.label}
         </p>
       </div>
 
       {/* Current cohort warning */}
-      {selectedCohort.monthsAvailable === 0 && (
+      {isCohort && monthsAvailable === 0 && (
         <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
           <p className="text-yellow-400 text-sm">
-            <strong>Cohorte actual (en curso):</strong> Los datos de {selectedCohort.label} aún no están completos.
+            <strong>Cohorte actual (en curso):</strong> Los datos de {selectedRange.label} aún no están completos.
             Las métricas mostradas son proyecciones parciales del mes en curso.
           </p>
         </div>

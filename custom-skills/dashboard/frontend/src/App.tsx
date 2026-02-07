@@ -17,7 +17,7 @@ type Page = 'global' | 'companies' | 'websites' | 'countries' | 'campaigns' | 'f
 
 function AppContent() {
   const { user, isLoading, isAdmin, logout } = useAuth();
-  const { selectedCohort, setSelectedCohort, availableCohorts } = useCohort();
+  const { selectedRange, setSelectedRange, availableOptions } = useCohort();
   const [page, setPage] = useState<Page>('global');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardDropdownOpen, setDashboardDropdownOpen] = useState(false);
@@ -137,7 +137,7 @@ function AppContent() {
                 )}
               </div>
 
-              {/* Cohort Selector - only show when on dashboard pages */}
+              {/* Date Range Selector - only show when on dashboard pages */}
               {isDashboardPage && (
                 <div className="relative" ref={cohortDropdownRef}>
                   <button
@@ -145,25 +145,51 @@ function AppContent() {
                     className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-gray-400 hover:text-white hover:bg-gray-800/50 border border-gray-700"
                   >
                     <Calendar className="w-4 h-4" />
-                    <span>Cohorte: {selectedCohort.label}</span>
+                    <span>{selectedRange.label}</span>
                     <ChevronDown className={`w-3 h-3 transition-transform ${cohortDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {cohortDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[180px] z-50">
-                      {availableCohorts.map((cohort) => (
+                    <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[200px] z-50 max-h-80 overflow-y-auto">
+                      {/* Periods section */}
+                      <div className="px-3 py-1.5 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Períodos
+                      </div>
+                      {availableOptions.filter(o => o.type === 'period').map((option) => (
                         <button
-                          key={cohort.id}
+                          key={option.id}
                           onClick={() => {
-                            setSelectedCohort(cohort);
+                            setSelectedRange(option);
                             setCohortDropdownOpen(false);
                           }}
                           className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
-                            selectedCohort.id === cohort.id ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                            selectedRange.id === option.id ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                           }`}
                         >
-                          <span>{cohort.label}</span>
-                          <span className="text-xs text-gray-500">{cohort.monthsAvailable}m data</span>
+                          <span>{option.label}</span>
+                        </button>
+                      ))}
+
+                      {/* Separator */}
+                      <div className="my-1 border-t border-gray-700" />
+
+                      {/* Cohorts section */}
+                      <div className="px-3 py-1.5 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Cohortes
+                      </div>
+                      {availableOptions.filter(o => o.type === 'cohort').map((option) => (
+                        <button
+                          key={option.id}
+                          onClick={() => {
+                            setSelectedRange(option);
+                            setCohortDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
+                            selectedRange.id === option.id ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                          }`}
+                        >
+                          <span>{option.label}</span>
+                          <span className="text-xs text-gray-500">{option.monthsAvailable}m</span>
                         </button>
                       ))}
                     </div>

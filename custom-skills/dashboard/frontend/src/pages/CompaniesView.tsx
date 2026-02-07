@@ -75,19 +75,20 @@ function ChangeIndicator({ value }: { value: number }) {
 }
 
 export function CompaniesView() {
-  const { selectedCohort } = useCohort();
+  const { selectedRange, isPeriod, days, monthsAvailable } = useCohort();
 
-  // Generate cohort-adjusted data
-  // More mature cohorts have more stable/better metrics
-  const maturityFactor = selectedCohort.monthsAvailable / 6; // 0.16 to 1.0
+  // Generate data factor based on selection
+  const dataFactor = isPeriod
+    ? Math.min(days / 60, 1)
+    : monthsAvailable / 6;
 
   const companies = BASE_COMPANIES.map((company, index) => {
     // Vary data based on cohort - older cohorts show more accumulated data
-    const revenueMultiplier = 0.5 + (maturityFactor * 0.5) + (index * 0.1);
-    const customerMultiplier = 0.6 + (maturityFactor * 0.4);
+    const revenueMultiplier = 0.5 + (dataFactor * 0.5) + (index * 0.1);
+    const customerMultiplier = 0.6 + (dataFactor * 0.4);
 
     // Rates improve slightly with maturity (more data = more accurate)
-    const rateVariation = (1 - maturityFactor) * 0.3;
+    const rateVariation = (1 - dataFactor) * 0.3;
 
     const grossRevenue = Math.round(company.baseKpis.grossRevenue * revenueMultiplier);
     const activeCustomers = Math.round(company.baseKpis.activeCustomers * customerMultiplier);
@@ -96,7 +97,7 @@ export function CompaniesView() {
     const churnRate = +(company.baseKpis.churnRate * (1 + rateVariation * 0.5)).toFixed(1);
 
     // Change percentages vary by cohort
-    const changeBase = (maturityFactor - 0.5) * 20;
+    const changeBase = (dataFactor - 0.5) * 20;
 
     return {
       name: company.name,
@@ -134,7 +135,7 @@ export function CompaniesView() {
           Vista Empresas
         </h1>
         <p className="text-gray-400">
-          Comparativa de KPIs por empresa - Cohorte: {selectedCohort.label} ({selectedCohort.monthsAvailable}m data)
+          Comparativa de KPIs por empresa - {selectedRange.label}
         </p>
       </div>
 

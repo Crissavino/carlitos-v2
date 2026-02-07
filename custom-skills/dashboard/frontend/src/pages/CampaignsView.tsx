@@ -91,18 +91,20 @@ const statusColors: Record<Status, string> = {
 };
 
 export function CampaignsView() {
-  const { selectedCohort } = useCohort();
+  const { selectedRange, isPeriod, days, monthsAvailable } = useCohort();
   const [typeFilter, setTypeFilter] = useState<'all' | 'ACQ' | 'REBILL'>('all');
   const [actions, setActions] = useState<Record<number, string>>({});
 
-  // Generate cohort-adjusted campaign data
-  const maturityFactor = selectedCohort.monthsAvailable / 6;
+  // Generate data factor based on selection
+  const dataFactor = isPeriod
+    ? Math.min(days / 60, 1)
+    : monthsAvailable / 6;
 
   const campaigns = BASE_CAMPAIGNS.map((campaign) => {
     // Older cohorts have more accumulated conversions and better metrics
-    const trialsMultiplier = 0.5 + (maturityFactor * 0.5);
-    const rebillMultiplier = 0.4 + (maturityFactor * 0.6);
-    const roiBoost = maturityFactor * 0.5;
+    const trialsMultiplier = 0.5 + (dataFactor * 0.5);
+    const rebillMultiplier = 0.4 + (dataFactor * 0.6);
+    const roiBoost = dataFactor * 0.5;
 
     const trials = Math.round(campaign.trials * trialsMultiplier);
     const firstRebills = Math.round(campaign.firstRebills * rebillMultiplier);
@@ -141,7 +143,7 @@ export function CampaignsView() {
           Vista Campañas
         </h1>
         <p className="text-gray-400">
-          Decisiones de Ads - Cohorte: {selectedCohort.label} ({selectedCohort.monthsAvailable}m data)
+          Decisiones de Ads - {selectedRange.label}
         </p>
       </div>
 

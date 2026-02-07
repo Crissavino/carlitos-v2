@@ -47,14 +47,17 @@ const MOCK_RISK_TRENDS = [
 ];
 
 export function FunnelView() {
-  const { selectedCohort } = useCohort();
+  const { selectedRange, isPeriod, monthsAvailable } = useCohort();
   const maxFunnelValue = MOCK_MARKETING_FUNNEL[0].value;
   const maxFrr = Math.max(...MOCK_COHORT_FRR.map(c => c.frr));
 
-  // Generate retention data based on cohort's available months
+  // For periods, show all data; for cohorts, only show available months
+  const effectiveMonths = isPeriod ? 6 : monthsAvailable;
+
+  // Generate retention data based on available months
   const retentionData = FULL_RETENTION_DATA.map((data, index) => {
     const monthNumber = index + 1;
-    const hasData = monthNumber <= selectedCohort.monthsAvailable;
+    const hasData = monthNumber <= effectiveMonths;
     return {
       ...data,
       customers: hasData ? data.customers : null,
@@ -120,7 +123,7 @@ export function FunnelView() {
         {/* Retention Table */}
         <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6">
           <h3 className="text-lg font-semibold mb-4">
-            Retención por Mes (Cohorte {selectedCohort.label})
+            Retención por Mes ({selectedRange.label})
           </h3>
           <div className="grid grid-cols-6 gap-2">
             {retentionData.map((month) => {
@@ -148,7 +151,7 @@ export function FunnelView() {
           </div>
           <div className="mt-4 pt-4 border-t border-gray-700/50 grid grid-cols-3 gap-4 text-center">
             {[1, 2, 3].map((monthNum) => {
-              const hasData = monthNum <= selectedCohort.monthsAvailable;
+              const hasData = monthNum <= effectiveMonths;
               const ltv = LTV_BY_MONTH[monthNum];
               return (
                 <div key={monthNum}>

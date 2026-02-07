@@ -32,26 +32,28 @@ const statusColors: Record<Status, string> = {
 };
 
 export function CountriesView() {
-  const { selectedCohort } = useCohort();
+  const { selectedRange, isPeriod, days, monthsAvailable } = useCohort();
 
-  // Generate cohort-adjusted data
-  const maturityFactor = selectedCohort.monthsAvailable / 6;
+  // Generate data factor based on selection
+  const dataFactor = isPeriod
+    ? Math.min(days / 60, 1)
+    : monthsAvailable / 6;
 
   const countries = BASE_COUNTRIES.map((country) => {
     // Older cohorts have more accumulated revenue and trials
-    const revenueMultiplier = 0.4 + (maturityFactor * 0.6);
-    const trialsMultiplier = 0.5 + (maturityFactor * 0.5);
+    const revenueMultiplier = 0.4 + (dataFactor * 0.6);
+    const trialsMultiplier = 0.5 + (dataFactor * 0.5);
 
     // FRR improves with maturity (more time to convert)
-    const frrBoost = maturityFactor * 5;
+    const frrBoost = dataFactor * 5;
 
     // Rates stabilize with more data
-    const rateVariation = (1 - maturityFactor) * 0.2;
+    const rateVariation = (1 - dataFactor) * 0.2;
 
     return {
       ...country,
       frr: +(country.frr + frrBoost).toFixed(1),
-      cpfr: Math.round(country.cpfr * (1 - maturityFactor * 0.1)),
+      cpfr: Math.round(country.cpfr * (1 - dataFactor * 0.1)),
       refundRate: +(country.refundRate * (1 + rateVariation)).toFixed(1),
       disputeRate: +(country.disputeRate * (1 + rateVariation)).toFixed(2),
       trials: Math.round(country.trials * trialsMultiplier),
@@ -70,7 +72,7 @@ export function CountriesView() {
           Vista Países
         </h1>
         <p className="text-gray-400">
-          Análisis Geográfico y de Riesgo - Cohorte: {selectedCohort.label} ({selectedCohort.monthsAvailable}m data)
+          Análisis Geográfico y de Riesgo - {selectedRange.label}
         </p>
       </div>
 
