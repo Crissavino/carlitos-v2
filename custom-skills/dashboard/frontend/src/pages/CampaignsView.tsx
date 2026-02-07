@@ -1,79 +1,12 @@
-import { useState } from 'react';
-import { Megaphone, Filter, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Megaphone, Filter, ChevronDown, ChevronUp, Loader2, TrendingUp, TrendingDown, AlertCircle, Globe, Map } from 'lucide-react';
 import { useCohort } from '../contexts/CohortContext';
+import { api, CampaignData } from '../api/client';
 
-// Base mock data for campaigns
-const BASE_CAMPAIGNS = [
-  {
-    id: 1,
-    name: 'NL - PDF Converter - Search',
-    type: 'ACQ' as const,
-    status: 'active' as const,
-    spend: 2450,
-    impressions: 45000,
-    clicks: 1250,
-    ctr: 2.78,
-    trials: 42,
-    firstRebills: 18,
-    roiReal: 1.45,
-  },
-  {
-    id: 2,
-    name: 'BE - Device Finder - Display',
-    type: 'ACQ' as const,
-    status: 'active' as const,
-    spend: 1850,
-    impressions: 120000,
-    clicks: 980,
-    ctr: 0.82,
-    trials: 28,
-    firstRebills: 9,
-    roiReal: 0.72,
-  },
-  {
-    id: 3,
-    name: 'DE - PDF Tools - Search Brand',
-    type: 'ACQ' as const,
-    status: 'active' as const,
-    spend: 890,
-    impressions: 12000,
-    clicks: 850,
-    ctr: 7.08,
-    trials: 35,
-    firstRebills: 16,
-    roiReal: 2.85,
-  },
-  {
-    id: 4,
-    name: 'ES - Convierte PDF - Search',
-    type: 'ACQ' as const,
-    status: 'paused' as const,
-    spend: 520,
-    impressions: 8500,
-    clicks: 320,
-    ctr: 3.76,
-    trials: 12,
-    firstRebills: 3,
-    roiReal: 0.65,
-  },
-  {
-    id: 5,
-    name: 'NL - PDF Converter - Rebill',
-    type: 'REBILL' as const,
-    status: 'active' as const,
-    spend: 450,
-    impressions: 5000,
-    clicks: 180,
-    ctr: 3.60,
-    trials: 0,
-    firstRebills: 0,
-    roiReal: 3.20,
-  },
-];
-
-type Status = 'green' | 'yellow' | 'red';
+type Status = 'green' | 'yellow' | 'red' | 'neutral';
 
 function getStatus(value: number, thresholds: { green: number; yellow: number }, inverse = false): Status {
+  if (value === 0) return 'neutral';
   if (inverse) {
     if (value <= thresholds.green) return 'green';
     if (value <= thresholds.yellow) return 'yellow';
@@ -88,62 +21,123 @@ const statusColors: Record<Status, string> = {
   green: 'text-green-400',
   yellow: 'text-yellow-400',
   red: 'text-red-400',
+  neutral: 'text-gray-400',
 };
 
+const statusBg: Record<Status, string> = {
+  green: 'bg-green-500/20 border-green-500/30',
+  yellow: 'bg-yellow-500/20 border-yellow-500/30',
+  red: 'bg-red-500/20 border-red-500/30',
+  neutral: 'bg-gray-500/20 border-gray-500/30',
+};
+
+// Website options
+const WEBSITES = [
+  { id: undefined, name: 'Todos los Websites' },
+  { id: 1, name: 'ConversiePDF' },
+  { id: 3, name: 'ConvertPDF' },
+  { id: 4, name: 'Smallpdf.tools' },
+];
+
 export function CampaignsView() {
-  const { selectedRange, isPeriod, days, monthsAvailable } = useCohort();
-  const [typeFilter, setTypeFilter] = useState<'all' | 'ACQ' | 'REBILL'>('all');
-  const [actions, setActions] = useState<Record<number, string>>({});
+  const { selectedRange, rangeApiParam } = useCohort();
+  const [campaigns, setCampaigns] = useState<CampaignData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedCampaigns, setExpandedCampaigns] = useState<Set<number>>(new Set());
+  const [websiteFilter, setWebsiteFilter] = useState<number | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
+  const [sortBy, setSortBy] = useState<'spend' | 'payback' | 'frr' | 'profit'>('spend');
 
-  // Generate data factor based on selection
-  const dataFactor = isPeriod
-    ? Math.min(days / 60, 1)
-    : monthsAvailable / 6;
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await api.getCampaignsView(rangeApiParam, websiteFilter);
+        if (response.data?.campaigns) {
+          setCampaigns(response.data.campaigns.filter(c => c && c.kpis));
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error loading campaigns');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [rangeApiParam, websiteFilter]);
 
-  const campaigns = BASE_CAMPAIGNS.map((campaign) => {
-    // Older cohorts have more accumulated conversions and better metrics
-    const trialsMultiplier = 0.5 + (dataFactor * 0.5);
-    const rebillMultiplier = 0.4 + (dataFactor * 0.6);
-    const roiBoost = dataFactor * 0.5;
-
-    const trials = Math.round(campaign.trials * trialsMultiplier);
-    const firstRebills = Math.round(campaign.firstRebills * rebillMultiplier);
-    const frr = trials > 0 ? +((firstRebills / trials) * 100).toFixed(1) : 0;
-    const cpt = trials > 0 ? +(campaign.spend / trials).toFixed(2) : 0;
-    const cpfr = firstRebills > 0 ? +(campaign.spend / firstRebills).toFixed(2) : 0;
-    const roiReal = +(campaign.roiReal + roiBoost).toFixed(2);
-
-    return {
-      ...campaign,
-      trials,
-      firstRebills,
-      frr,
-      cpt,
-      cpfr,
-      roiReal,
-      action: campaign.roiReal < 1 ? 'PAUSAR' : '',
-    };
-  });
-
-  const filteredCampaigns = campaigns.filter(c => {
-    if (typeFilter !== 'all' && c.type !== typeFilter) return false;
-    return true;
-  });
-
-  const handleActionChange = (id: number, value: string) => {
-    setActions(prev => ({ ...prev, [id]: value }));
+  const toggleExpand = (campaignId: number) => {
+    setExpandedCampaigns(prev => {
+      const next = new Set(prev);
+      if (next.has(campaignId)) {
+        next.delete(campaignId);
+      } else {
+        next.add(campaignId);
+      }
+      return next;
+    });
   };
 
+  // Filter and sort campaigns
+  const filteredCampaigns = campaigns
+    .filter(c => {
+      if (statusFilter === 'active' && !c.active) return false;
+      if (statusFilter === 'paused' && c.active) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'spend': return b.kpis.adSpendEur - a.kpis.adSpendEur;
+        case 'payback': return b.kpis.paybackM1 - a.kpis.paybackM1;
+        case 'frr': return b.kpis.frr - a.kpis.frr;
+        case 'profit': return b.kpis.profit - a.kpis.profit;
+        default: return 0;
+      }
+    });
+
+  // Calculate totals
+  const totals = filteredCampaigns.reduce((acc, c) => ({
+    adSpend: acc.adSpend + c.kpis.adSpendEur,
+    trials: acc.trials + c.kpis.trialCount,
+    firstRebills: acc.firstRebills + c.kpis.firstRebillCount,
+    netM1: acc.netM1 + c.kpis.netM1,
+    netTotal: acc.netTotal + c.kpis.netTotal,
+    profit: acc.profit + c.kpis.profit,
+  }), { adSpend: 0, trials: 0, firstRebills: 0, netM1: 0, netTotal: 0, profit: 0 });
+
+  const totalFrr = totals.trials > 0 ? (totals.firstRebills / totals.trials) * 100 : 0;
+  const totalPaybackM1 = totals.adSpend > 0 ? totals.netM1 / totals.adSpend : 0;
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-400" />
+          <span className="text-red-400">{error}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6 max-w-full mx-auto">
+    <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-2 flex items-center gap-3">
           <Megaphone className="w-7 h-7 text-orange-400" />
-          Vista Campañas
+          Vista Campanas
         </h1>
         <p className="text-gray-400">
-          Decisiones de Ads - {selectedRange.label}
+          Performance por campana - {selectedRange.label}
         </p>
       </div>
 
@@ -154,99 +148,301 @@ export function CampaignsView() {
           <span className="text-sm text-gray-400">Filtros:</span>
         </div>
 
+        {/* Website Filter */}
         <div className="relative">
           <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+            value={websiteFilter || ''}
+            onChange={(e) => setWebsiteFilter(e.target.value ? parseInt(e.target.value) : undefined)}
             className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm appearance-none pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">Todos los Tipos</option>
-            <option value="ACQ">Adquisición</option>
-            <option value="REBILL">Rebill</option>
+            {WEBSITES.map(w => (
+              <option key={w.id || 'all'} value={w.id || ''}>
+                {w.name}
+              </option>
+            ))}
+          </select>
+          <Globe className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        </div>
+
+        {/* Status Filter */}
+        <div className="relative">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm appearance-none pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Todos</option>
+            <option value="active">Activas</option>
+            <option value="paused">Pausadas</option>
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        </div>
+
+        {/* Sort */}
+        <div className="relative">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm appearance-none pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="spend">Ordenar: Spend</option>
+            <option value="payback">Ordenar: Payback M1</option>
+            <option value="frr">Ordenar: FRR</option>
+            <option value="profit">Ordenar: Profit</option>
           </select>
           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-900/50">
-              <th className="text-left px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Campaña</th>
-              <th className="text-center px-3 py-3 font-medium text-gray-400">Tipo</th>
-              <th className="text-right px-3 py-3 font-medium text-gray-400">Spend</th>
-              <th className="text-right px-3 py-3 font-medium text-gray-400">Impr.</th>
-              <th className="text-right px-3 py-3 font-medium text-gray-400">Clicks</th>
-              <th className="text-right px-3 py-3 font-medium text-gray-400">CTR</th>
-              <th className="text-right px-3 py-3 font-medium text-gray-400">Trials</th>
-              <th className="text-right px-3 py-3 font-medium text-gray-400">CPT</th>
-              <th className="text-right px-3 py-3 font-medium text-gray-400">1st Reb.</th>
-              <th className="text-center px-3 py-3 font-medium text-gray-400">FRR</th>
-              <th className="text-center px-3 py-3 font-medium text-gray-400">CPFR</th>
-              <th className="text-center px-3 py-3 font-medium text-gray-400">ROI</th>
-              <th className="text-center px-4 py-3 font-medium text-gray-400">Acción</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700/50">
-            {filteredCampaigns.map((campaign) => {
-              const frrStatus = campaign.type === 'ACQ' ? getStatus(campaign.frr, { green: 35, yellow: 25 }) : 'green';
-              const cpfrStatus = campaign.type === 'ACQ' ? getStatus(campaign.cpfr, { green: 90, yellow: 150 }, true) : 'green';
-              const roiStatus = getStatus(campaign.roiReal, { green: 1.5, yellow: 1.0 });
+      {/* Summary Totals */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+          <div className="text-xs text-gray-500 mb-1">Campanas</div>
+          <div className="text-xl font-bold">{filteredCampaigns.length}</div>
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+          <div className="text-xs text-gray-500 mb-1">Ad Spend</div>
+          <div className="text-xl font-bold">€{totals.adSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+          <div className="text-xs text-gray-500 mb-1">Trials</div>
+          <div className="text-xl font-bold">{totals.trials.toLocaleString()}</div>
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+          <div className="text-xs text-gray-500 mb-1">FRR</div>
+          <div className={`text-xl font-bold ${statusColors[getStatus(totalFrr, { green: 35, yellow: 25 })]}`}>
+            {totalFrr.toFixed(1)}%
+          </div>
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+          <div className="text-xs text-gray-500 mb-1">Payback M1</div>
+          <div className={`text-xl font-bold ${statusColors[getStatus(totalPaybackM1, { green: 1.2, yellow: 0.9 })]}`}>
+            {totalPaybackM1.toFixed(2)}x
+          </div>
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+          <div className="text-xs text-gray-500 mb-1">Profit Total</div>
+          <div className={`text-xl font-bold ${totals.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            €{totals.profit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          </div>
+        </div>
+      </div>
 
-              return (
-                <tr key={campaign.id} className="hover:bg-gray-800/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="font-medium whitespace-nowrap">{campaign.name}</div>
-                    <div className={`text-xs ${campaign.status === 'active' ? 'text-green-400' : 'text-gray-500'}`}>
-                      {campaign.status}
+      {/* Campaigns List */}
+      <div className="space-y-3">
+        {filteredCampaigns.length === 0 ? (
+          <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-8 text-center">
+            <Megaphone className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+            <p className="text-gray-400">No hay campanas con actividad en este periodo</p>
+          </div>
+        ) : (
+          filteredCampaigns.map((campaign) => {
+            const { kpis } = campaign;
+            const isExpanded = expandedCampaigns.has(campaign.campaignId);
+            const paybackStatus = getStatus(kpis.paybackM1, { green: 1.2, yellow: 0.9 });
+            const frrStatus = getStatus(kpis.frr, { green: 35, yellow: 25 });
+
+            return (
+              <div
+                key={campaign.campaignId}
+                className={`bg-gray-800/50 rounded-xl border ${statusBg[paybackStatus]} overflow-hidden`}
+              >
+                {/* Campaign Header - Always Visible */}
+                <div
+                  className="p-4 cursor-pointer hover:bg-gray-700/30 transition-colors"
+                  onClick={() => toggleExpand(campaign.campaignId)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {/* Status indicator */}
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${campaign.active ? 'bg-green-400' : 'bg-gray-500'}`} />
+
+                      {/* Campaign name */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{campaign.campaignName}</div>
+                        <div className="text-xs text-gray-500 flex items-center gap-2">
+                          <span>{campaign.websiteName || `Website ${campaign.websiteId}`}</span>
+                          {campaign.countryCode && (
+                            <>
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <Map className="w-3 h-3" />
+                                {campaign.countryCode}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </td>
-                  <td className="px-3 py-3 text-center">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      campaign.type === 'ACQ' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
-                    }`}>
-                      {campaign.type}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 text-right">€{campaign.spend.toLocaleString()}</td>
-                  <td className="px-3 py-3 text-right text-gray-400">{campaign.impressions.toLocaleString()}</td>
-                  <td className="px-3 py-3 text-right">{campaign.clicks.toLocaleString()}</td>
-                  <td className="px-3 py-3 text-right text-gray-400">{campaign.ctr.toFixed(2)}%</td>
-                  <td className="px-3 py-3 text-right">{campaign.trials || '-'}</td>
-                  <td className="px-3 py-3 text-right">{campaign.cpt ? `€${campaign.cpt.toFixed(0)}` : '-'}</td>
-                  <td className="px-3 py-3 text-right">{campaign.firstRebills || '-'}</td>
-                  <td className="px-3 py-3 text-center">
-                    {campaign.type === 'ACQ' && campaign.frr > 0 ? (
-                      <span className={statusColors[frrStatus]}>{campaign.frr.toFixed(1)}%</span>
-                    ) : '-'}
-                  </td>
-                  <td className="px-3 py-3 text-center">
-                    {campaign.type === 'ACQ' && campaign.cpfr > 0 ? (
-                      <span className={statusColors[cpfrStatus]}>€{campaign.cpfr.toFixed(0)}</span>
-                    ) : '-'}
-                  </td>
-                  <td className="px-3 py-3 text-center">
-                    <span className={statusColors[roiStatus]}>{campaign.roiReal.toFixed(2)}x</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={actions[campaign.id] || campaign.action}
-                      onChange={(e) => handleActionChange(campaign.id, e.target.value)}
-                      className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs w-24 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    >
-                      <option value="">-</option>
-                      <option value="ESCALAR">ESCALAR</option>
-                      <option value="MANTENER">MANTENER</option>
-                      <option value="OPTIMIZAR">OPTIMIZAR</option>
-                      <option value="PAUSAR">PAUSAR</option>
-                    </select>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+
+                    {/* Key Metrics */}
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="text-right hidden sm:block">
+                        <div className="text-xs text-gray-500">Spend</div>
+                        <div className="font-medium">€{kpis.adSpendEur.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                      </div>
+                      <div className="text-right hidden md:block">
+                        <div className="text-xs text-gray-500">Trials</div>
+                        <div className="font-medium">{kpis.trialCount}</div>
+                      </div>
+                      <div className="text-right hidden md:block">
+                        <div className="text-xs text-gray-500">FRR</div>
+                        <div className={`font-medium ${statusColors[frrStatus]}`}>{kpis.frr.toFixed(1)}%</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-gray-500">Payback M1</div>
+                        <div className={`font-medium ${statusColors[paybackStatus]}`}>{kpis.paybackM1.toFixed(2)}x</div>
+                      </div>
+                      <div className="text-right hidden lg:block">
+                        <div className="text-xs text-gray-500">Profit</div>
+                        <div className={`font-medium flex items-center gap-1 ${kpis.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {kpis.profit >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                          €{Math.abs(kpis.profit).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+
+                      {/* Expand icon */}
+                      <div className="ml-2">
+                        {isExpanded ? (
+                          <ChevronUp className="w-5 h-5 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-gray-400" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expanded Details */}
+                {isExpanded && (
+                  <div className="px-4 pb-4 border-t border-gray-700/50">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 pt-4">
+                      {/* M1 Cohort Metrics */}
+                      <div className="col-span-2 md:col-span-4 lg:col-span-6">
+                        <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">M1 (Cohorte adquirida en periodo)</div>
+                      </div>
+
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">Trial Revenue</div>
+                        <div className="font-medium">€{kpis.trialRevenueEur.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">1st Rebill Revenue</div>
+                        <div className="font-medium">€{kpis.firstRebillRevenueEur.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">Refunds M1</div>
+                        <div className="font-medium text-red-400">-€{kpis.refundsM1Eur.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">Net M1</div>
+                        <div className={`font-medium ${kpis.netM1 >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          €{kpis.netM1.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">Trials</div>
+                        <div className="font-medium">{kpis.trialCount}</div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">1st Rebills</div>
+                        <div className="font-medium">{kpis.firstRebillCount}</div>
+                      </div>
+
+                      {/* Total Period Metrics */}
+                      <div className="col-span-2 md:col-span-4 lg:col-span-6 mt-2">
+                        <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Total (Actividad en periodo)</div>
+                      </div>
+
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">Total Revenue</div>
+                        <div className="font-medium">€{kpis.totalRevenueEur.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">Rebill Revenue</div>
+                        <div className="font-medium">€{kpis.totalRebillRevenueEur.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">Total Refunds</div>
+                        <div className="font-medium text-red-400">-€{kpis.totalRefundsEur.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">Net Total</div>
+                        <div className={`font-medium ${kpis.netTotal >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          €{kpis.netTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">Ad Spend</div>
+                        <div className="font-medium">€{kpis.adSpendEur.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">Profit</div>
+                        <div className={`font-medium ${kpis.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          €{kpis.profit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+
+                      {/* KPIs */}
+                      <div className="col-span-2 md:col-span-4 lg:col-span-6 mt-2">
+                        <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">KPIs</div>
+                      </div>
+
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">FRR</div>
+                        <div className={`font-medium ${statusColors[frrStatus]}`}>{kpis.frr.toFixed(1)}%</div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">CPT</div>
+                        <div className={`font-medium ${statusColors[getStatus(kpis.cpt, { green: 30, yellow: 50 }, true)]}`}>
+                          €{kpis.cpt.toFixed(0)}
+                        </div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">CPFR</div>
+                        <div className={`font-medium ${statusColors[getStatus(kpis.cpfr, { green: 90, yellow: 150 }, true)]}`}>
+                          €{kpis.cpfr.toFixed(0)}
+                        </div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">Payback M1</div>
+                        <div className={`font-medium ${statusColors[paybackStatus]}`}>{kpis.paybackM1.toFixed(2)}x</div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">Net ROAS</div>
+                        <div className={`font-medium ${statusColors[getStatus(kpis.netRoas, { green: 1.5, yellow: 1.0 })]}`}>
+                          {kpis.netRoas.toFixed(2)}x
+                        </div>
+                      </div>
+                      <div className="bg-gray-900/50 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 mb-1">CTR</div>
+                        <div className="font-medium">{kpis.ctr.toFixed(2)}%</div>
+                      </div>
+
+                      {/* Google Ads Metrics */}
+                      {(kpis.impressions > 0 || kpis.clicks > 0) && (
+                        <>
+                          <div className="col-span-2 md:col-span-4 lg:col-span-6 mt-2">
+                            <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Google Ads</div>
+                          </div>
+
+                          <div className="bg-gray-900/50 rounded-lg p-3">
+                            <div className="text-xs text-gray-500 mb-1">Impressions</div>
+                            <div className="font-medium">{kpis.impressions.toLocaleString()}</div>
+                          </div>
+                          <div className="bg-gray-900/50 rounded-lg p-3">
+                            <div className="text-xs text-gray-500 mb-1">Clicks</div>
+                            <div className="font-medium">{kpis.clicks.toLocaleString()}</div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

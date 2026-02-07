@@ -2583,6 +2583,124 @@ app.get("/api/business/countries", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/business/campaigns - Campaigns View KPIs
+app.get("/api/business/campaigns", async (req: Request, res: Response) => {
+  console.log("[/api/business/campaigns] Request received, range:", req.query.range, "websiteId:", req.query.websiteId, "countryId:", req.query.countryId);
+
+  try {
+    const rangeParam = (req.query.range as string) || "7d";
+    const websiteIdParam = req.query.websiteId as string | undefined;
+    const countryIdParam = req.query.countryId as string | undefined;
+    const validRanges = ["7d", "14d", "30d", "60d"];
+
+    if (!validRanges.includes(rangeParam)) {
+      res.status(400).json({ error: `Invalid range. Valid: ${validRanges.join(", ")}` });
+      return;
+    }
+
+    const days = parseInt(rangeParam.replace("d", ""), 10);
+    const dateRange: CountryDateRangeConfig = { days, type: "period" };
+    const websiteId = websiteIdParam ? parseInt(websiteIdParam, 10) : undefined;
+    const countryId = countryIdParam ? parseInt(countryIdParam, 10) : undefined;
+
+    // Validate websiteId if provided
+    if (websiteId && ![1, 3, 4].includes(websiteId)) {
+      res.status(400).json({ error: "Invalid websiteId. Valid: 1, 3, 4" });
+      return;
+    }
+
+    const { executeRawQuery } = await import("../skills/db-reader/executor.js");
+    const { campaignMetricsQuery } = await import("../skills/db-reader/queries/campaigns-view-kpis.js");
+
+    // Execute unified query
+    console.log("[/api/business/campaigns] Executing unified query...");
+    const rows = await executeRawQuery(campaignMetricsQuery(dateRange, websiteId, countryId).sql);
+    console.log("[/api/business/campaigns] Query complete, rows:", (rows as any[]).length);
+
+    // Parse unified query results and calculate derived KPIs
+    const campaigns = (rows as any[]).filter(row => row.campaign_id).map((row: any) => {
+      const trialRevenueEur = Number(row.trial_revenue_eur) || 0;
+      const firstRebillRevenueEur = Number(row.first_rebill_revenue_eur) || 0;
+      const refundsM1Eur = Number(row.refunds_m1_eur) || 0;
+      const totalRevenueEur = Number(row.total_revenue_eur) || 0;
+      const totalRebillRevenueEur = Number(row.total_rebill_revenue_eur) || 0;
+      const totalRefundsEur = Number(row.total_refunds_eur) || 0;
+      const adSpendEur = Number(row.ad_spend_eur) || 0;
+      const trialCount = Number(row.trial_count) || 0;
+      const firstRebillCount = Number(row.first_rebill_count) || 0;
+      const impressions = Number(row.impressions) || 0;
+      const clicks = Number(row.clicks) || 0;
+
+      const revenueM1Eur = trialRevenueEur + firstRebillRevenueEur;
+      const netM1 = revenueM1Eur - refundsM1Eur;
+      const paybackM1 = adSpendEur > 0 ? netM1 / adSpendEur : 0;
+      const netTotal = totalRevenueEur - totalRefundsEur;
+      const profit = netTotal - adSpendEur;
+      const frr = trialCount > 0 ? (firstRebillCount / trialCount) * 100 : 0;
+      const cpt = trialCount > 0 ? adSpendEur / trialCount : 0;
+      const cpfr = firstRebillCount > 0 ? adSpendEur / firstRebillCount : 0;
+      const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+      const netRoas = adSpendEur > 0 ? netTotal / adSpendEur : 0;
+
+      return {
+        campaignId: Number(row.campaign_id),
+        googleCampaignId: row.google_campaign_id || '',
+        campaignName: row.campaign_name || `Campaign ${row.campaign_id}`,
+        websiteId: Number(row.website_id) || 0,
+        websiteName: row.website_name || '',
+        countryId: Number(row.country_id) || 0,
+        countryCode: row.country_code || 'XX',
+        countryName: row.country_name || '',
+        active: Boolean(row.active),
+        kpis: {
+          // M1 (cohort-based)
+          revenueM1Eur: Math.round(revenueM1Eur * 100) / 100,
+          trialRevenueEur: Math.round(trialRevenueEur * 100) / 100,
+          firstRebillRevenueEur: Math.round(firstRebillRevenueEur * 100) / 100,
+          refundsM1Eur: Math.round(refundsM1Eur * 100) / 100,
+          netM1: Math.round(netM1 * 100) / 100,
+          paybackM1: Math.round(paybackM1 * 100) / 100,
+
+          // Total (period-based)
+          totalRevenueEur: Math.round(totalRevenueEur * 100) / 100,
+          totalRebillRevenueEur: Math.round(totalRebillRevenueEur * 100) / 100,
+          totalRefundsEur: Math.round(totalRefundsEur * 100) / 100,
+          netTotal: Math.round(netTotal * 100) / 100,
+          profit: Math.round(profit * 100) / 100,
+
+          // Common
+          adSpendEur: Math.round(adSpendEur * 100) / 100,
+          trialCount,
+          firstRebillCount,
+          frr: Math.round(frr * 10) / 10,
+          cpt: Math.round(cpt * 100) / 100,
+          cpfr: Math.round(cpfr * 100) / 100,
+          netRoas: Math.round(netRoas * 100) / 100,
+
+          // Google Ads metrics
+          impressions,
+          clicks,
+          ctr: Math.round(ctr * 100) / 100,
+        },
+      };
+    });
+
+    // Sort by ad spend (highest first)
+    campaigns.sort((a, b) => b.kpis.adSpendEur - a.kpis.adSpendEur);
+
+    res.json({
+      success: true,
+      range: rangeParam,
+      websiteId: websiteId || null,
+      countryId: countryId || null,
+      data: { campaigns },
+    });
+  } catch (error) {
+    console.error("[/api/business/campaigns] Error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
 // ============================================================================
 // SNAPSHOTS (Historical KPIs)
 // ============================================================================
