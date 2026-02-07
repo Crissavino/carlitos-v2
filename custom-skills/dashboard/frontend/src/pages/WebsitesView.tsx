@@ -72,18 +72,18 @@ function ConversionFunnel({ data }: { data: FunnelProps }) {
           return (
             <div key={step.label} className="flex items-center gap-3">
               <div className="w-24 text-sm text-gray-500 text-right">{step.label}</div>
-              <div className="flex-1 relative">
+              <div className="flex-1 flex items-center gap-2">
                 <div
-                  className={`h-8 ${step.color} rounded flex items-center justify-between px-3`}
+                  className={`h-8 ${step.color} rounded flex items-center px-3 shrink-0`}
                   style={{ width: `${Math.max(widthPercent, 15)}%` }}
                 >
-                  <span className="text-sm font-medium text-white">{step.display}</span>
-                  {step.badge && (
-                    <span className="text-xs bg-gray-900/50 px-2 py-0.5 rounded text-gray-300">
-                      {step.badge}
-                    </span>
-                  )}
+                  <span className="text-sm font-medium text-white whitespace-nowrap">{step.display}</span>
                 </div>
+                {step.badge && (
+                  <span className="text-xs bg-gray-700/50 px-2 py-0.5 rounded text-gray-300 whitespace-nowrap">
+                    {step.badge}
+                  </span>
+                )}
               </div>
             </div>
           );
