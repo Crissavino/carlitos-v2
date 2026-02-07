@@ -116,6 +116,17 @@ import {
   totalRevenueByWebsiteQuery,
   totalRefundsByWebsiteQuery,
 } from "../skills/db-reader/queries/websites-view-kpis.js";
+import {
+  revenueByCountryQuery,
+  refundsByCountryQuery,
+  totalRevenueByCountryQuery,
+  totalRefundsByCountryQuery,
+  adSpendByCountryQuery,
+  frrByCountryQuery,
+  refundRateM1ByCountryQuery,
+  disputeRateByCountryQuery,
+  DateRangeConfig as CountryDateRangeConfig,
+} from "../skills/db-reader/queries/countries-view-kpis.js";
 
 const app = express();
 const PORT = parseInt(process.env.DASHBOARD_PORT || "3002", 10);
@@ -2469,6 +2480,214 @@ app.get("/api/business/websites", async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("[/api/business/websites] Error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// GET /api/business/countries - Countries View KPIs (by campaign country)
+app.get("/api/business/countries", async (req: Request, res: Response) => {
+  console.log("[/api/business/countries] Request received, range:", req.query.range, "websiteId:", req.query.websiteId);
+
+  try {
+    const rangeParam = (req.query.range as string) || "7d";
+    const websiteIdParam = req.query.websiteId as string | undefined;
+    const validRanges = ["7d", "14d", "30d", "60d"];
+
+    if (!validRanges.includes(rangeParam)) {
+      res.status(400).json({ error: `Invalid range. Valid: ${validRanges.join(", ")}` });
+      return;
+    }
+
+    const days = parseInt(rangeParam.replace("d", ""), 10);
+    const dateRange: CountryDateRangeConfig = { days, type: "period" };
+    const websiteId = websiteIdParam ? parseInt(websiteIdParam, 10) : undefined;
+
+    // Validate websiteId if provided
+    if (websiteId && ![1, 3, 4].includes(websiteId)) {
+      res.status(400).json({ error: "Invalid websiteId. Valid: 1, 3, 4" });
+      return;
+    }
+
+    const { executeRawQuery } = await import("../skills/db-reader/executor.js");
+
+    // Execute all queries in parallel
+    console.log("[/api/business/countries] Executing queries...");
+    const [revenueM1Rows, refundsM1Rows, totalRevenueRows, totalRefundsRows, adSpendRows, frrRows, refundRateRows, disputeRows] = await Promise.all([
+      executeRawQuery(revenueByCountryQuery(dateRange, websiteId).sql),
+      executeRawQuery(refundsByCountryQuery(dateRange, websiteId).sql),
+      executeRawQuery(totalRevenueByCountryQuery(dateRange, websiteId).sql),
+      executeRawQuery(totalRefundsByCountryQuery(dateRange, websiteId).sql),
+      executeRawQuery(adSpendByCountryQuery(dateRange, websiteId).sql),
+      executeRawQuery(frrByCountryQuery(dateRange, websiteId).sql),
+      executeRawQuery(refundRateM1ByCountryQuery(dateRange, websiteId).sql),
+      executeRawQuery(disputeRateByCountryQuery(dateRange, websiteId).sql),
+    ]);
+    console.log("[/api/business/countries] All queries complete!");
+
+    // Build country data map dynamically
+    const countryData: Map<number, any> = new Map();
+
+    // Initialize from revenue query (most complete dataset)
+    for (const row of revenueM1Rows as any[]) {
+      const cid = Number(row.country_id);
+      if (!countryData.has(cid)) {
+        countryData.set(cid, {
+          countryId: cid,
+          countryCode: row.country_code || 'XX',
+          countryName: row.country_name || `Country ${cid}`,
+          // M1 (cohort-based)
+          revenueM1Eur: 0, trialRevenueEur: 0, firstRebillRevenueEur: 0, refundsM1Eur: 0,
+          // Total (period-based)
+          totalRevenueEur: 0, totalRebillRevenueEur: 0, totalRefundsEur: 0,
+          // Common
+          adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0,
+        });
+      }
+      const c = countryData.get(cid)!;
+      c.revenueM1Eur = Number(row.gross_revenue_eur) || 0;
+      c.trialRevenueEur = Number(row.trial_revenue_eur) || 0;
+      c.firstRebillRevenueEur = Number(row.first_rebill_revenue_eur) || 0;
+    }
+
+    // Parse M1 refunds
+    for (const row of refundsM1Rows as any[]) {
+      const cid = Number(row.country_id);
+      if (countryData.has(cid)) {
+        countryData.get(cid)!.refundsM1Eur = Number(row.total_refunds_eur) || 0;
+      }
+    }
+
+    // Parse Total revenue
+    for (const row of totalRevenueRows as any[]) {
+      const cid = Number(row.country_id);
+      if (!countryData.has(cid)) {
+        countryData.set(cid, {
+          countryId: cid,
+          countryCode: row.country_code || 'XX',
+          countryName: row.country_name || `Country ${cid}`,
+          revenueM1Eur: 0, trialRevenueEur: 0, firstRebillRevenueEur: 0, refundsM1Eur: 0,
+          totalRevenueEur: 0, totalRebillRevenueEur: 0, totalRefundsEur: 0,
+          adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0,
+        });
+      }
+      const c = countryData.get(cid)!;
+      c.totalRevenueEur = Number(row.total_revenue_eur) || 0;
+      c.totalRebillRevenueEur = Number(row.total_rebill_revenue_eur) || 0;
+    }
+
+    // Parse Total refunds
+    for (const row of totalRefundsRows as any[]) {
+      const cid = Number(row.country_id);
+      if (countryData.has(cid)) {
+        countryData.get(cid)!.totalRefundsEur = Number(row.total_refunds_eur) || 0;
+      }
+    }
+
+    // Parse ad spend
+    for (const row of adSpendRows as any[]) {
+      const cid = Number(row.country_id);
+      if (!countryData.has(cid)) {
+        countryData.set(cid, {
+          countryId: cid,
+          countryCode: row.country_code || 'XX',
+          countryName: row.country_name || `Country ${cid}`,
+          revenueM1Eur: 0, trialRevenueEur: 0, firstRebillRevenueEur: 0, refundsM1Eur: 0,
+          totalRevenueEur: 0, totalRebillRevenueEur: 0, totalRefundsEur: 0,
+          adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0,
+        });
+      }
+      countryData.get(cid)!.adSpendEur = Number(row.total_spend_eur) || 0;
+    }
+
+    // Parse FRR
+    for (const row of frrRows as any[]) {
+      const cid = Number(row.country_id);
+      if (countryData.has(cid)) {
+        const c = countryData.get(cid)!;
+        c.trialCount = Number(row.trial_count) || 0;
+        c.firstRebillCount = Number(row.first_rebill_count) || 0;
+      }
+    }
+
+    // Parse refund rate M1
+    for (const row of refundRateRows as any[]) {
+      const cid = Number(row.country_id);
+      if (countryData.has(cid)) {
+        const c = countryData.get(cid)!;
+        c.totalFirstRebillsM1 = Number(row.total_first_rebills) || 0;
+        c.refundedFirstRebillsM1 = Number(row.refunded_first_rebills) || 0;
+      }
+    }
+
+    // Parse dispute rate
+    for (const row of disputeRows as any[]) {
+      const cid = Number(row.country_id);
+      if (countryData.has(cid)) {
+        const c = countryData.get(cid)!;
+        c.totalTransactions = Number(row.total_transactions) || 0;
+        c.chargebackCount = Number(row.chargeback_count) || 0;
+      }
+    }
+
+    // Calculate derived KPIs and format response
+    const countries = Array.from(countryData.values()).map((c: any) => {
+      // M1 metrics (cohort-based)
+      const netM1 = c.revenueM1Eur - c.refundsM1Eur;
+      const paybackM1 = c.adSpendEur > 0 ? netM1 / c.adSpendEur : 0;
+
+      // Total metrics (period-based)
+      const netTotal = c.totalRevenueEur - c.totalRefundsEur;
+      const profit = netTotal - c.adSpendEur;
+
+      // Rates
+      const frr = c.trialCount > 0 ? (c.firstRebillCount / c.trialCount) * 100 : 0;
+      const refundRateM1 = c.totalFirstRebillsM1 > 0 ? (c.refundedFirstRebillsM1 / c.totalFirstRebillsM1) * 100 : 0;
+      const disputeRate = c.totalTransactions > 0 ? (c.chargebackCount / c.totalTransactions) * 100 : 0;
+      const cpt = c.trialCount > 0 ? c.adSpendEur / c.trialCount : 0;
+
+      return {
+        countryId: c.countryId,
+        countryCode: c.countryCode,
+        countryName: c.countryName,
+        kpis: {
+          // M1 (cohort-based)
+          revenueM1Eur: Math.round(c.revenueM1Eur * 100) / 100,
+          trialRevenueEur: Math.round(c.trialRevenueEur * 100) / 100,
+          firstRebillRevenueEur: Math.round(c.firstRebillRevenueEur * 100) / 100,
+          refundsM1Eur: Math.round(c.refundsM1Eur * 100) / 100,
+          netM1: Math.round(netM1 * 100) / 100,
+          paybackM1: Math.round(paybackM1 * 100) / 100,
+
+          // Total (period-based)
+          totalRevenueEur: Math.round(c.totalRevenueEur * 100) / 100,
+          totalRebillRevenueEur: Math.round(c.totalRebillRevenueEur * 100) / 100,
+          totalRefundsEur: Math.round(c.totalRefundsEur * 100) / 100,
+          netTotal: Math.round(netTotal * 100) / 100,
+          profit: Math.round(profit * 100) / 100,
+
+          // Common
+          adSpendEur: Math.round(c.adSpendEur * 100) / 100,
+          trialCount: c.trialCount,
+          firstRebillCount: c.firstRebillCount,
+          frr: Math.round(frr * 10) / 10,
+          refundRateM1: Math.round(refundRateM1 * 10) / 10,
+          disputeRate: Math.round(disputeRate * 100) / 100,
+          cpt: Math.round(cpt * 100) / 100,
+        },
+      };
+    });
+
+    // Sort by ad spend (highest first)
+    countries.sort((a, b) => b.kpis.adSpendEur - a.kpis.adSpendEur);
+
+    res.json({
+      success: true,
+      range: rangeParam,
+      websiteId: websiteId || null,
+      data: { countries },
+    });
+  } catch (error) {
+    console.error("[/api/business/countries] Error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
   }
 });

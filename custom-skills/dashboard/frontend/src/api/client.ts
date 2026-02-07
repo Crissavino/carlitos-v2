@@ -236,6 +236,44 @@ export interface WebsitesViewData {
   websites: WebsiteData[];
 }
 
+// Countries View
+export interface CountryKpis {
+  // M1 (cohort-based) - from customers acquired in period
+  revenueM1Eur: number;
+  trialRevenueEur: number;
+  firstRebillRevenueEur: number;
+  refundsM1Eur: number;
+  netM1: number;
+  paybackM1: number;
+
+  // Total (period-based) - all activity in period
+  totalRevenueEur: number;
+  totalRebillRevenueEur: number;
+  totalRefundsEur: number;
+  netTotal: number;
+  profit: number;
+
+  // Common
+  adSpendEur: number;
+  trialCount: number;
+  firstRebillCount: number;
+  frr: number;
+  refundRateM1: number;
+  disputeRate: number;
+  cpt: number;
+}
+
+export interface CountryData {
+  countryId: number;
+  countryCode: string;
+  countryName: string;
+  kpis: CountryKpis;
+}
+
+export interface CountriesViewData {
+  countries: CountryData[];
+}
+
 // Customer Counts
 export interface CohortDistributionItem {
   cohortMonth: string;
@@ -452,6 +490,11 @@ export const api = {
   getGlobalView: (range: string = '7d') => fetchAPI<GlobalViewData>(`/business/global?range=${range}`),
   getCompaniesView: (range: string = '7d') => fetchAPI<CompaniesViewData>(`/business/companies?range=${range}`),
   getWebsitesView: (range: string = '7d') => fetchAPI<WebsitesViewData>(`/business/websites?range=${range}`),
+  getCountriesView: (range: string = '7d', websiteId?: number) => {
+    const params = new URLSearchParams({ range });
+    if (websiteId) params.append('websiteId', websiteId.toString());
+    return fetchAPI<CountriesViewData>(`/business/countries?${params.toString()}`);
+  },
 
   // Tasks
   getTasks: (status?: string) => {
