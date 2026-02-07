@@ -40,7 +40,7 @@ const WEBSITES = [
 ];
 
 export function CampaignsView() {
-  const { selectedRange, days } = useCohort();
+  const { selectedRange, days, isPeriod } = useCohort();
   const [campaigns, setCampaigns] = useState<CampaignData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +51,12 @@ export function CampaignsView() {
 
   useEffect(() => {
     async function fetchData() {
+      if (!isPeriod) {
+        setLoading(false);
+        setCampaigns([]);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
@@ -66,7 +72,24 @@ export function CampaignsView() {
       }
     }
     fetchData();
-  }, [days, websiteFilter]);
+  }, [days, isPeriod, websiteFilter]);
+
+  if (!isPeriod) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold mb-2 flex items-center gap-3">
+            <Megaphone className="w-7 h-7 text-orange-400" />
+            Vista Campanas
+          </h1>
+        </div>
+        <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-8 text-center">
+          <p className="text-gray-400">Selecciona un rango de tiempo (7d, 14d, 30d, 60d) para ver los datos.</p>
+          <p className="text-gray-500 text-sm mt-2">Las cohortes mensuales no estan soportadas en esta vista.</p>
+        </div>
+      </div>
+    );
+  }
 
   const toggleExpand = (campaignId: number) => {
     setExpandedCampaigns(prev => {
