@@ -210,7 +210,7 @@ export function refundRateM1Query(dateRange: DateRangeConfig): QueryDefinition {
         COUNT(DISTINCT fr.customer_id) as total_first_rebills,
         COUNT(DISTINCT CASE
           WHEN fr.company_id != 3 AND ref_inv.id IS NOT NULL THEN fr.customer_id
-          WHEN fr.company_id = 3 AND zr.id IS NOT NULL THEN fr.customer_id
+          WHEN fr.company_id = 3 AND zoho_ref.customer_id IS NOT NULL THEN fr.customer_id
           ELSE NULL
         END) as refunded_first_rebills
       FROM avocode.customers c
@@ -239,8 +239,15 @@ export function refundRateM1Query(dateRange: DateRangeConfig): QueryDefinition {
         AND ref_inv.invoice_type_id = 3
         AND ref_inv.invoice_status_id = 1
         AND ref_inv.company_id != 3
-      -- Check for Zoho refund (Jackcode)
-      LEFT JOIN avocodebo.zoho_refunds zr ON zr.customer_id = c.id
+      -- Check for Zoho refund (Jackcode) via zoho_credit_notes -> zoho_invoices -> invoices
+      LEFT JOIN (
+        SELECT DISTINCT inv.customer_id
+        FROM avocodebo.zoho_refunds zr
+        JOIN avocodebo.zoho_credit_notes zcn ON zcn.id = zr.zoho_credit_note_id
+        JOIN avocodebo.zoho_invoices zi ON zi.id = zcn.zoho_invoice_id
+        JOIN avocode.invoices inv ON inv.id = zi.invoice_id
+        WHERE inv.company_id = 3
+      ) zoho_ref ON zoho_ref.customer_id = c.id AND fr.company_id = 3
       WHERE ${dateFilter}
     `,
     params: [],
