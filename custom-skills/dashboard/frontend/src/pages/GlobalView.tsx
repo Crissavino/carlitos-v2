@@ -281,6 +281,16 @@ export function GlobalView() {
         </p>
       </div>
 
+      {/* Current cohort warning */}
+      {selectedCohort.monthsAvailable === 0 && (
+        <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+          <p className="text-yellow-400 text-sm">
+            <strong>Cohorte actual (en curso):</strong> Los datos de {selectedCohort.label} aún no están completos.
+            Las métricas mostradas son proyecciones parciales del mes en curso.
+          </p>
+        </div>
+      )}
+
       {/* KPIs Section */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">

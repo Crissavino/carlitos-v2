@@ -8,14 +8,16 @@ export interface Cohort {
   monthsAvailable: number; // How many complete months of data we have
 }
 
-// Available cohorts (most recent first)
+// Available cohorts (most recent first) - Today is Feb 7, 2026
 const AVAILABLE_COHORTS: Cohort[] = [
+  { id: '2026-02', label: 'Feb 2026', startDate: new Date(2026, 1, 1), monthsAvailable: 0 },  // Current month - no complete data yet
   { id: '2026-01', label: 'Ene 2026', startDate: new Date(2026, 0, 1), monthsAvailable: 1 },
   { id: '2025-12', label: 'Dic 2025', startDate: new Date(2025, 11, 1), monthsAvailable: 2 },
   { id: '2025-11', label: 'Nov 2025', startDate: new Date(2025, 10, 1), monthsAvailable: 3 },
   { id: '2025-10', label: 'Oct 2025', startDate: new Date(2025, 9, 1), monthsAvailable: 4 },
   { id: '2025-09', label: 'Sep 2025', startDate: new Date(2025, 8, 1), monthsAvailable: 5 },
   { id: '2025-08', label: 'Ago 2025', startDate: new Date(2025, 7, 1), monthsAvailable: 6 },
+  { id: '2025-07', label: 'Jul 2025', startDate: new Date(2025, 6, 1), monthsAvailable: 7 },
 ];
 
 interface CohortContextType {
