@@ -201,20 +201,29 @@ export interface CompaniesViewData {
 
 // Websites View
 export interface WebsiteKpis {
-  profit: number;
-  grossRevenueEur: number;        // Revenue M1 (trial + first rebill)
+  // M1 (cohort-based) - from customers acquired in period
+  revenueM1Eur: number;           // Trial + First Rebill from cohort
   trialRevenueEur: number;
-  firstRebillRevenueEur: number;  // Only first rebill revenue from cohort
-  refundsEur: number;
+  firstRebillRevenueEur: number;
+  refundsM1Eur: number;           // Refunds from cohort
+  netM1: number;                  // revenueM1 - refundsM1
+  paybackM1: number;              // netM1 / adSpend
+
+  // Total (period-based) - all activity in period
+  totalRevenueEur: number;        // All revenue transacted
+  totalRebillRevenueEur: number;  // All rebills (M1, M2, M3+)
+  totalRefundsEur: number;        // All refunds transacted
+  netTotal: number;               // totalRevenue - totalRefunds
+  profit: number;                 // netTotal - adSpend
+
+  // Common
   adSpendEur: number;
-  netM1: number;
   trialCount: number;
   firstRebillCount: number;
   frr: number;
   refundRateM1: number;
   disputeRate: number;
   cpt: number;
-  payback: number;
 }
 
 export interface WebsiteData {

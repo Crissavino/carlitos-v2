@@ -113,6 +113,8 @@ import {
   frrByWebsiteQuery,
   refundRateM1ByWebsiteQuery,
   disputeRateByWebsiteQuery,
+  totalRevenueByWebsiteQuery,
+  totalRefundsByWebsiteQuery,
 } from "../skills/db-reader/queries/websites-view-kpis.js";
 
 const app = express();
@@ -2310,11 +2312,13 @@ app.get("/api/business/websites", async (req: Request, res: Response) => {
 
     const { executeRawQuery } = await import("../skills/db-reader/executor.js");
 
-    // Execute all queries in parallel
+    // Execute all queries in parallel (M1 cohort-based + Total period-based)
     console.log("[/api/business/websites] Executing queries...");
-    const [revenueRows, refundsRows, adSpendRows, frrRows, refundRateRows, disputeRows] = await Promise.all([
+    const [revenueM1Rows, refundsM1Rows, totalRevenueRows, totalRefundsRows, adSpendRows, frrRows, refundRateRows, disputeRows] = await Promise.all([
       executeRawQuery(revenueByWebsiteQuery(dateRange).sql),
       executeRawQuery(refundsByWebsiteQuery(dateRange).sql),
+      executeRawQuery(totalRevenueByWebsiteQuery(dateRange).sql),
+      executeRawQuery(totalRefundsByWebsiteQuery(dateRange).sql),
       executeRawQuery(adSpendByWebsiteQuery(dateRange).sql),
       executeRawQuery(frrByWebsiteQuery(dateRange).sql),
       executeRawQuery(refundRateM1ByWebsiteQuery(dateRange).sql),
@@ -2324,26 +2328,55 @@ app.get("/api/business/websites", async (req: Request, res: Response) => {
 
     // Build website data map
     const websiteData: Record<number, any> = {
-      1: { websiteId: 1, name: 'conversie-pdf.com', grossRevenueEur: 0, trialRevenueEur: 0, firstRebillRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
-      3: { websiteId: 3, name: 'convierte-pdf.com', grossRevenueEur: 0, trialRevenueEur: 0, firstRebillRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
-      4: { websiteId: 4, name: 'device-finder.com', grossRevenueEur: 0, trialRevenueEur: 0, firstRebillRevenueEur: 0, refundsEur: 0, adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
+      1: { websiteId: 1, name: 'conversie-pdf.com',
+           // M1 (cohort-based)
+           revenueM1Eur: 0, trialRevenueEur: 0, firstRebillRevenueEur: 0, refundsM1Eur: 0,
+           // Total (period-based)
+           totalRevenueEur: 0, totalRebillRevenueEur: 0, totalRefundsEur: 0,
+           // Common
+           adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
+      3: { websiteId: 3, name: 'convierte-pdf.com',
+           revenueM1Eur: 0, trialRevenueEur: 0, firstRebillRevenueEur: 0, refundsM1Eur: 0,
+           totalRevenueEur: 0, totalRebillRevenueEur: 0, totalRefundsEur: 0,
+           adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
+      4: { websiteId: 4, name: 'device-finder.com',
+           revenueM1Eur: 0, trialRevenueEur: 0, firstRebillRevenueEur: 0, refundsM1Eur: 0,
+           totalRevenueEur: 0, totalRebillRevenueEur: 0, totalRefundsEur: 0,
+           adSpendEur: 0, trialCount: 0, firstRebillCount: 0, totalFirstRebillsM1: 0, refundedFirstRebillsM1: 0, totalTransactions: 0, chargebackCount: 0 },
     };
 
-    // Parse revenue
-    for (const row of revenueRows as any[]) {
+    // Parse M1 revenue (cohort-based)
+    for (const row of revenueM1Rows as any[]) {
       const wid = Number(row.website_id);
       if (websiteData[wid]) {
-        websiteData[wid].grossRevenueEur = Number(row.gross_revenue_eur) || 0;
+        websiteData[wid].revenueM1Eur = Number(row.gross_revenue_eur) || 0;
         websiteData[wid].trialRevenueEur = Number(row.trial_revenue_eur) || 0;
         websiteData[wid].firstRebillRevenueEur = Number(row.first_rebill_revenue_eur) || 0;
       }
     }
 
-    // Parse refunds
-    for (const row of refundsRows as any[]) {
+    // Parse M1 refunds (cohort-based)
+    for (const row of refundsM1Rows as any[]) {
       const wid = Number(row.website_id);
       if (websiteData[wid]) {
-        websiteData[wid].refundsEur = Number(row.total_refunds_eur) || 0;
+        websiteData[wid].refundsM1Eur = Number(row.total_refunds_eur) || 0;
+      }
+    }
+
+    // Parse Total revenue (period-based)
+    for (const row of totalRevenueRows as any[]) {
+      const wid = Number(row.website_id);
+      if (websiteData[wid]) {
+        websiteData[wid].totalRevenueEur = Number(row.total_revenue_eur) || 0;
+        websiteData[wid].totalRebillRevenueEur = Number(row.total_rebill_revenue_eur) || 0;
+      }
+    }
+
+    // Parse Total refunds (period-based)
+    for (const row of totalRefundsRows as any[]) {
+      const wid = Number(row.website_id);
+      if (websiteData[wid]) {
+        websiteData[wid].totalRefundsEur = Number(row.total_refunds_eur) || 0;
       }
     }
 
@@ -2384,32 +2417,47 @@ app.get("/api/business/websites", async (req: Request, res: Response) => {
 
     // Calculate derived KPIs and format response
     const websites = Object.values(websiteData).map((w: any) => {
-      const profit = w.grossRevenueEur - w.refundsEur - w.adSpendEur;
-      const netM1 = w.grossRevenueEur - w.refundsEur;
+      // M1 metrics (cohort-based)
+      const netM1 = w.revenueM1Eur - w.refundsM1Eur;
+      const paybackM1 = w.adSpendEur > 0 ? netM1 / w.adSpendEur : 0;
+
+      // Total metrics (period-based)
+      const netTotal = w.totalRevenueEur - w.totalRefundsEur;
+      const profit = netTotal - w.adSpendEur;
+
+      // Rates
       const frr = w.trialCount > 0 ? (w.firstRebillCount / w.trialCount) * 100 : 0;
       const refundRateM1 = w.totalFirstRebillsM1 > 0 ? (w.refundedFirstRebillsM1 / w.totalFirstRebillsM1) * 100 : 0;
       const disputeRate = w.totalTransactions > 0 ? (w.chargebackCount / w.totalTransactions) * 100 : 0;
       const cpt = w.trialCount > 0 ? w.adSpendEur / w.trialCount : 0;
-      const payback = w.adSpendEur > 0 ? netM1 / w.adSpendEur : 0;
 
       return {
         websiteId: w.websiteId,
         name: w.name,
         kpis: {
-          profit: Math.round(profit * 100) / 100,
-          grossRevenueEur: Math.round(w.grossRevenueEur * 100) / 100,
+          // M1 (cohort-based) - from customers acquired in period
+          revenueM1Eur: Math.round(w.revenueM1Eur * 100) / 100,
           trialRevenueEur: Math.round(w.trialRevenueEur * 100) / 100,
           firstRebillRevenueEur: Math.round(w.firstRebillRevenueEur * 100) / 100,
-          refundsEur: Math.round(w.refundsEur * 100) / 100,
-          adSpendEur: Math.round(w.adSpendEur * 100) / 100,
+          refundsM1Eur: Math.round(w.refundsM1Eur * 100) / 100,
           netM1: Math.round(netM1 * 100) / 100,
+          paybackM1: Math.round(paybackM1 * 100) / 100,
+
+          // Total (period-based) - all activity in period
+          totalRevenueEur: Math.round(w.totalRevenueEur * 100) / 100,
+          totalRebillRevenueEur: Math.round(w.totalRebillRevenueEur * 100) / 100,
+          totalRefundsEur: Math.round(w.totalRefundsEur * 100) / 100,
+          netTotal: Math.round(netTotal * 100) / 100,
+          profit: Math.round(profit * 100) / 100,
+
+          // Common
+          adSpendEur: Math.round(w.adSpendEur * 100) / 100,
           trialCount: w.trialCount,
           firstRebillCount: w.firstRebillCount,
           frr: Math.round(frr * 10) / 10,
           refundRateM1: Math.round(refundRateM1 * 10) / 10,
           disputeRate: Math.round(disputeRate * 100) / 100,
           cpt: Math.round(cpt * 100) / 100,
-          payback: Math.round(payback * 100) / 100,
         },
       };
     });

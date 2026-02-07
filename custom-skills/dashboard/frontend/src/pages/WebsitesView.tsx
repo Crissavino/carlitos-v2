@@ -202,22 +202,22 @@ export function WebsitesView() {
       <div className="space-y-4">
         {websites.map((website) => {
           const isExpanded = expandedWebsite === website.websiteId;
-          const paybackStatus = getStatus(website.kpis.payback, { green: 1.2, yellow: 1.0 });
+          const paybackStatus = getStatus(website.kpis.paybackM1, { green: 1.2, yellow: 1.0 });
           const frrStatus = getStatus(website.kpis.frr, { green: 35, yellow: 25 });
           const refundStatus = getStatus(website.kpis.refundRateM1, { green: 5, yellow: 10 }, true);
 
-          // Build funnel data
+          // Build funnel data (M1 cohort-based)
           const funnelData: FunnelProps = {
             adSpend: website.kpis.adSpendEur,
             trials: website.kpis.trialCount,
             cpt: website.kpis.cpt,
             firstRebills: website.kpis.firstRebillCount,
             frr: website.kpis.frr,
-            revenueM1: website.kpis.grossRevenueEur,
-            refunds: website.kpis.refundsEur,
+            revenueM1: website.kpis.revenueM1Eur,
+            refunds: website.kpis.refundsM1Eur,
             refundRate: website.kpis.refundRateM1,
             netM1: website.kpis.netM1,
-            payback: website.kpis.payback,
+            payback: website.kpis.paybackM1,
           };
 
           return (
@@ -240,9 +240,9 @@ export function WebsitesView() {
                 <div className="flex items-center gap-6">
                   <div className={`text-center px-3 py-1 rounded border ${statusBg[paybackStatus]}`}>
                     <span className={`font-bold ${statusColors[paybackStatus]}`}>
-                      {website.kpis.payback.toFixed(2)}x
+                      {website.kpis.paybackM1.toFixed(2)}x
                     </span>
-                    <div className="text-xs text-gray-500">Payback</div>
+                    <div className="text-xs text-gray-500">Payback M1</div>
                   </div>
                   <div className={`text-center px-3 py-1 rounded border ${statusBg[frrStatus]}`}>
                     <span className={`font-bold ${statusColors[frrStatus]}`}>
@@ -254,7 +254,7 @@ export function WebsitesView() {
                     <span className={`font-bold ${statusColors[refundStatus]}`}>
                       {website.kpis.refundRateM1.toFixed(1)}%
                     </span>
-                    <div className="text-xs text-gray-500">Refund</div>
+                    <div className="text-xs text-gray-500">Refund M1</div>
                   </div>
                   <div className="text-center px-3 py-1">
                     <span className="font-bold">{website.kpis.trialCount}</span>
@@ -273,35 +273,84 @@ export function WebsitesView() {
                   <div className="grid lg:grid-cols-2 gap-4 mt-4">
                     <ConversionFunnel data={funnelData} />
 
-                    {/* Summary Stats */}
+                    {/* M1 Stats (Cohort-based) */}
                     <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4">
                       <h4 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">
-                        Resumen de KPIs
+                        M1 - Cohorte del Período
                       </h4>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3">
                         <div className="bg-gray-900/50 rounded-lg p-3">
-                          <div className="text-xs text-gray-500">Gross Revenue</div>
-                          <div className="text-lg font-bold">€{Math.round(website.kpis.grossRevenueEur).toLocaleString()}</div>
+                          <div className="text-xs text-gray-500">Trial Revenue</div>
+                          <div className="text-lg font-bold">€{Math.round(website.kpis.trialRevenueEur).toLocaleString()}</div>
                         </div>
+                        <div className="bg-gray-900/50 rounded-lg p-3">
+                          <div className="text-xs text-gray-500">First Rebill Revenue</div>
+                          <div className="text-lg font-bold">€{Math.round(website.kpis.firstRebillRevenueEur).toLocaleString()}</div>
+                        </div>
+                        <div className="bg-gray-900/50 rounded-lg p-3">
+                          <div className="text-xs text-gray-500">Revenue M1</div>
+                          <div className="text-lg font-bold text-blue-400">€{Math.round(website.kpis.revenueM1Eur).toLocaleString()}</div>
+                        </div>
+                        <div className="bg-gray-900/50 rounded-lg p-3">
+                          <div className="text-xs text-gray-500">Refunds M1</div>
+                          <div className="text-lg font-bold text-red-400">-€{Math.round(website.kpis.refundsM1Eur).toLocaleString()}</div>
+                        </div>
+                        <div className="bg-gray-900/50 rounded-lg p-3">
+                          <div className="text-xs text-gray-500">Net M1</div>
+                          <div className={`text-lg font-bold ${website.kpis.netM1 >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            €{Math.round(website.kpis.netM1).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="bg-gray-900/50 rounded-lg p-3">
+                          <div className="text-xs text-gray-500">Payback M1</div>
+                          <div className={`text-lg font-bold ${website.kpis.paybackM1 >= 1.2 ? 'text-green-400' : website.kpis.paybackM1 >= 1.0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            {website.kpis.paybackM1.toFixed(2)}x
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Total Stats (Period-based) */}
+                  <div className="mt-4">
+                    <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4">
+                      <h4 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">
+                        Total - Actividad del Período
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="bg-gray-900/50 rounded-lg p-3">
+                          <div className="text-xs text-gray-500">Total Revenue</div>
+                          <div className="text-lg font-bold">€{Math.round(website.kpis.totalRevenueEur).toLocaleString()}</div>
+                        </div>
+                        <div className="bg-gray-900/50 rounded-lg p-3">
+                          <div className="text-xs text-gray-500">Total Rebills</div>
+                          <div className="text-lg font-bold">€{Math.round(website.kpis.totalRebillRevenueEur).toLocaleString()}</div>
+                        </div>
+                        <div className="bg-gray-900/50 rounded-lg p-3">
+                          <div className="text-xs text-gray-500">Total Refunds</div>
+                          <div className="text-lg font-bold text-red-400">-€{Math.round(website.kpis.totalRefundsEur).toLocaleString()}</div>
+                        </div>
+                        <div className="bg-gray-900/50 rounded-lg p-3">
+                          <div className="text-xs text-gray-500">Net Total</div>
+                          <div className={`text-lg font-bold ${website.kpis.netTotal >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            €{Math.round(website.kpis.netTotal).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-3">
                         <div className="bg-gray-900/50 rounded-lg p-3">
                           <div className="text-xs text-gray-500">Ad Spend</div>
                           <div className="text-lg font-bold text-orange-400">€{Math.round(website.kpis.adSpendEur).toLocaleString()}</div>
                         </div>
                         <div className="bg-gray-900/50 rounded-lg p-3">
-                          <div className="text-xs text-gray-500">Refunds</div>
-                          <div className="text-lg font-bold text-red-400">€{Math.round(website.kpis.refundsEur).toLocaleString()}</div>
-                        </div>
-                        <div className="bg-gray-900/50 rounded-lg p-3">
-                          <div className="text-xs text-gray-500">Net M1</div>
-                          <div className="text-lg font-bold text-green-400">€{Math.round(website.kpis.netM1).toLocaleString()}</div>
+                          <div className="text-xs text-gray-500">Profit</div>
+                          <div className={`text-lg font-bold ${website.kpis.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {website.kpis.profit >= 0 ? '+' : ''}€{Math.round(website.kpis.profit).toLocaleString()}
+                          </div>
                         </div>
                         <div className="bg-gray-900/50 rounded-lg p-3">
                           <div className="text-xs text-gray-500">CPT</div>
                           <div className="text-lg font-bold">€{Math.round(website.kpis.cpt)}</div>
-                        </div>
-                        <div className="bg-gray-900/50 rounded-lg p-3">
-                          <div className="text-xs text-gray-500">First Rebills</div>
-                          <div className="text-lg font-bold">{website.kpis.firstRebillCount}</div>
                         </div>
                       </div>
                     </div>
