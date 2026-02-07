@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Megaphone, Filter, ChevronDown, ChevronUp, Loader2, TrendingUp, TrendingDown, AlertCircle, Globe, Map } from 'lucide-react';
 import { useCohort } from '../contexts/CohortContext';
-import { api, CampaignData } from '../api/client';
+import { api, type CampaignData } from '../api/client';
 
 type Status = 'green' | 'yellow' | 'red' | 'neutral';
 
@@ -40,7 +40,7 @@ const WEBSITES = [
 ];
 
 export function CampaignsView() {
-  const { selectedRange, rangeApiParam } = useCohort();
+  const { selectedRange, days } = useCohort();
   const [campaigns, setCampaigns] = useState<CampaignData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,9 +54,10 @@ export function CampaignsView() {
       setLoading(true);
       setError(null);
       try {
-        const response = await api.getCampaignsView(rangeApiParam, websiteFilter);
-        if (response.data?.campaigns) {
-          setCampaigns(response.data.campaigns.filter(c => c && c.kpis));
+        const range = `${days}d`;
+        const result = await api.getCampaignsView(range, websiteFilter);
+        if (result.campaigns) {
+          setCampaigns(result.campaigns.filter((c: CampaignData) => c && c.kpis));
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error loading campaigns');
@@ -65,7 +66,7 @@ export function CampaignsView() {
       }
     }
     fetchData();
-  }, [rangeApiParam, websiteFilter]);
+  }, [days, websiteFilter]);
 
   const toggleExpand = (campaignId: number) => {
     setExpandedCampaigns(prev => {
