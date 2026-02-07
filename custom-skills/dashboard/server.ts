@@ -1912,8 +1912,8 @@ import {
   getMacroRecommendations,
 } from "../skills/decision-engine/business-rules/macro-engine.js";
 
-// GET /api/business/websites - Aggregated metrics by website
-app.get("/api/business/websites", async (req: Request, res: Response) => {
+// GET /api/business/websites-legacy - Old aggregated metrics by website (ads-focused)
+app.get("/api/business/websites-legacy", async (req: Request, res: Response) => {
   try {
     const data = await getWebsiteView();
     if (!data) {
