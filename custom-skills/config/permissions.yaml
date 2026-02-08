@@ -17,6 +17,7 @@ skills:
     enabled: true
     permissions:
       - SELECT
+      - arbitrary_select  # Allows arbitrary SELECT queries via CLI
     prohibited:
       - INSERT
       - UPDATE
@@ -24,6 +25,9 @@ skills:
       - DROP
       - ALTER
       - TRUNCATE
+      - CREATE
+      - GRANT
+      - REVOKE
     connection:
       mode: read-only
       user: readonly_user

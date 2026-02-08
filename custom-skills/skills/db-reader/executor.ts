@@ -124,6 +124,98 @@ export async function executeRawQuery(sql: string, params: unknown[] = []): Prom
   return executeRealQuery(sql, params);
 }
 
+/**
+ * Execute an arbitrary SQL query from the CLI.
+ * Safety: Only SELECT statements are allowed (validated before execution).
+ */
+export async function executeArbitrarySql(rawSql: string): Promise<DBReaderResponse> {
+  const startTime = Date.now();
+  const trimmed = rawSql.trim();
+
+  // Validate: must start with SELECT (case-insensitive)
+  if (!/^\s*SELECT\b/i.test(trimmed)) {
+    return {
+      queryId: "sql" as any,
+      executedAt: new Date().toISOString(),
+      status: "blocked",
+      results: null,
+      error: "Only SELECT queries are allowed. Your query must start with SELECT.",
+      meta: { rowCount: 0, executionTimeMs: Date.now() - startTime },
+    };
+  }
+
+  // Validate: reject dangerous keywords that could modify data
+  const dangerousPatterns = [
+    /\bINSERT\b/i, /\bUPDATE\b/i, /\bDELETE\b/i,
+    /\bDROP\b/i, /\bALTER\b/i, /\bTRUNCATE\b/i,
+    /\bCREATE\b/i, /\bGRANT\b/i, /\bREVOKE\b/i,
+    /\bINTO\s+OUTFILE\b/i, /\bINTO\s+DUMPFILE\b/i,
+    /\bLOAD_FILE\b/i,
+  ];
+
+  for (const pattern of dangerousPatterns) {
+    if (pattern.test(trimmed)) {
+      return {
+        queryId: "sql" as any,
+        executedAt: new Date().toISOString(),
+        status: "blocked",
+        results: null,
+        error: `Prohibited SQL pattern detected: ${pattern.source}. Only read-only SELECT queries are allowed.`,
+        meta: { rowCount: 0, executionTimeMs: Date.now() - startTime },
+      };
+    }
+  }
+
+  await audit.log({
+    skill: "db-reader",
+    action: "execute_arbitrary_sql",
+    input: { sql: trimmed },
+    output: null,
+    queries: [trimmed],
+  });
+
+  try {
+    const rows = await executeRealQuery(trimmed, []);
+    const executionTimeMs = Date.now() - startTime;
+
+    await audit.log({
+      skill: "db-reader",
+      action: "arbitrary_sql_success",
+      input: { sql: trimmed },
+      output: { rowCount: (rows as any[]).length, executionTimeMs },
+      queries: [trimmed],
+    });
+
+    return {
+      queryId: "sql" as any,
+      executedAt: new Date().toISOString(),
+      status: "success",
+      results: rows,
+      meta: { rowCount: (rows as any[]).length, executionTimeMs },
+    };
+  } catch (error) {
+    const executionTimeMs = Date.now() - startTime;
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+    await audit.log({
+      skill: "db-reader",
+      action: "arbitrary_sql_error",
+      input: { sql: trimmed },
+      output: { error: errorMessage },
+      queries: [trimmed],
+    });
+
+    return {
+      queryId: "sql" as any,
+      executedAt: new Date().toISOString(),
+      status: "error",
+      results: null,
+      error: `SQL query failed: ${errorMessage}`,
+      meta: { rowCount: 0, executionTimeMs },
+    };
+  }
+}
+
 function formatResults(queryId: AllowedQueryId, rows: unknown[]): unknown {
   switch (queryId) {
     case "active-subscriptions": {
