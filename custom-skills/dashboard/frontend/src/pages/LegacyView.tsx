@@ -184,10 +184,10 @@ export function LegacyView() {
               {showRebillRate ? (
                 <>
                   <div className={`text-2xl font-bold ${
-                    website.rebillRate >= 35 ? 'text-green-400' :
-                    website.rebillRate >= 25 ? 'text-yellow-400' : 'text-red-400'
+                    Number(website.rebillRate) >= 35 ? 'text-green-400' :
+                    Number(website.rebillRate) >= 25 ? 'text-yellow-400' : 'text-red-400'
                   }`}>
-                    {website.rebillRate.toFixed(1)}%
+                    {Number(website.rebillRate).toFixed(1)}%
                   </div>
                   <div className="text-xs text-gray-500 mt-2">
                     {website.firstRebills} rebills / {website.trials} trials
@@ -196,13 +196,13 @@ export function LegacyView() {
               ) : (
                 <>
                   <div className={`text-2xl font-bold ${
-                    website.costPerFirstRebill <= 80 ? 'text-green-400' :
-                    website.costPerFirstRebill <= 120 ? 'text-yellow-400' : 'text-red-400'
+                    Number(website.costPerFirstRebill) <= 80 ? 'text-green-400' :
+                    Number(website.costPerFirstRebill) <= 120 ? 'text-yellow-400' : 'text-red-400'
                   }`}>
-                    €{website.costPerFirstRebill.toFixed(0)}
+                    €{Number(website.costPerFirstRebill).toFixed(0)}
                   </div>
                   <div className="text-xs text-gray-500 mt-2">
-                    €{website.adsExpenseEur.toFixed(0)} ads / {website.firstRebills} rebills
+                    €{Number(website.adsExpenseEur).toFixed(0)} ads / {website.firstRebills} rebills
                   </div>
                 </>
               )}
@@ -211,10 +211,10 @@ export function LegacyView() {
               <div className="mt-3 h-2 bg-gray-600/50 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full ${
-                    website.rebillRate >= 35 ? 'bg-green-500' :
-                    website.rebillRate >= 25 ? 'bg-yellow-500' : 'bg-red-500'
+                    Number(website.rebillRate) >= 35 ? 'bg-green-500' :
+                    Number(website.rebillRate) >= 25 ? 'bg-yellow-500' : 'bg-red-500'
                   }`}
-                  style={{ width: `${Math.min(website.rebillRate, 100)}%` }}
+                  style={{ width: `${Math.min(Number(website.rebillRate), 100)}%` }}
                 />
               </div>
             </div>
