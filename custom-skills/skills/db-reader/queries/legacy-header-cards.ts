@@ -141,18 +141,15 @@ export function adsExpenseMtdQuery(): QueryDefinition {
     description: "Total ads expense MTD converted to EUR",
     sql: `
       SELECT COALESCE(SUM(
-        CASE
-          WHEN currency = 'RON' THEN cost / 4.95
-          ELSE cost
+        CASE c.currency_id
+          WHEN 4 THEN a.cost / 4.95  -- RON to EUR
+          ELSE a.cost
         END
       ), 0) as ads_expense_eur
-      FROM avocodebo.google_ads_campaign_metrics
-      WHERE date_range = '7d'
-        AND ingested_at = (
-          SELECT MAX(ingested_at)
-          FROM avocodebo.google_ads_campaign_metrics
-          WHERE date_range = '7d'
-        )
+      FROM avocodebo.ads a
+      INNER JOIN avocodebo.campaigns c ON a.campaign_id = c.id
+      WHERE a.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+        AND a.date <= CURDATE()
     `,
     params: [],
     permissions: ["SELECT"],
@@ -173,7 +170,7 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
         SELECT
           w.id as website_id,
           w.name as website_name,
-          COUNT(DISTINCT i.id) as first_rebills,
+          COUNT(DISTINCT CASE WHEN i.invoice_type_id = 2 THEN i.id END) as first_rebills,
           COUNT(DISTINCT CASE WHEN i.invoice_type_id = 1 THEN i.id END) as trials
         FROM avocode.invoices i
         JOIN avocode.websites w ON w.id = i.website_id
@@ -187,19 +184,15 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
         SELECT
           c.website_id,
           SUM(
-            CASE
-              WHEN m.currency = 'RON' THEN m.cost / 4.95
-              ELSE m.cost
+            CASE c.currency_id
+              WHEN 4 THEN a.cost / 4.95  -- RON to EUR
+              ELSE a.cost
             END
           ) as ads_expense_eur
-        FROM avocodebo.google_ads_campaign_metrics m
-        JOIN avocodebo.campaigns c ON c.google_campaign_id = m.campaign_id
-        WHERE m.date_range = '7d'
-          AND m.ingested_at = (
-            SELECT MAX(ingested_at)
-            FROM avocodebo.google_ads_campaign_metrics
-            WHERE date_range = '7d'
-          )
+        FROM avocodebo.ads a
+        INNER JOIN avocodebo.campaigns c ON a.campaign_id = c.id
+        WHERE a.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND a.date <= CURDATE()
         GROUP BY c.website_id
       )
       SELECT
