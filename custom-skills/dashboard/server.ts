@@ -127,6 +127,14 @@ import {
   disputeRateByCountryQuery,
   DateRangeConfig as CountryDateRangeConfig,
 } from "../skills/db-reader/queries/countries-view-kpis.js";
+import {
+  activeAcquisitionsQuery,
+  activeSubscribersQuery,
+  grossTurnoverPerDayQuery,
+  refundsMtdQuery,
+  adsExpenseMtdQuery,
+  costPerFirstRebillByWebsiteQuery,
+} from "../skills/db-reader/queries/legacy-header-cards.js";
 
 const app = express();
 const PORT = parseInt(process.env.DASHBOARD_PORT || "3002", 10);
@@ -2812,6 +2820,121 @@ app.get("/api/business/funnel", async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("[/api/business/funnel] Error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+// ============================================================================
+// LEGACY VIEW - Header Cards
+// ============================================================================
+
+/**
+ * GET /api/legacy/header-cards
+ *
+ * Returns KPIs for Legacy Dashboard Header Cards:
+ * - Active Acquisitions / Active Subscribers
+ * - Cost Per First Rebill by Website / Rebill Rate
+ * - Gross Turnover Per Day / Net Turnover Per Day
+ */
+app.get("/api/legacy/header-cards", async (req: Request, res: Response) => {
+  try {
+    const { executeRawQuery } = await import("../skills/db-reader/executor.js");
+
+    // Execute all queries in parallel
+    const [
+      acquisitionsRows,
+      subscribersRows,
+      grossTurnoverRows,
+      refundsRows,
+      adsExpenseRows,
+      cpfrByWebsiteRows,
+    ] = await Promise.all([
+      executeRawQuery(activeAcquisitionsQuery().sql),
+      executeRawQuery(activeSubscribersQuery().sql),
+      executeRawQuery(grossTurnoverPerDayQuery().sql),
+      executeRawQuery(refundsMtdQuery().sql),
+      executeRawQuery(adsExpenseMtdQuery().sql),
+      executeRawQuery(costPerFirstRebillByWebsiteQuery().sql),
+    ]);
+
+    // Parse results with type casting
+    const acqRow = acquisitionsRows[0] as { active_acquisitions?: number } | undefined;
+    const subRow = subscribersRows[0] as { active_subscribers?: number } | undefined;
+    const grossRow = grossTurnoverRows[0] as { gross_turnover_per_day?: number; gross_turnover_mtd?: number; days_in_month?: number } | undefined;
+    const refRow = refundsRows[0] as { total_refunds_eur?: number } | undefined;
+    const adsRow = adsExpenseRows[0] as { ads_expense_eur?: number } | undefined;
+
+    const activeAcquisitions = acqRow?.active_acquisitions || 0;
+    const activeSubscribers = subRow?.active_subscribers || 0;
+
+    const grossTurnoverPerDay = grossRow?.gross_turnover_per_day || 0;
+    const grossTurnoverMtd = grossRow?.gross_turnover_mtd || 0;
+    const daysInMonth = grossRow?.days_in_month || 1;
+
+    const totalRefundsEur = refRow?.total_refunds_eur || 0;
+    const adsExpenseEur = adsRow?.ads_expense_eur || 0;
+
+    // Calculate Net Turnover
+    const netTurnoverMtd = grossTurnoverMtd - totalRefundsEur - adsExpenseEur;
+    const netTurnoverPerDay = Math.round((netTurnoverMtd / daysInMonth) * 100) / 100;
+
+    // Parse CPFR by website
+    interface CpfrRow {
+      website_id: number;
+      website_name: string;
+      first_rebills: number;
+      trials: number;
+      ads_expense_eur: number;
+      cost_per_first_rebill: number;
+      rebill_rate: number;
+    }
+
+    const costPerRebillByWebsite: Record<string, {
+      websiteId: number;
+      websiteName: string;
+      firstRebills: number;
+      trials: number;
+      adsExpenseEur: number;
+      costPerFirstRebill: number;
+      rebillRate: number;
+    }> = {};
+
+    for (const row of cpfrByWebsiteRows as CpfrRow[]) {
+      costPerRebillByWebsite[row.website_name] = {
+        websiteId: row.website_id,
+        websiteName: row.website_name,
+        firstRebills: row.first_rebills || 0,
+        trials: row.trials || 0,
+        adsExpenseEur: row.ads_expense_eur || 0,
+        costPerFirstRebill: row.cost_per_first_rebill || 0,
+        rebillRate: row.rebill_rate || 0,
+      };
+    }
+
+    res.json({
+      success: true,
+      data: {
+        // Card 1: Acquisitions / Subscribers
+        activeAcquisitions,
+        activeSubscribers,
+
+        // Card 2: Turnover Per Day
+        grossTurnoverPerDay: Math.round(grossTurnoverPerDay * 100) / 100,
+        netTurnoverPerDay,
+        grossTurnoverMtd: Math.round(grossTurnoverMtd * 100) / 100,
+        netTurnoverMtd: Math.round(netTurnoverMtd * 100) / 100,
+        daysInMonth,
+
+        // Card 3: Cost Per First Rebill by Website
+        costPerRebillByWebsite,
+
+        // Totals for ads/refunds
+        totalRefundsEur: Math.round(totalRefundsEur * 100) / 100,
+        adsExpenseEur: Math.round(adsExpenseEur * 100) / 100,
+      },
+    });
+  } catch (error) {
+    console.error("[/api/legacy/header-cards] Error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
   }
 });

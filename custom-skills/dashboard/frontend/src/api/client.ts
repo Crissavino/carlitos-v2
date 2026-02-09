@@ -683,6 +683,9 @@ export const api = {
   getSearchTermsWaste: () => fetchAPI<SearchTermsWasteResult>('/search-terms/waste'),
   getSearchTermsByCampaign: (campaignId: string) => fetchAPI<{ campaignId: string; count: number; searchTerms: SearchTermPerformance[] }>(`/search-terms/by-campaign/${campaignId}`),
   getSearchTermsByKeyword: (keyword: string) => fetchAPI<{ keywordText: string; count: number; searchTerms: SearchTermPerformance[] }>(`/search-terms/by-keyword?keyword=${encodeURIComponent(keyword)}`),
+
+  // Legacy Dashboard
+  getLegacyHeaderCards: () => fetchAPI<LegacyHeaderCardsData>('/legacy/header-cards'),
 };
 
 // ============================================================================
@@ -1141,6 +1144,40 @@ export async function sendChatMessage(
   } catch (error) {
     onError(error instanceof Error ? error.message : 'Unknown error');
   }
+}
+
+// ============================================================================
+// Legacy Dashboard - Header Cards
+// ============================================================================
+
+export interface LegacyWebsiteCpfr {
+  websiteId: number;
+  websiteName: string;
+  firstRebills: number;
+  trials: number;
+  adsExpenseEur: number;
+  costPerFirstRebill: number;
+  rebillRate: number;
+}
+
+export interface LegacyHeaderCardsData {
+  // Card 1: Acquisitions / Subscribers
+  activeAcquisitions: number;
+  activeSubscribers: number;
+
+  // Card 2: Turnover Per Day
+  grossTurnoverPerDay: number;
+  netTurnoverPerDay: number;
+  grossTurnoverMtd: number;
+  netTurnoverMtd: number;
+  daysInMonth: number;
+
+  // Card 3: Cost Per First Rebill by Website
+  costPerRebillByWebsite: Record<string, LegacyWebsiteCpfr>;
+
+  // Totals
+  totalRefundsEur: number;
+  adsExpenseEur: number;
 }
 
 // Convert File to base64 data URL

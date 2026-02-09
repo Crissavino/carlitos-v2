@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Kanban as KanbanIcon, Users, LogOut, Loader2, MessageSquare, Menu, X, ChevronDown, Globe, Building2, Activity, Map, Megaphone, GitBranch, Calendar } from 'lucide-react';
+import { LayoutDashboard, Kanban as KanbanIcon, Users, LogOut, Loader2, MessageSquare, Menu, X, ChevronDown, Globe, Building2, Activity, Map, Megaphone, GitBranch, Calendar, Archive } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { CohortProvider, useCohort } from './contexts/CohortContext';
 import { Login } from './pages/Login';
@@ -12,8 +12,9 @@ import { WebsitesView } from './pages/WebsitesView';
 import { CountriesView } from './pages/CountriesView';
 import { CampaignsView } from './pages/CampaignsView';
 import { FunnelView } from './pages/FunnelView';
+import { LegacyView } from './pages/LegacyView';
 
-type Page = 'global' | 'companies' | 'websites' | 'countries' | 'campaigns' | 'funnel' | 'kanban' | 'users' | 'chat';
+type Page = 'global' | 'companies' | 'websites' | 'countries' | 'campaigns' | 'funnel' | 'legacy' | 'kanban' | 'users' | 'chat';
 
 function AppContent() {
   const { user, isLoading, isAdmin, logout } = useAuth();
@@ -39,7 +40,7 @@ function AppContent() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isDashboardPage = ['global', 'companies', 'websites', 'countries', 'campaigns', 'funnel'].includes(page);
+  const isDashboardPage = ['global', 'companies', 'websites', 'countries', 'campaigns', 'funnel', 'legacy'].includes(page);
 
   const navigateTo = (newPage: Page) => {
     setPage(newPage);
@@ -85,6 +86,7 @@ function AppContent() {
     { id: 'countries' as const, label: 'Países', icon: Map },
     { id: 'campaigns' as const, label: 'Campañas', icon: Megaphone },
     { id: 'funnel' as const, label: 'Funnel & Cohortes', icon: GitBranch },
+    { id: 'legacy' as const, label: 'Legacy', icon: Archive },
   ];
 
   const currentDashboardPage = dashboardPages.find(p => p.id === page);
@@ -315,6 +317,7 @@ function AppContent() {
         {page === 'countries' && <CountriesView />}
         {page === 'campaigns' && <CampaignsView />}
         {page === 'funnel' && <FunnelView />}
+        {page === 'legacy' && <LegacyView />}
         {page === 'kanban' && <Kanban />}
         {page === 'users' && isAdmin && <AdminUsers />}
         {page === 'chat' && isAdmin && <Chat />}
