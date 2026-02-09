@@ -110,9 +110,9 @@ export function refundsMtdQuery(): QueryDefinition {
 
         UNION ALL
 
-        -- Zoho refunds (Jackcode)
+        -- Zoho refunds (Jackcode) - join via zoho_credit_notes
         SELECT
-          zr.amount / CASE zc.currency_code
+          zr.amount / CASE COALESCE(zc.currency_code, zosc.currency_code)
             WHEN 'EUR' THEN 1
             WHEN 'USD' THEN 1.08
             WHEN 'GBP' THEN 0.84
@@ -120,7 +120,9 @@ export function refundsMtdQuery(): QueryDefinition {
             ELSE 1
           END as refund_eur
         FROM avocodebo.zoho_refunds zr
-        JOIN avocodebo.zoho_customers zc ON zc.id = zr.customer_id
+        LEFT JOIN avocodebo.zoho_credit_notes zcn ON zr.zoho_credit_note_id = zcn.id
+        LEFT JOIN avocodebo.zoho_customers zc ON zcn.zoho_customer_id = zc.id
+        LEFT JOIN avocodebo.zoho_one_shot_customers zosc ON zcn.zoho_one_shot_customer_id = zosc.id
         WHERE zr.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
           AND zr.created_at < CURDATE() + INTERVAL 1 DAY
       ) refunds
