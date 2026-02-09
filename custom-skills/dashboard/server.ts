@@ -2840,22 +2840,30 @@ app.get("/api/legacy/header-cards", async (req: Request, res: Response) => {
   try {
     const { executeRawQuery } = await import("../skills/db-reader/executor.js");
 
-    // Execute all queries in parallel
-    const [
-      acquisitionsRows,
-      subscribersRows,
-      grossTurnoverRows,
-      refundsRows,
-      adsExpenseRows,
-      cpfrByWebsiteRows,
-    ] = await Promise.all([
-      executeRawQuery(activeAcquisitionsQuery().sql),
-      executeRawQuery(activeSubscribersQuery().sql),
-      executeRawQuery(grossTurnoverPerDayQuery().sql),
-      executeRawQuery(refundsMtdQuery().sql),
-      executeRawQuery(adsExpenseMtdQuery().sql),
-      executeRawQuery(costPerFirstRebillByWebsiteQuery().sql),
-    ]);
+    // Execute queries one by one with logging to debug errors
+    console.log("[legacy-header-cards] Running activeAcquisitions...");
+    const acquisitionsRows = await executeRawQuery(activeAcquisitionsQuery().sql);
+    console.log("[legacy-header-cards] activeAcquisitions OK");
+
+    console.log("[legacy-header-cards] Running activeSubscribers...");
+    const subscribersRows = await executeRawQuery(activeSubscribersQuery().sql);
+    console.log("[legacy-header-cards] activeSubscribers OK");
+
+    console.log("[legacy-header-cards] Running grossTurnover...");
+    const grossTurnoverRows = await executeRawQuery(grossTurnoverPerDayQuery().sql);
+    console.log("[legacy-header-cards] grossTurnover OK");
+
+    console.log("[legacy-header-cards] Running refunds...");
+    const refundsRows = await executeRawQuery(refundsMtdQuery().sql);
+    console.log("[legacy-header-cards] refunds OK");
+
+    console.log("[legacy-header-cards] Running adsExpense...");
+    const adsExpenseRows = await executeRawQuery(adsExpenseMtdQuery().sql);
+    console.log("[legacy-header-cards] adsExpense OK");
+
+    console.log("[legacy-header-cards] Running cpfrByWebsite...");
+    const cpfrByWebsiteRows = await executeRawQuery(costPerFirstRebillByWebsiteQuery().sql);
+    console.log("[legacy-header-cards] cpfrByWebsite OK");
 
     // Parse results with type casting
     const acqRow = acquisitionsRows[0] as { active_acquisitions?: number } | undefined;
