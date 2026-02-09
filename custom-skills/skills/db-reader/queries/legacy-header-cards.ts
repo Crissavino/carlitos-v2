@@ -6,18 +6,19 @@
 
 import { QueryDefinition } from "../types.js";
 
-// Currency conversion rates to EUR (hardcoded como en el legacy)
-const CURRENCY_CONVERSION = `
-  CASE currency_id
-    WHEN 1 THEN amount              -- EUR
-    WHEN 2 THEN amount * 1.15       -- USD
-    WHEN 3 THEN amount * 0.85       -- GBP
-    WHEN 4 THEN amount * 0.2        -- RON
-    WHEN 6 THEN amount * 0.0026     -- HUF
-    WHEN 7 THEN amount * 0.00093    -- CLP
-    WHEN 8 THEN amount * 0.16       -- BRL
-    WHEN 9 THEN amount * 0.027      -- UAH
-    ELSE amount
+// Currency conversion: amount / rate = EUR
+// invoices uses currency_code (string like 'EUR', 'USD', 'RON')
+const CURRENCY_RATE_CASE = `
+  CASE currency_code
+    WHEN 'EUR' THEN 1
+    WHEN 'USD' THEN 1.08
+    WHEN 'GBP' THEN 0.84
+    WHEN 'RON' THEN 4.97
+    WHEN 'HUF' THEN 408
+    WHEN 'CLP' THEN 1020
+    WHEN 'BRL' THEN 6.35
+    WHEN 'UAH' THEN 43.5
+    ELSE 1
   END
 `;
 
@@ -73,11 +74,8 @@ export function grossTurnoverPerDayQuery(): QueryDefinition {
     description: "MTD daily average of paid invoices (trials + rebills) converted to EUR",
     sql: `
       SELECT
-        ROUND(
-          SUM(${CURRENCY_CONVERSION}) / DAY(CURDATE()),
-          2
-        ) as gross_turnover_per_day,
-        SUM(${CURRENCY_CONVERSION}) as gross_turnover_mtd,
+        ROUND(SUM(amount / ${CURRENCY_RATE_CASE}) / DAY(CURDATE()), 2) as gross_turnover_per_day,
+        SUM(amount / ${CURRENCY_RATE_CASE}) as gross_turnover_mtd,
         DAY(CURDATE()) as days_in_month
       FROM avocode.invoices
       WHERE invoice_type_id IN (1, 2)
@@ -103,7 +101,7 @@ export function refundsMtdQuery(): QueryDefinition {
       SELECT COALESCE(SUM(refund_eur), 0) as total_refunds_eur
       FROM (
         -- Invoice refunds (Avocode/KiwiKode) - type 3, company != 3
-        SELECT ${CURRENCY_CONVERSION} as refund_eur
+        SELECT amount / ${CURRENCY_RATE_CASE} as refund_eur
         FROM avocode.invoices
         WHERE invoice_type_id = 3
           AND company_id != 3
@@ -114,11 +112,12 @@ export function refundsMtdQuery(): QueryDefinition {
 
         -- Zoho refunds (Jackcode)
         SELECT
-          CASE zc.currency_code
-            WHEN 'USD' THEN zr.amount * 1.15
-            WHEN 'GBP' THEN zr.amount * 0.85
-            WHEN 'RON' THEN zr.amount * 0.2
-            ELSE zr.amount
+          zr.amount / CASE zc.currency_code
+            WHEN 'EUR' THEN 1
+            WHEN 'USD' THEN 1.08
+            WHEN 'GBP' THEN 0.84
+            WHEN 'RON' THEN 4.97
+            ELSE 1
           END as refund_eur
         FROM avocodebo.zoho_refunds zr
         JOIN avocodebo.zoho_customers zc ON zc.id = zr.customer_id
@@ -133,6 +132,7 @@ export function refundsMtdQuery(): QueryDefinition {
 
 /**
  * Ads Expense MTD - Gasto en publicidad del mes
+ * campaigns.currency_id: 2=EUR, 4=RON
  */
 export function adsExpenseMtdQuery(): QueryDefinition {
   return {
@@ -141,9 +141,10 @@ export function adsExpenseMtdQuery(): QueryDefinition {
     description: "Total ads expense MTD converted to EUR",
     sql: `
       SELECT COALESCE(SUM(
-        CASE c.currency_id
-          WHEN 4 THEN a.cost / 4.95  -- RON to EUR
-          ELSE a.cost
+        a.cost / CASE c.currency_id
+          WHEN 2 THEN 1      -- EUR
+          WHEN 4 THEN 4.97   -- RON
+          ELSE 1
         END
       ), 0) as ads_expense_eur
       FROM avocodebo.ads a
@@ -184,9 +185,10 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
         SELECT
           c.website_id,
           SUM(
-            CASE c.currency_id
-              WHEN 4 THEN a.cost / 4.95  -- RON to EUR
-              ELSE a.cost
+            a.cost / CASE c.currency_id
+              WHEN 2 THEN 1      -- EUR
+              WHEN 4 THEN 4.97   -- RON
+              ELSE 1
             END
           ) as ads_expense_eur
         FROM avocodebo.ads a
