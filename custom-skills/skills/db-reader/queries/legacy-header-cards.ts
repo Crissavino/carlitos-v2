@@ -28,13 +28,11 @@ export function activeAcquisitionsQuery(): QueryDefinition {
   return {
     id: "legacy-active-acquisitions" as any,
     name: "Active Acquisitions",
-    description: "Subscriptions not cancelled with is_test = 0",
+    description: "Subscriptions not cancelled",
     sql: `
       SELECT COUNT(*) as active_acquisitions
       FROM avocode.subscriptions s
-      JOIN avocode.payments p ON p.id = s.payment_id
       WHERE s.cancelled_at IS NULL
-        AND p.is_test = 0
     `,
     params: [],
     permissions: ["SELECT"],
@@ -52,9 +50,7 @@ export function activeSubscribersQuery(): QueryDefinition {
     sql: `
       SELECT COUNT(DISTINCT s.id) as active_subscribers
       FROM avocode.subscriptions s
-      JOIN avocode.payments p ON p.id = s.payment_id
       WHERE s.cancelled_at IS NULL
-        AND p.is_test = 0
         AND EXISTS (
           SELECT 1 FROM avocode.invoices i
           WHERE i.customer_id = s.customer_id

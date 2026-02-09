@@ -22,8 +22,10 @@ function AppContent() {
   const [page, setPage] = useState<Page>('global');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardDropdownOpen, setDashboardDropdownOpen] = useState(false);
+  const [legacyDropdownOpen, setLegacyDropdownOpen] = useState(false);
   const [cohortDropdownOpen, setCohortDropdownOpen] = useState(false);
   const dashboardDropdownRef = useRef<HTMLDivElement>(null);
+  const legacyDropdownRef = useRef<HTMLDivElement>(null);
   const cohortDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns when clicking outside
@@ -31,6 +33,9 @@ function AppContent() {
     function handleClickOutside(event: MouseEvent) {
       if (dashboardDropdownRef.current && !dashboardDropdownRef.current.contains(event.target as Node)) {
         setDashboardDropdownOpen(false);
+      }
+      if (legacyDropdownRef.current && !legacyDropdownRef.current.contains(event.target as Node)) {
+        setLegacyDropdownOpen(false);
       }
       if (cohortDropdownRef.current && !cohortDropdownRef.current.contains(event.target as Node)) {
         setCohortDropdownOpen(false);
@@ -40,12 +45,14 @@ function AppContent() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isDashboardPage = ['global', 'companies', 'websites', 'countries', 'campaigns', 'funnel', 'legacy'].includes(page);
+  const isDashboardPage = ['global', 'companies', 'websites', 'countries', 'campaigns', 'funnel'].includes(page);
+  const isLegacyPage = page === 'legacy';
 
   const navigateTo = (newPage: Page) => {
     setPage(newPage);
     setMobileMenuOpen(false);
     setDashboardDropdownOpen(false);
+    setLegacyDropdownOpen(false);
   };
 
   // Loading state
@@ -86,7 +93,10 @@ function AppContent() {
     { id: 'countries' as const, label: 'Países', icon: Map },
     { id: 'campaigns' as const, label: 'Campañas', icon: Megaphone },
     { id: 'funnel' as const, label: 'Funnel & Cohortes', icon: GitBranch },
-    { id: 'legacy' as const, label: 'Legacy', icon: Archive },
+  ];
+
+  const legacyPages = [
+    { id: 'legacy' as const, label: 'Header Cards', icon: Archive },
   ];
 
   const currentDashboardPage = dashboardPages.find(p => p.id === page);
@@ -124,6 +134,39 @@ function AppContent() {
                 {dashboardDropdownOpen && (
                   <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[200px] z-50">
                     {dashboardPages.map(({ id, label, icon: Icon }) => (
+                      <button
+                        key={id}
+                        onClick={() => navigateTo(id)}
+                        className={`w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                          page === id ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Legacy Dashboard Dropdown */}
+              <div className="relative" ref={legacyDropdownRef}>
+                <button
+                  onClick={() => setLegacyDropdownOpen(!legacyDropdownOpen)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    isLegacyPage
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                  }`}
+                >
+                  <Archive className="w-4 h-4" />
+                  <span>Legacy</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform ${legacyDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {legacyDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[200px] z-50">
+                    {legacyPages.map(({ id, label, icon: Icon }) => (
                       <button
                         key={id}
                         onClick={() => navigateTo(id)}
@@ -240,6 +283,23 @@ function AppContent() {
                 <span className="px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Dashboard</span>
               </div>
               {dashboardPages.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => navigateTo(id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
+                    page === id ? 'bg-gray-800 text-white' : 'text-gray-400'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {label}
+                </button>
+              ))}
+
+              {/* Legacy Section */}
+              <div className="pt-2 pb-1">
+                <span className="px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Legacy Dashboard</span>
+              </div>
+              {legacyPages.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => navigateTo(id)}
