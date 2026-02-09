@@ -169,36 +169,6 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
     name: "Cost Per First Rebill by Website",
     description: "MTD cost per first rebill grouped by website",
     sql: `
-      WITH monthly_rebills AS (
-        SELECT
-          w.id as website_id,
-          w.name as website_name,
-          COUNT(DISTINCT CASE WHEN i.invoice_type_id = 2 THEN i.id END) as first_rebills,
-          COUNT(DISTINCT CASE WHEN i.invoice_type_id = 1 THEN i.id END) as trials
-        FROM avocode.invoices i
-        JOIN avocode.websites w ON w.id = i.website_id
-        WHERE i.invoice_type_id IN (1, 2)
-          AND i.invoice_status_id = 1
-          AND i.transacted_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-          AND i.transacted_at < CURDATE() + INTERVAL 1 DAY
-        GROUP BY w.id, w.name
-      ),
-      monthly_ads AS (
-        SELECT
-          c.website_id,
-          SUM(
-            a.cost / CASE c.currency_id
-              WHEN 2 THEN 1      -- EUR
-              WHEN 4 THEN 4.97   -- RON
-              ELSE 1
-            END
-          ) as ads_expense_eur
-        FROM avocodebo.ads a
-        INNER JOIN avocodebo.campaigns c ON a.campaign_id = c.id
-        WHERE a.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-          AND a.date <= CURDATE()
-        GROUP BY c.website_id
-      )
       SELECT
         mr.website_id,
         mr.website_name,
@@ -215,8 +185,36 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
           THEN ROUND((mr.first_rebills * 100.0) / mr.trials, 2)
           ELSE 0
         END as rebill_rate
-      FROM monthly_rebills mr
-      LEFT JOIN monthly_ads ma ON ma.website_id = mr.website_id
+      FROM (
+        SELECT
+          w.id as website_id,
+          w.name as website_name,
+          COUNT(DISTINCT CASE WHEN i.invoice_type_id = 2 THEN i.id END) as first_rebills,
+          COUNT(DISTINCT CASE WHEN i.invoice_type_id = 1 THEN i.id END) as trials
+        FROM avocode.invoices i
+        JOIN avocode.websites w ON w.id = i.website_id
+        WHERE i.invoice_type_id IN (1, 2)
+          AND i.invoice_status_id = 1
+          AND i.transacted_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND i.transacted_at < CURDATE() + INTERVAL 1 DAY
+        GROUP BY w.id, w.name
+      ) mr
+      LEFT JOIN (
+        SELECT
+          c.website_id,
+          SUM(
+            a.cost / CASE c.currency_id
+              WHEN 2 THEN 1
+              WHEN 4 THEN 4.97
+              ELSE 1
+            END
+          ) as ads_expense_eur
+        FROM avocodebo.ads a
+        INNER JOIN avocodebo.campaigns c ON a.campaign_id = c.id
+        WHERE a.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND a.date <= CURDATE()
+        GROUP BY c.website_id
+      ) ma ON ma.website_id = mr.website_id
       ORDER BY mr.website_name
     `,
     params: [],
