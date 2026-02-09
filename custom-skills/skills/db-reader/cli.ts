@@ -84,9 +84,10 @@ if (command === "schema") {
   try {
     if (tableName) {
       // Describe a specific table
-      // Validate table name to prevent injection (only allow alphanumeric and underscores)
-      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-        console.error("Error: Invalid table name");
+      // Validate table name to prevent injection
+      // Allows: table_name or database.table_name (e.g. avocodebo.zoho_refunds)
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/.test(tableName)) {
+        console.error("Error: Invalid table name. Use 'table' or 'database.table' format.");
         process.exit(1);
       }
 
