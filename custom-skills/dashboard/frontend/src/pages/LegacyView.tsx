@@ -98,8 +98,13 @@ export function LegacyView() {
             </div>
           </div>
 
-          <div className="mt-3 pt-3 border-t border-gray-700/50 text-xs text-gray-500">
-            Total: {(data.activeTrials + data.activeSubscriptions).toLocaleString()} no canceladas
+          <div className="mt-3 pt-3 border-t border-gray-700/50 flex justify-between items-center">
+            <span className="text-xs text-gray-500">
+              Total: {(data.activeTrials + data.activeSubscriptions).toLocaleString()}
+            </span>
+            <span className="text-xs text-green-400 font-medium">
+              +{data.conversionsToday} hoy →
+            </span>
           </div>
         </div>
 

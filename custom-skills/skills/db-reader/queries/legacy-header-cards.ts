@@ -23,18 +23,21 @@ const CURRENCY_RATE_CASE = `
 `;
 
 /**
- * Active Trials & Subscriptions - Desglosado
+ * Active Trials & Subscriptions - Desglosado + Conversiones hoy
  */
 export function activeTrialsAndSubscriptionsQuery(): QueryDefinition {
   return {
     id: "legacy-active-trials-subs" as any,
     name: "Active Trials & Subscriptions",
-    description: "Active trials and subscriptions breakdown",
+    description: "Active trials, subscriptions, and today's conversions",
     sql: `
       SELECT
-        SUM(CASE WHEN is_trial_active = 1 AND cancelled_at IS NULL THEN 1 ELSE 0 END) as active_trials,
-        SUM(CASE WHEN is_subscription_active = 1 AND cancelled_at IS NULL THEN 1 ELSE 0 END) as active_subscriptions
-      FROM avocode.subscriptions
+        (SELECT SUM(CASE WHEN is_trial_active = 1 AND cancelled_at IS NULL THEN 1 ELSE 0 END) FROM avocode.subscriptions) as active_trials,
+        (SELECT SUM(CASE WHEN is_subscription_active = 1 AND cancelled_at IS NULL THEN 1 ELSE 0 END) FROM avocode.subscriptions) as active_subscriptions,
+        (SELECT COUNT(*) FROM avocode.invoices
+         WHERE invoice_type_id = 2
+           AND invoice_status_id = 1
+           AND DATE(transacted_at) = CURDATE()) as conversions_today
     `,
     params: [],
     permissions: ["SELECT"],

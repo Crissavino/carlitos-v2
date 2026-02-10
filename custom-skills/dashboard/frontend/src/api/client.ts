@@ -1164,6 +1164,7 @@ export interface LegacyHeaderCardsData {
   // Card 1: Trials & Active Subscriptions
   activeTrials: number;
   activeSubscriptions: number;
+  conversionsToday: number;
 
   // Card 2: Turnover Per Day
   grossTurnoverPerDay: number;

@@ -2861,13 +2861,14 @@ app.get("/api/legacy/header-cards", async (req: Request, res: Response) => {
     console.log("[legacy-header-cards] cpfrByWebsite OK");
 
     // Parse results with type casting
-    const trialsSubsRow = trialsSubsRows[0] as { active_trials?: number; active_subscriptions?: number } | undefined;
+    const trialsSubsRow = trialsSubsRows[0] as { active_trials?: number; active_subscriptions?: number; conversions_today?: number } | undefined;
     const grossRow = grossTurnoverRows[0] as { gross_turnover_per_day?: number; gross_turnover_mtd?: number; days_in_month?: number } | undefined;
     const refRow = refundsRows[0] as { total_refunds_eur?: number } | undefined;
     const adsRow = adsExpenseRows[0] as { ads_expense_eur?: number } | undefined;
 
     const activeTrials = Number(trialsSubsRow?.active_trials) || 0;
     const activeSubscriptions = Number(trialsSubsRow?.active_subscriptions) || 0;
+    const conversionsToday = Number(trialsSubsRow?.conversions_today) || 0;
 
     const grossTurnoverPerDay = grossRow?.gross_turnover_per_day || 0;
     const grossTurnoverMtd = grossRow?.gross_turnover_mtd || 0;
@@ -2919,6 +2920,7 @@ app.get("/api/legacy/header-cards", async (req: Request, res: Response) => {
         // Card 1: Trials & Active Subscriptions
         activeTrials,
         activeSubscriptions,
+        conversionsToday,
 
         // Card 2: Turnover Per Day
         grossTurnoverPerDay: Math.round(grossTurnoverPerDay * 100) / 100,
