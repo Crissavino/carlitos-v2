@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, UserCheck, TrendingUp, DollarSign, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Users, TrendingUp, DollarSign, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { api, type LegacyHeaderCardsData } from '../api/client';
 
 export function LegacyView() {
