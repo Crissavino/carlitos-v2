@@ -23,46 +23,25 @@ const CURRENCY_RATE_CASE = `
 `;
 
 /**
- * Active Acquisitions - Suscripciones activas (no canceladas)
+ * Active Trials & Subscriptions - Desglosado
  */
-export function activeAcquisitionsQuery(): QueryDefinition {
+export function activeTrialsAndSubscriptionsQuery(): QueryDefinition {
   return {
-    id: "legacy-active-acquisitions" as any,
-    name: "Active Acquisitions",
-    description: "Subscriptions not cancelled",
+    id: "legacy-active-trials-subs" as any,
+    name: "Active Trials & Subscriptions",
+    description: "Active trials and subscriptions breakdown",
     sql: `
-      SELECT COUNT(*) as active_acquisitions
-      FROM avocode.subscriptions s
-      WHERE s.cancelled_at IS NULL
+      SELECT
+        SUM(CASE WHEN is_trial_active = 1 AND cancelled_at IS NULL THEN 1 ELSE 0 END) as active_trials,
+        SUM(CASE WHEN is_subscription_active = 1 AND cancelled_at IS NULL THEN 1 ELSE 0 END) as active_subscriptions
+      FROM avocode.subscriptions
     `,
     params: [],
     permissions: ["SELECT"],
   };
 }
 
-/**
- * Active Subscribers - Suscripciones con al menos 1 rebill pagado
- */
-export function activeSubscribersQuery(): QueryDefinition {
-  return {
-    id: "legacy-active-subscribers" as any,
-    name: "Active Subscribers",
-    description: "Active subscriptions with at least 1 paid rebill",
-    sql: `
-      SELECT COUNT(DISTINCT s.id) as active_subscribers
-      FROM avocode.subscriptions s
-      WHERE s.cancelled_at IS NULL
-        AND EXISTS (
-          SELECT 1 FROM avocode.invoices i
-          WHERE i.customer_id = s.customer_id
-            AND i.invoice_type_id = 2
-            AND i.invoice_status_id = 1
-        )
-    `,
-    params: [],
-    permissions: ["SELECT"],
-  };
-}
+// activeSubscribersQuery removed - now using activeTrialsAndSubscriptionsQuery
 
 /**
  * Gross Turnover Per Day - MTD promedio diario (trials + rebills)

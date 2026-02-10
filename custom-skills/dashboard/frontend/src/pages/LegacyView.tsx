@@ -8,7 +8,6 @@ export function LegacyView() {
   const [error, setError] = useState<string | null>(null);
 
   // Toggle states for cards
-  const [showSubscribers, setShowSubscribers] = useState(false);
   const [showNetTurnover, setShowNetTurnover] = useState(false);
   const [showRebillRate, setShowRebillRate] = useState(false);
 
@@ -74,31 +73,33 @@ export function LegacyView() {
 
       {/* Header Cards Grid */}
       <div className="grid md:grid-cols-3 gap-6 mb-8">
-        {/* Card 1: Acquisitions / Subscribers */}
-        <div
-          className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6 cursor-pointer hover:border-gray-600/50 transition-colors"
-          onClick={() => setShowSubscribers(!showSubscribers)}
-        >
+        {/* Card 1: Trials & Active Subscriptions */}
+        <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className={`p-3 rounded-lg ${showSubscribers ? 'bg-yellow-500/20' : 'bg-red-500/20'}`}>
-              {showSubscribers ? (
-                <UserCheck className={`w-6 h-6 ${showSubscribers ? 'text-yellow-400' : 'text-red-400'}`} />
-              ) : (
-                <Users className={`w-6 h-6 ${showSubscribers ? 'text-yellow-400' : 'text-red-400'}`} />
-              )}
+            <div className="p-3 rounded-lg bg-blue-500/20">
+              <Users className="w-6 h-6 text-blue-400" />
             </div>
-            <span className="text-xs text-gray-500">Click para alternar</span>
           </div>
-          <div className="text-sm text-gray-400 mb-1">
-            {showSubscribers ? 'Active Subscribers' : 'Active Acquisitions'}
+          <div className="text-sm text-gray-400 mb-3">Suscripciones Activas</div>
+
+          {/* Two columns for Trials and Subscriptions */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-2xl font-bold text-yellow-400">
+                {data.activeTrials.toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">Trials</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-green-400">
+                {data.activeSubscriptions.toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">Pagando</div>
+            </div>
           </div>
-          <div className="text-3xl font-bold">
-            {showSubscribers
-              ? data.activeSubscribers.toLocaleString()
-              : data.activeAcquisitions.toLocaleString()}
-          </div>
-          <div className="text-xs text-gray-500 mt-2">
-            {showSubscribers ? 'Con al menos 1 rebill pagado' : 'Suscripciones no canceladas'}
+
+          <div className="mt-3 pt-3 border-t border-gray-700/50 text-xs text-gray-500">
+            Total: {(data.activeTrials + data.activeSubscriptions).toLocaleString()} no canceladas
           </div>
         </div>
 

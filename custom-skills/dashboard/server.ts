@@ -128,8 +128,7 @@ import {
   DateRangeConfig as CountryDateRangeConfig,
 } from "../skills/db-reader/queries/countries-view-kpis.js";
 import {
-  activeAcquisitionsQuery,
-  activeSubscribersQuery,
+  activeTrialsAndSubscriptionsQuery,
   grossTurnoverPerDayQuery,
   refundsMtdQuery,
   adsExpenseMtdQuery,
@@ -2841,13 +2840,9 @@ app.get("/api/legacy/header-cards", async (req: Request, res: Response) => {
     const { executeRawQuery } = await import("../skills/db-reader/executor.js");
 
     // Execute queries one by one with logging to debug errors
-    console.log("[legacy-header-cards] Running activeAcquisitions...");
-    const acquisitionsRows = await executeRawQuery(activeAcquisitionsQuery().sql);
-    console.log("[legacy-header-cards] activeAcquisitions OK");
-
-    console.log("[legacy-header-cards] Running activeSubscribers...");
-    const subscribersRows = await executeRawQuery(activeSubscribersQuery().sql);
-    console.log("[legacy-header-cards] activeSubscribers OK");
+    console.log("[legacy-header-cards] Running activeTrialsAndSubs...");
+    const trialsSubsRows = await executeRawQuery(activeTrialsAndSubscriptionsQuery().sql);
+    console.log("[legacy-header-cards] activeTrialsAndSubs OK");
 
     console.log("[legacy-header-cards] Running grossTurnover...");
     const grossTurnoverRows = await executeRawQuery(grossTurnoverPerDayQuery().sql);
@@ -2866,14 +2861,13 @@ app.get("/api/legacy/header-cards", async (req: Request, res: Response) => {
     console.log("[legacy-header-cards] cpfrByWebsite OK");
 
     // Parse results with type casting
-    const acqRow = acquisitionsRows[0] as { active_acquisitions?: number } | undefined;
-    const subRow = subscribersRows[0] as { active_subscribers?: number } | undefined;
+    const trialsSubsRow = trialsSubsRows[0] as { active_trials?: number; active_subscriptions?: number } | undefined;
     const grossRow = grossTurnoverRows[0] as { gross_turnover_per_day?: number; gross_turnover_mtd?: number; days_in_month?: number } | undefined;
     const refRow = refundsRows[0] as { total_refunds_eur?: number } | undefined;
     const adsRow = adsExpenseRows[0] as { ads_expense_eur?: number } | undefined;
 
-    const activeAcquisitions = acqRow?.active_acquisitions || 0;
-    const activeSubscribers = subRow?.active_subscribers || 0;
+    const activeTrials = Number(trialsSubsRow?.active_trials) || 0;
+    const activeSubscriptions = Number(trialsSubsRow?.active_subscriptions) || 0;
 
     const grossTurnoverPerDay = grossRow?.gross_turnover_per_day || 0;
     const grossTurnoverMtd = grossRow?.gross_turnover_mtd || 0;
@@ -2922,9 +2916,9 @@ app.get("/api/legacy/header-cards", async (req: Request, res: Response) => {
     res.json({
       success: true,
       data: {
-        // Card 1: Acquisitions / Subscribers
-        activeAcquisitions,
-        activeSubscribers,
+        // Card 1: Trials & Active Subscriptions
+        activeTrials,
+        activeSubscriptions,
 
         // Card 2: Turnover Per Day
         grossTurnoverPerDay: Math.round(grossTurnoverPerDay * 100) / 100,

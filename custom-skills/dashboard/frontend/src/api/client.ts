@@ -1161,9 +1161,9 @@ export interface LegacyWebsiteCpfr {
 }
 
 export interface LegacyHeaderCardsData {
-  // Card 1: Acquisitions / Subscribers
-  activeAcquisitions: number;
-  activeSubscribers: number;
+  // Card 1: Trials & Active Subscriptions
+  activeTrials: number;
+  activeSubscriptions: number;
 
   // Card 2: Turnover Per Day
   grossTurnoverPerDay: number;
