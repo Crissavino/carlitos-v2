@@ -143,7 +143,8 @@ export function adsExpenseMtdQuery(): QueryDefinition {
 
 /**
  * Cost Per First Rebill por Website (MTD)
- * Fórmula: Ad Spend / First Rebills
+ * - CPFR: Ad Spend MTD / First Rebills MTD (invoices)
+ * - Rebill Rate: Cohort-based (trials del mes pasado que convirtieron)
  */
 export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
   return {
@@ -152,35 +153,48 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
     description: "MTD cost per first rebill grouped by website",
     sql: `
       SELECT
-        mr.website_id,
-        mr.website_name,
-        mr.first_rebills,
-        mr.trials,
+        COALESCE(inv.website_id, coh.website_id) as website_id,
+        COALESCE(inv.website_name, coh.website_name) as website_name,
+        COALESCE(inv.first_rebills_mtd, 0) as first_rebills,
+        COALESCE(coh.trials_last_month, 0) as trials,
         COALESCE(ma.ads_expense_eur, 0) as ads_expense_eur,
         CASE
-          WHEN mr.first_rebills > 0
-          THEN ROUND(COALESCE(ma.ads_expense_eur, 0) / mr.first_rebills, 2)
+          WHEN COALESCE(inv.first_rebills_mtd, 0) > 0
+          THEN ROUND(COALESCE(ma.ads_expense_eur, 0) / inv.first_rebills_mtd, 2)
           ELSE 0
         END as cost_per_first_rebill,
         CASE
-          WHEN mr.trials > 0
-          THEN ROUND((mr.first_rebills * 100.0) / mr.trials, 2)
+          WHEN COALESCE(coh.trials_last_month, 0) > 0
+          THEN ROUND((COALESCE(coh.converted, 0) * 100.0) / coh.trials_last_month, 2)
           ELSE 0
         END as rebill_rate
       FROM (
+        -- First rebills that happened THIS month (for CPFR)
         SELECT
-          w.id as website_id,
+          i.website_id,
           w.name as website_name,
-          COUNT(DISTINCT CASE WHEN i.invoice_type_id = 2 THEN i.id END) as first_rebills,
-          COUNT(DISTINCT CASE WHEN i.invoice_type_id = 1 THEN i.id END) as trials
+          COUNT(DISTINCT i.id) as first_rebills_mtd
         FROM avocode.invoices i
         JOIN avocode.websites w ON w.id = i.website_id
-        WHERE i.invoice_type_id IN (1, 2)
+        WHERE i.invoice_type_id = 2
           AND i.invoice_status_id = 1
           AND i.transacted_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
           AND i.transacted_at < CURDATE() + INTERVAL 1 DAY
-        GROUP BY w.id, w.name
-      ) mr
+        GROUP BY i.website_id, w.name
+      ) inv
+      LEFT JOIN (
+        -- Cohort: Trials from LAST month and how many converted (for Rebill Rate)
+        SELECT
+          s.website_id,
+          w.name as website_name,
+          COUNT(*) as trials_last_month,
+          SUM(CASE WHEN s.payment_count >= 1 THEN 1 ELSE 0 END) as converted
+        FROM avocode.subscriptions s
+        JOIN avocode.websites w ON w.id = s.website_id
+        WHERE s.trial_started_at >= DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m-01')
+          AND s.trial_started_at < DATE_FORMAT(CURDATE(), '%Y-%m-01')
+        GROUP BY s.website_id, w.name
+      ) coh ON coh.website_id = inv.website_id
       LEFT JOIN (
         SELECT
           c.website_id,
@@ -196,8 +210,8 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
         WHERE a.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
           AND a.date <= CURDATE()
         GROUP BY c.website_id
-      ) ma ON ma.website_id = mr.website_id
-      ORDER BY mr.website_name
+      ) ma ON ma.website_id = inv.website_id
+      ORDER BY website_name
     `,
     params: [],
     permissions: ["SELECT"],
