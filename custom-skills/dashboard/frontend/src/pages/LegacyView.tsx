@@ -278,11 +278,11 @@ export function LegacyView() {
                   </>
                 ) : (
                   <>
-                    <div className="text-2xl font-bold text-blue-400">
-                      {website.totalRebills.toLocaleString()}
+                    <div className="text-2xl font-bold text-green-400">
+                      €{website.revenueEur.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
-                      €{website.revenueEur.toLocaleString(undefined, { maximumFractionDigits: 0 })} revenue
+                      {website.totalRebills.toLocaleString()} rebills
                     </div>
                   </>
                 )}
