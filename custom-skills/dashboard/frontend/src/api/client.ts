@@ -686,6 +686,7 @@ export const api = {
 
   // Legacy Dashboard
   getLegacyHeaderCards: () => fetchAPI<LegacyHeaderCardsData>('/legacy/header-cards'),
+  getTodayPerformance: () => fetchAPI<TodayPerformanceData>('/legacy/today-performance'),
 };
 
 // ============================================================================
@@ -1189,6 +1190,32 @@ export interface LegacyHeaderCardsData {
   // Totals
   totalRefundsEur: number;
   adsExpenseEur: number;
+}
+
+// Today Performance - Website with campaigns breakdown
+export interface TodayPerformanceWebsite {
+  websiteId: number;
+  websiteName: string;
+  today: number;
+  yesterday: number;
+  todayAmount: number;
+  yesterdayAmount: number;
+  campaigns: Record<string, { today: number; yesterday: number }>;
+}
+
+export interface TodayPerformanceData {
+  dates: {
+    today: string;
+    yesterday: string;
+  };
+  trialsByWebsite: Record<string, TodayPerformanceWebsite>;
+  rebillsByWebsite: Record<string, TodayPerformanceWebsite>;
+  totals: {
+    premiumAcquisitions: { today: number; yesterday: number };
+    totalRebills: { today: number; yesterday: number };
+    refundedRebills: { today: number; yesterday: number };
+    total: { today: number; yesterday: number };
+  };
 }
 
 // Convert File to base64 data URL

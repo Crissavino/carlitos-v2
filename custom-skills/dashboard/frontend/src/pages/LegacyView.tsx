@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Users, TrendingUp, DollarSign, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
-import { api, type LegacyHeaderCardsData } from '../api/client';
+import React, { useState, useEffect } from 'react';
+import { Users, TrendingUp, DollarSign, Loader2, AlertCircle, RefreshCw, ChevronRight, ChevronDown } from 'lucide-react';
+import { api, type LegacyHeaderCardsData, type TodayPerformanceData } from '../api/client';
 
 export function LegacyView() {
   const [data, setData] = useState<LegacyHeaderCardsData | null>(null);
+  const [todayPerf, setTodayPerf] = useState<TodayPerformanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -12,14 +13,22 @@ export function LegacyView() {
   const [showRebillRate, setShowRebillRate] = useState(false);
   const [showRoas, setShowRoas] = useState(false);
 
+  // Expanded websites in Today Performance
+  const [expandedTrials, setExpandedTrials] = useState<Set<string>>(new Set());
+  const [expandedRebills, setExpandedRebills] = useState<Set<string>>(new Set());
+
   async function fetchData() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.getLegacyHeaderCards();
-      setData(result);
+      const [headerCards, todayPerformance] = await Promise.all([
+        api.getLegacyHeaderCards(),
+        api.getTodayPerformance(),
+      ]);
+      setData(headerCards);
+      setTodayPerf(todayPerformance);
     } catch (err) {
-      console.error('Error fetching legacy header cards:', err);
+      console.error('Error fetching legacy data:', err);
       setError(err instanceof Error ? err.message : 'Error fetching data');
     } finally {
       setLoading(false);
@@ -29,6 +38,30 @@ export function LegacyView() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const toggleTrialExpand = (websiteName: string) => {
+    setExpandedTrials((prev) => {
+      const next = new Set(prev);
+      if (next.has(websiteName)) {
+        next.delete(websiteName);
+      } else {
+        next.add(websiteName);
+      }
+      return next;
+    });
+  };
+
+  const toggleRebillExpand = (websiteName: string) => {
+    setExpandedRebills((prev) => {
+      const next = new Set(prev);
+      if (next.has(websiteName)) {
+        next.delete(websiteName);
+      } else {
+        next.add(websiteName);
+      }
+      return next;
+    });
+  };
 
   if (loading) {
     return (
@@ -165,6 +198,124 @@ export function LegacyView() {
           </div>
         </div>
       </div>
+
+      {/* Today Performance Table */}
+      {todayPerf && (
+        <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4">Today Performance</h2>
+
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-400 border-b border-gray-700">
+                <th className="text-left py-2 font-medium"></th>
+                <th className="text-center py-2 font-medium w-24">{todayPerf.dates.today}</th>
+                <th className="text-center py-2 font-medium w-24">{todayPerf.dates.yesterday}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Trials by Website */}
+              {Object.values(todayPerf.trialsByWebsite).map((website) => {
+                const isExpanded = expandedTrials.has(website.websiteName);
+                const hasCampaigns = Object.keys(website.campaigns).length > 1 ||
+                  (Object.keys(website.campaigns).length === 1 && !website.campaigns['No Campaign']);
+
+                return (
+                  <React.Fragment key={`trial-${website.websiteId}`}>
+                    <tr
+                      className={`border-b border-gray-700/50 ${hasCampaigns ? 'cursor-pointer hover:bg-gray-700/30' : ''}`}
+                      onClick={() => hasCampaigns && toggleTrialExpand(website.websiteName)}
+                    >
+                      <td className="py-3 flex items-center gap-2">
+                        {hasCampaigns && (
+                          isExpanded
+                            ? <ChevronDown className="w-4 h-4 text-gray-400" />
+                            : <ChevronRight className="w-4 h-4 text-gray-400" />
+                        )}
+                        <span className="font-medium">{website.websiteName}</span>
+                      </td>
+                      <td className="text-center py-3 font-medium">{website.today}</td>
+                      <td className="text-center py-3 font-medium">{website.yesterday}</td>
+                    </tr>
+                    {isExpanded && Object.entries(website.campaigns).map(([campaignName, campaignData]) => (
+                      <tr key={`trial-camp-${website.websiteId}-${campaignName}`} className="border-b border-gray-700/30 bg-gray-800/30">
+                        <td className="py-2 pl-8 text-gray-400 text-xs">{campaignName}</td>
+                        <td className="text-center py-2 text-gray-400 text-xs">{campaignData.today}</td>
+                        <td className="text-center py-2 text-gray-400 text-xs">{campaignData.yesterday}</td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                );
+              })}
+
+              {/* Premium Acquisitions Total */}
+              <tr className="bg-indigo-900/30 border-b border-gray-700">
+                <td className="py-3 font-semibold text-indigo-300">Premium Acquisitions</td>
+                <td className="text-center py-3 font-semibold text-indigo-300">{todayPerf.totals.premiumAcquisitions.today}</td>
+                <td className="text-center py-3 font-semibold text-indigo-300">{todayPerf.totals.premiumAcquisitions.yesterday}</td>
+              </tr>
+
+              {/* Rebills by Website */}
+              {Object.values(todayPerf.rebillsByWebsite).map((website) => {
+                const isExpanded = expandedRebills.has(website.websiteName);
+                const hasCampaigns = Object.keys(website.campaigns).length > 1 ||
+                  (Object.keys(website.campaigns).length === 1 && !website.campaigns['No Campaign']);
+
+                return (
+                  <React.Fragment key={`rebill-${website.websiteId}`}>
+                    <tr
+                      className={`border-b border-gray-700/50 ${hasCampaigns ? 'cursor-pointer hover:bg-gray-700/30' : ''}`}
+                      onClick={() => hasCampaigns && toggleRebillExpand(website.websiteName)}
+                    >
+                      <td className="py-3 flex items-center gap-2">
+                        {hasCampaigns && (
+                          isExpanded
+                            ? <ChevronDown className="w-4 h-4 text-gray-400" />
+                            : <ChevronRight className="w-4 h-4 text-gray-400" />
+                        )}
+                        <span className="font-medium">{website.websiteName} (Rebills)</span>
+                      </td>
+                      <td className="text-center py-3 font-medium">{website.today}</td>
+                      <td className="text-center py-3 font-medium">{website.yesterday}</td>
+                    </tr>
+                    {isExpanded && Object.entries(website.campaigns).map(([campaignName, campaignData]) => (
+                      <tr key={`rebill-camp-${website.websiteId}-${campaignName}`} className="border-b border-gray-700/30 bg-gray-800/30">
+                        <td className="py-2 pl-8 text-gray-400 text-xs">{campaignName}</td>
+                        <td className="text-center py-2 text-gray-400 text-xs">{campaignData.today}</td>
+                        <td className="text-center py-2 text-gray-400 text-xs">{campaignData.yesterday}</td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                );
+              })}
+
+              {/* Total Rebills Refunded */}
+              <tr className="bg-gray-700/30 border-b border-gray-700">
+                <td className="py-3 font-medium text-gray-300">Total Rebills Refunded</td>
+                <td className="text-center py-3 font-medium text-red-400">{todayPerf.totals.refundedRebills.today}</td>
+                <td className="text-center py-3 font-medium text-red-400">{todayPerf.totals.refundedRebills.yesterday}</td>
+              </tr>
+
+              {/* Total Rebills */}
+              <tr className="bg-gray-700/30 border-b border-gray-700">
+                <td className="py-3 font-medium text-gray-300">Total Rebills</td>
+                <td className="text-center py-3 font-medium">{todayPerf.totals.totalRebills.today}</td>
+                <td className="text-center py-3 font-medium">{todayPerf.totals.totalRebills.yesterday}</td>
+              </tr>
+
+              {/* Total */}
+              <tr className="bg-indigo-900/30">
+                <td className="py-3 font-semibold text-indigo-300">Total</td>
+                <td className="text-center py-3 font-semibold text-indigo-300">
+                  {todayPerf.totals.total.today.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                </td>
+                <td className="text-center py-3 font-semibold text-indigo-300">
+                  {todayPerf.totals.total.yesterday.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Cost Per First Rebill by Website */}
       <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6">

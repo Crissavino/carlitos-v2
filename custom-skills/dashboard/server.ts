@@ -135,6 +135,14 @@ import {
   costPerFirstRebillByWebsiteQuery,
   totalRebillsByWebsiteQuery,
 } from "../skills/db-reader/queries/legacy-header-cards.js";
+import {
+  trialsPerformanceByWebsiteQuery,
+  trialsPerformanceByCampaignQuery,
+  rebillsPerformanceByWebsiteQuery,
+  rebillsPerformanceByCampaignQuery,
+  refundedRebillsQuery,
+  totalRevenueQuery,
+} from "../skills/db-reader/queries/today-performance.js";
 
 const app = express();
 const PORT = parseInt(process.env.DASHBOARD_PORT || "3002", 10);
@@ -2971,6 +2979,208 @@ app.get("/api/legacy/header-cards", async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("[/api/legacy/header-cards] Error:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+
+/**
+ * GET /api/legacy/today-performance
+ *
+ * Returns Today Performance data for Legacy Dashboard:
+ * - Trials by website (expandable by campaign)
+ * - Rebills by website (expandable by campaign)
+ * - Premium Acquisitions total
+ * - Total Rebills / Refunded Rebills
+ * - Total Revenue
+ */
+app.get("/api/legacy/today-performance", async (req: Request, res: Response) => {
+  try {
+    const { executeRawQuery } = await import("../skills/db-reader/executor.js");
+
+    // Execute all queries
+    console.log("[today-performance] Running trials by website...");
+    const trialsWebsiteRows = await executeRawQuery(trialsPerformanceByWebsiteQuery().sql);
+
+    console.log("[today-performance] Running trials by campaign...");
+    const trialsCampaignRows = await executeRawQuery(trialsPerformanceByCampaignQuery().sql);
+
+    console.log("[today-performance] Running rebills by website...");
+    const rebillsWebsiteRows = await executeRawQuery(rebillsPerformanceByWebsiteQuery().sql);
+
+    console.log("[today-performance] Running rebills by campaign...");
+    const rebillsCampaignRows = await executeRawQuery(rebillsPerformanceByCampaignQuery().sql);
+
+    console.log("[today-performance] Running refunded rebills...");
+    const refundedRows = await executeRawQuery(refundedRebillsQuery().sql);
+
+    console.log("[today-performance] Running total revenue...");
+    const totalRevenueRows = await executeRawQuery(totalRevenueQuery().sql);
+
+    // Process trials by website
+    interface TrialsWebsiteRow {
+      website_id: number;
+      website_name: string;
+      today_count: number;
+      yesterday_count: number;
+      today_amount: number;
+      yesterday_amount: number;
+    }
+
+    const trialsByWebsite: Record<string, {
+      websiteId: number;
+      websiteName: string;
+      today: number;
+      yesterday: number;
+      todayAmount: number;
+      yesterdayAmount: number;
+      campaigns: Record<string, { today: number; yesterday: number }>;
+    }> = {};
+
+    for (const row of trialsWebsiteRows as TrialsWebsiteRow[]) {
+      trialsByWebsite[row.website_name] = {
+        websiteId: row.website_id,
+        websiteName: row.website_name,
+        today: Number(row.today_count) || 0,
+        yesterday: Number(row.yesterday_count) || 0,
+        todayAmount: Math.round((Number(row.today_amount) || 0) * 100) / 100,
+        yesterdayAmount: Math.round((Number(row.yesterday_amount) || 0) * 100) / 100,
+        campaigns: {},
+      };
+    }
+
+    // Add campaign breakdown to trials
+    interface CampaignRow {
+      website_name: string;
+      campaign_name: string;
+      today_count: number;
+      yesterday_count: number;
+    }
+
+    for (const row of trialsCampaignRows as CampaignRow[]) {
+      if (trialsByWebsite[row.website_name]) {
+        trialsByWebsite[row.website_name].campaigns[row.campaign_name] = {
+          today: Number(row.today_count) || 0,
+          yesterday: Number(row.yesterday_count) || 0,
+        };
+      }
+    }
+
+    // Process rebills by website
+    const rebillsByWebsite: Record<string, {
+      websiteId: number;
+      websiteName: string;
+      today: number;
+      yesterday: number;
+      todayAmount: number;
+      yesterdayAmount: number;
+      campaigns: Record<string, { today: number; yesterday: number }>;
+    }> = {};
+
+    for (const row of rebillsWebsiteRows as TrialsWebsiteRow[]) {
+      rebillsByWebsite[row.website_name] = {
+        websiteId: row.website_id,
+        websiteName: row.website_name,
+        today: Number(row.today_count) || 0,
+        yesterday: Number(row.yesterday_count) || 0,
+        todayAmount: Math.round((Number(row.today_amount) || 0) * 100) / 100,
+        yesterdayAmount: Math.round((Number(row.yesterday_amount) || 0) * 100) / 100,
+        campaigns: {},
+      };
+    }
+
+    // Add campaign breakdown to rebills
+    for (const row of rebillsCampaignRows as CampaignRow[]) {
+      if (rebillsByWebsite[row.website_name]) {
+        rebillsByWebsite[row.website_name].campaigns[row.campaign_name] = {
+          today: Number(row.today_count) || 0,
+          yesterday: Number(row.yesterday_count) || 0,
+        };
+      }
+    }
+
+    // Calculate totals
+    let premiumAcquisitionsToday = 0;
+    let premiumAcquisitionsYesterday = 0;
+    let totalTrialsAmountToday = 0;
+    let totalTrialsAmountYesterday = 0;
+
+    Object.values(trialsByWebsite).forEach((w) => {
+      premiumAcquisitionsToday += w.today;
+      premiumAcquisitionsYesterday += w.yesterday;
+      totalTrialsAmountToday += w.todayAmount;
+      totalTrialsAmountYesterday += w.yesterdayAmount;
+    });
+
+    let totalRebillsToday = 0;
+    let totalRebillsYesterday = 0;
+    let totalRebillsAmountToday = 0;
+    let totalRebillsAmountYesterday = 0;
+
+    Object.values(rebillsByWebsite).forEach((w) => {
+      totalRebillsToday += w.today;
+      totalRebillsYesterday += w.yesterday;
+      totalRebillsAmountToday += w.todayAmount;
+      totalRebillsAmountYesterday += w.yesterdayAmount;
+    });
+
+    // Refunded rebills
+    const refundedRow = refundedRows[0] as {
+      today_count?: number;
+      yesterday_count?: number;
+      today_amount?: number;
+      yesterday_amount?: number;
+    } | undefined;
+
+    const refundedRebillsToday = Number(refundedRow?.today_count) || 0;
+    const refundedRebillsYesterday = Number(refundedRow?.yesterday_count) || 0;
+
+    // Total revenue
+    const revenueRow = totalRevenueRows[0] as {
+      today_total?: number;
+      yesterday_total?: number;
+    } | undefined;
+
+    const todayTotal = Math.round((Number(revenueRow?.today_total) || 0) * 100) / 100;
+    const yesterdayTotal = Math.round((Number(revenueRow?.yesterday_total) || 0) * 100) / 100;
+
+    // Get today and yesterday dates for display
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const formatDate = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+    res.json({
+      success: true,
+      data: {
+        dates: {
+          today: formatDate(today),
+          yesterday: formatDate(yesterday),
+        },
+        trialsByWebsite,
+        rebillsByWebsite,
+        totals: {
+          premiumAcquisitions: {
+            today: premiumAcquisitionsToday,
+            yesterday: premiumAcquisitionsYesterday,
+          },
+          totalRebills: {
+            today: totalRebillsToday,
+            yesterday: totalRebillsYesterday,
+          },
+          refundedRebills: {
+            today: refundedRebillsToday,
+            yesterday: refundedRebillsYesterday,
+          },
+          total: {
+            today: todayTotal,
+            yesterday: yesterdayTotal,
+          },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("[/api/legacy/today-performance] Error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
   }
 });
