@@ -133,6 +133,7 @@ import {
   refundsMtdQuery,
   adsExpenseMtdQuery,
   costPerFirstRebillByWebsiteQuery,
+  totalRebillsByWebsiteQuery,
 } from "../skills/db-reader/queries/legacy-header-cards.js";
 
 const app = express();
@@ -2860,6 +2861,10 @@ app.get("/api/legacy/header-cards", async (req: Request, res: Response) => {
     const cpfrByWebsiteRows = await executeRawQuery(costPerFirstRebillByWebsiteQuery().sql);
     console.log("[legacy-header-cards] cpfrByWebsite OK");
 
+    console.log("[legacy-header-cards] Running totalRebillsByWebsite...");
+    const totalRebillsRows = await executeRawQuery(totalRebillsByWebsiteQuery().sql);
+    console.log("[legacy-header-cards] totalRebillsByWebsite OK");
+
     // Parse results with type casting
     const trialsSubsRow = trialsSubsRows[0] as { active_trials?: number; active_subscriptions?: number; conversions_today?: number } | undefined;
     const grossRow = grossTurnoverRows[0] as { gross_turnover_per_day?: number; gross_turnover_mtd?: number; days_in_month?: number } | undefined;
@@ -2914,6 +2919,30 @@ app.get("/api/legacy/header-cards", async (req: Request, res: Response) => {
       };
     }
 
+    // Parse Total Rebills by website
+    interface TotalRebillsRow {
+      website_id: number;
+      website_name: string;
+      total_rebills: number;
+      revenue_eur: number;
+    }
+
+    const totalRebillsByWebsite: Record<string, {
+      websiteId: number;
+      websiteName: string;
+      totalRebills: number;
+      revenueEur: number;
+    }> = {};
+
+    for (const row of totalRebillsRows as TotalRebillsRow[]) {
+      totalRebillsByWebsite[row.website_name] = {
+        websiteId: row.website_id,
+        websiteName: row.website_name,
+        totalRebills: Number(row.total_rebills) || 0,
+        revenueEur: Math.round((Number(row.revenue_eur) || 0) * 100) / 100,
+      };
+    }
+
     res.json({
       success: true,
       data: {
@@ -2931,6 +2960,9 @@ app.get("/api/legacy/header-cards", async (req: Request, res: Response) => {
 
         // Card 3: Cost Per First Rebill by Website
         costPerRebillByWebsite,
+
+        // Card 4: Total Rebills by Website MTD
+        totalRebillsByWebsite,
 
         // Totals for ads/refunds
         totalRefundsEur: Math.round(totalRefundsEur * 100) / 100,

@@ -206,3 +206,32 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
     permissions: ["SELECT"],
   };
 }
+
+/**
+ * Total Rebills por Website (MTD)
+ * Todas las rebills (1ra, 2da, 3ra...) que ocurrieron este mes
+ */
+export function totalRebillsByWebsiteQuery(): QueryDefinition {
+  return {
+    id: "legacy-total-rebills-by-website" as any,
+    name: "Total Rebills by Website MTD",
+    description: "All rebills (invoice_type_id = 2) this month by website",
+    sql: `
+      SELECT
+        i.website_id,
+        w.name as website_name,
+        COUNT(*) as total_rebills,
+        SUM(i.amount / ${CURRENCY_RATE_CASE}) as revenue_eur
+      FROM avocode.invoices i
+      JOIN avocode.websites w ON w.id = i.website_id
+      WHERE i.invoice_type_id = 2
+        AND i.invoice_status_id = 1
+        AND i.transacted_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+        AND i.transacted_at < CURDATE() + INTERVAL 1 DAY
+      GROUP BY i.website_id, w.name
+      ORDER BY w.name
+    `,
+    params: [],
+    permissions: ["SELECT"],
+  };
+}

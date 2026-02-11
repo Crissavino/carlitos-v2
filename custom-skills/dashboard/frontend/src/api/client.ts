@@ -1160,6 +1160,13 @@ export interface LegacyWebsiteCpfr {
   rebillRate: number;
 }
 
+export interface LegacyWebsiteTotalRebills {
+  websiteId: number;
+  websiteName: string;
+  totalRebills: number;
+  revenueEur: number;
+}
+
 export interface LegacyHeaderCardsData {
   // Card 1: Trials & Active Subscriptions
   activeTrials: number;
@@ -1175,6 +1182,9 @@ export interface LegacyHeaderCardsData {
 
   // Card 3: Cost Per First Rebill by Website
   costPerRebillByWebsite: Record<string, LegacyWebsiteCpfr>;
+
+  // Card 4: Total Rebills by Website MTD
+  totalRebillsByWebsite: Record<string, LegacyWebsiteTotalRebills>;
 
   // Totals
   totalRefundsEur: number;

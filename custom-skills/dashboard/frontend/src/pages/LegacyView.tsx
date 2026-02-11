@@ -233,6 +233,36 @@ export function LegacyView() {
           </div>
         )}
       </div>
+
+      {/* Total Rebills by Website MTD */}
+      <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6 mt-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Total Rebills MTD por Website</h2>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-4">
+          {Object.values(data.totalRebillsByWebsite).map((website) => (
+            <div
+              key={website.websiteId}
+              className="bg-gray-700/30 rounded-lg p-4 border border-gray-600/30"
+            >
+              <div className="text-sm text-gray-400 mb-2">{website.websiteName}</div>
+              <div className="text-2xl font-bold text-blue-400">
+                {website.totalRebills.toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500 mt-2">
+                €{website.revenueEur.toLocaleString(undefined, { maximumFractionDigits: 0 })} revenue
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {Object.keys(data.totalRebillsByWebsite).length === 0 && (
+          <div className="text-center text-gray-500 py-8">
+            No hay datos de rebills
+          </div>
+        )}
+      </div>
     </div>
   );
 }
