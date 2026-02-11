@@ -143,8 +143,9 @@ export function adsExpenseMtdQuery(): QueryDefinition {
 
 /**
  * Cost Per First Rebill por Website (MTD)
- * - First Rebills: subscriptions donde subscription_started_at es este mes
- * - Rebill Rate: Cohort de trials de hace 2-4 semanas que ya convirtieron
+ * - Cohort MTD: trials que empezaron este mes
+ * - First Rebills: de ese cohort, cuántos tienen payment_count >= 1
+ * - CPFR: Ad Spend MTD / First Rebills del cohort
  */
 export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
   return {
@@ -153,45 +154,35 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
     description: "MTD cost per first rebill grouped by website",
     sql: `
       SELECT
-        fr.website_id,
-        fr.website_name,
-        fr.first_rebills,
-        COALESCE(coh.trials_cohort, 0) as trials,
+        coh.website_id,
+        coh.website_name,
+        coh.first_rebills,
+        coh.trials,
         COALESCE(ma.ads_expense_eur, 0) as ads_expense_eur,
         CASE
-          WHEN fr.first_rebills > 0
-          THEN ROUND(COALESCE(ma.ads_expense_eur, 0) / fr.first_rebills, 2)
+          WHEN coh.first_rebills > 0
+          THEN ROUND(COALESCE(ma.ads_expense_eur, 0) / coh.first_rebills, 2)
           ELSE 0
         END as cost_per_first_rebill,
         CASE
-          WHEN COALESCE(coh.trials_cohort, 0) > 0
-          THEN ROUND((COALESCE(coh.converted, 0) * 100.0) / coh.trials_cohort, 2)
+          WHEN coh.trials > 0
+          THEN ROUND((coh.first_rebills * 100.0) / coh.trials, 2)
           ELSE 0
         END as rebill_rate
       FROM (
-        -- First rebills MTD: subscriptions que empezaron a pagar este mes
+        -- Cohort MTD: Trials que empezaron este mes
+        -- First rebills = de esos trials, cuántos ya convirtieron
         SELECT
           s.website_id,
           w.name as website_name,
-          COUNT(*) as first_rebills
+          COUNT(*) as trials,
+          SUM(CASE WHEN s.payment_count >= 1 THEN 1 ELSE 0 END) as first_rebills
         FROM avocode.subscriptions s
         JOIN avocode.websites w ON w.id = s.website_id
-        WHERE s.subscription_started_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-          AND s.subscription_started_at < CURDATE() + INTERVAL 1 DAY
-          AND s.payment_count >= 1
-        GROUP BY s.website_id, w.name
-      ) fr
-      LEFT JOIN (
-        -- Cohort MTD: Trials que empezaron este mes y cuántos convirtieron
-        SELECT
-          s.website_id,
-          COUNT(*) as trials_cohort,
-          SUM(CASE WHEN s.payment_count >= 1 THEN 1 ELSE 0 END) as converted
-        FROM avocode.subscriptions s
         WHERE s.trial_started_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
           AND s.trial_started_at < CURDATE() + INTERVAL 1 DAY
-        GROUP BY s.website_id
-      ) coh ON coh.website_id = fr.website_id
+        GROUP BY s.website_id, w.name
+      ) coh
       LEFT JOIN (
         -- Ad spend MTD
         SELECT
@@ -208,8 +199,8 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
         WHERE a.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
           AND a.date <= CURDATE()
         GROUP BY c.website_id
-      ) ma ON ma.website_id = fr.website_id
-      ORDER BY fr.website_name
+      ) ma ON ma.website_id = coh.website_id
+      ORDER BY coh.website_name
     `,
     params: [],
     permissions: ["SELECT"],
