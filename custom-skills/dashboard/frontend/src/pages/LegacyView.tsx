@@ -272,7 +272,7 @@ export function LegacyView() {
                       {roas.toFixed(2)}x
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
-                      €{website.revenueEur.toLocaleString(undefined, { maximumFractionDigits: 0 })} / €{adSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })} ads
+                      €{website.revenueEur.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / €{adSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ads
                     </div>
                   </>
                 ) : (
