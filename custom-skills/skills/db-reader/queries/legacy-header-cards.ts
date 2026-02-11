@@ -143,8 +143,8 @@ export function adsExpenseMtdQuery(): QueryDefinition {
 
 /**
  * Cost Per First Rebill por Website (MTD)
- * - CPFR: Ad Spend MTD / First Rebills MTD (invoices)
- * - Rebill Rate: Cohort-based (trials del mes pasado que convirtieron)
+ * - First Rebills: subscriptions donde subscription_started_at es este mes
+ * - Rebill Rate: Cohort de trials de hace 2-4 semanas que ya convirtieron
  */
 export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
   return {
@@ -153,49 +153,47 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
     description: "MTD cost per first rebill grouped by website",
     sql: `
       SELECT
-        COALESCE(inv.website_id, coh.website_id) as website_id,
-        COALESCE(inv.website_name, coh.website_name) as website_name,
-        COALESCE(inv.first_rebills_mtd, 0) as first_rebills,
-        COALESCE(coh.trials_last_month, 0) as trials,
+        fr.website_id,
+        fr.website_name,
+        fr.first_rebills,
+        COALESCE(coh.trials_cohort, 0) as trials,
         COALESCE(ma.ads_expense_eur, 0) as ads_expense_eur,
         CASE
-          WHEN COALESCE(inv.first_rebills_mtd, 0) > 0
-          THEN ROUND(COALESCE(ma.ads_expense_eur, 0) / inv.first_rebills_mtd, 2)
+          WHEN fr.first_rebills > 0
+          THEN ROUND(COALESCE(ma.ads_expense_eur, 0) / fr.first_rebills, 2)
           ELSE 0
         END as cost_per_first_rebill,
         CASE
-          WHEN COALESCE(coh.trials_last_month, 0) > 0
-          THEN ROUND((COALESCE(coh.converted, 0) * 100.0) / coh.trials_last_month, 2)
+          WHEN COALESCE(coh.trials_cohort, 0) > 0
+          THEN ROUND((COALESCE(coh.converted, 0) * 100.0) / coh.trials_cohort, 2)
           ELSE 0
         END as rebill_rate
       FROM (
-        -- First rebills that happened THIS month (for CPFR)
-        SELECT
-          i.website_id,
-          w.name as website_name,
-          COUNT(DISTINCT i.id) as first_rebills_mtd
-        FROM avocode.invoices i
-        JOIN avocode.websites w ON w.id = i.website_id
-        WHERE i.invoice_type_id = 2
-          AND i.invoice_status_id = 1
-          AND i.transacted_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-          AND i.transacted_at < CURDATE() + INTERVAL 1 DAY
-        GROUP BY i.website_id, w.name
-      ) inv
-      LEFT JOIN (
-        -- Cohort: Trials from LAST month and how many converted (for Rebill Rate)
+        -- First rebills MTD: subscriptions que empezaron a pagar este mes
         SELECT
           s.website_id,
           w.name as website_name,
-          COUNT(*) as trials_last_month,
-          SUM(CASE WHEN s.payment_count >= 1 THEN 1 ELSE 0 END) as converted
+          COUNT(*) as first_rebills
         FROM avocode.subscriptions s
         JOIN avocode.websites w ON w.id = s.website_id
-        WHERE s.trial_started_at >= DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m-01')
-          AND s.trial_started_at < DATE_FORMAT(CURDATE(), '%Y-%m-01')
+        WHERE s.subscription_started_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND s.subscription_started_at < CURDATE() + INTERVAL 1 DAY
+          AND s.payment_count >= 1
         GROUP BY s.website_id, w.name
-      ) coh ON coh.website_id = inv.website_id
+      ) fr
       LEFT JOIN (
+        -- Cohort: Trials de hace 2-4 semanas (periodo típico de conversión)
+        SELECT
+          s.website_id,
+          COUNT(*) as trials_cohort,
+          SUM(CASE WHEN s.payment_count >= 1 THEN 1 ELSE 0 END) as converted
+        FROM avocode.subscriptions s
+        WHERE s.trial_started_at >= CURDATE() - INTERVAL 28 DAY
+          AND s.trial_started_at < CURDATE() - INTERVAL 7 DAY
+        GROUP BY s.website_id
+      ) coh ON coh.website_id = fr.website_id
+      LEFT JOIN (
+        -- Ad spend MTD
         SELECT
           c.website_id,
           SUM(
@@ -210,8 +208,8 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
         WHERE a.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
           AND a.date <= CURDATE()
         GROUP BY c.website_id
-      ) ma ON ma.website_id = inv.website_id
-      ORDER BY website_name
+      ) ma ON ma.website_id = fr.website_id
+      ORDER BY fr.website_name
     `,
     params: [],
     permissions: ["SELECT"],
