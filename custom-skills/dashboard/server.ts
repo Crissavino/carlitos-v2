@@ -3143,10 +3143,10 @@ app.get("/api/legacy/today-performance", async (req: Request, res: Response) => 
     const todayTotal = Math.round((Number(revenueRow?.today_total) || 0) * 100) / 100;
     const yesterdayTotal = Math.round((Number(revenueRow?.yesterday_total) || 0) * 100) / 100;
 
-    // Get today and yesterday dates for display
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    // Get today and yesterday dates for display (in Europe/Bucharest timezone)
+    const nowBucharest = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Bucharest' }));
+    const yesterdayBucharest = new Date(nowBucharest);
+    yesterdayBucharest.setDate(yesterdayBucharest.getDate() - 1);
 
     const formatDate = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 
@@ -3154,8 +3154,8 @@ app.get("/api/legacy/today-performance", async (req: Request, res: Response) => 
       success: true,
       data: {
         dates: {
-          today: formatDate(today),
-          yesterday: formatDate(yesterday),
+          today: formatDate(nowBucharest),
+          yesterday: formatDate(yesterdayBucharest),
         },
         trialsByWebsite,
         rebillsByWebsite,
