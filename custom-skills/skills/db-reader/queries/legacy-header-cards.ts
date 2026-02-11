@@ -182,14 +182,14 @@ export function costPerFirstRebillByWebsiteQuery(): QueryDefinition {
         GROUP BY s.website_id, w.name
       ) fr
       LEFT JOIN (
-        -- Cohort: Trials de hace 2-4 semanas (periodo típico de conversión)
+        -- Cohort MTD: Trials que empezaron este mes y cuántos convirtieron
         SELECT
           s.website_id,
           COUNT(*) as trials_cohort,
           SUM(CASE WHEN s.payment_count >= 1 THEN 1 ELSE 0 END) as converted
         FROM avocode.subscriptions s
-        WHERE s.trial_started_at >= CURDATE() - INTERVAL 28 DAY
-          AND s.trial_started_at < CURDATE() - INTERVAL 7 DAY
+        WHERE s.trial_started_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND s.trial_started_at < CURDATE() + INTERVAL 1 DAY
         GROUP BY s.website_id
       ) coh ON coh.website_id = fr.website_id
       LEFT JOIN (
