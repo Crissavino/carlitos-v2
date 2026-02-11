@@ -10,6 +10,7 @@ export function LegacyView() {
   // Toggle states for cards
   const [showNetTurnover, setShowNetTurnover] = useState(false);
   const [showRebillRate, setShowRebillRate] = useState(false);
+  const [showRoas, setShowRoas] = useState(false);
 
   async function fetchData() {
     setLoading(true);
@@ -234,27 +235,59 @@ export function LegacyView() {
         )}
       </div>
 
-      {/* Total Rebills by Website MTD */}
+      {/* Total Rebills by Website MTD / ROAS */}
       <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6 mt-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold">Total Rebills MTD por Website</h2>
+          <h2 className="text-lg font-semibold">
+            {showRoas ? 'ROAS MTD por Website' : 'Total Rebills MTD por Website'}
+          </h2>
+          <button
+            onClick={() => setShowRoas(!showRoas)}
+            className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+          >
+            {showRoas ? 'Ver Rebills' : 'Ver ROAS'}
+          </button>
         </div>
 
         <div className="grid md:grid-cols-3 gap-4">
-          {Object.values(data.totalRebillsByWebsite).map((website) => (
-            <div
-              key={website.websiteId}
-              className="bg-gray-700/30 rounded-lg p-4 border border-gray-600/30"
-            >
-              <div className="text-sm text-gray-400 mb-2">{website.websiteName}</div>
-              <div className="text-2xl font-bold text-blue-400">
-                {website.totalRebills.toLocaleString()}
+          {Object.values(data.totalRebillsByWebsite).map((website) => {
+            const cpfrData = data.costPerRebillByWebsite[website.websiteName];
+            const adSpend = cpfrData?.adsExpenseEur || 0;
+            const roas = adSpend > 0 ? website.revenueEur / adSpend : 0;
+
+            return (
+              <div
+                key={website.websiteId}
+                className="bg-gray-700/30 rounded-lg p-4 border border-gray-600/30 cursor-pointer hover:border-gray-500/50 transition-colors"
+                onClick={() => setShowRoas(!showRoas)}
+              >
+                <div className="text-sm text-gray-400 mb-2">{website.websiteName}</div>
+
+                {showRoas ? (
+                  <>
+                    <div className={`text-2xl font-bold ${
+                      roas >= 2 ? 'text-green-400' :
+                      roas >= 1 ? 'text-yellow-400' : 'text-red-400'
+                    }`}>
+                      {roas.toFixed(2)}x
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      €{website.revenueEur.toLocaleString(undefined, { maximumFractionDigits: 0 })} / €{adSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })} ads
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-blue-400">
+                      {website.totalRebills.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      €{website.revenueEur.toLocaleString(undefined, { maximumFractionDigits: 0 })} revenue
+                    </div>
+                  </>
+                )}
               </div>
-              <div className="text-xs text-gray-500 mt-2">
-                €{website.revenueEur.toLocaleString(undefined, { maximumFractionDigits: 0 })} revenue
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {Object.keys(data.totalRebillsByWebsite).length === 0 && (
