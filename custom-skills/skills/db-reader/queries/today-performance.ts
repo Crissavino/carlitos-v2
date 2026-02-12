@@ -159,23 +159,21 @@ export function rebillsPerformanceByCampaignQuery(): QueryDefinition {
 
 /**
  * Rebills Refunded - Today & Yesterday
- * Uses invoice_type_id = 3 (refunds)
+ * Uses subscriptions.refund_date (includes all processors: Avocode, Jackcode/Zoho, etc.)
  */
 export function refundedRebillsQuery(): QueryDefinition {
   return {
     id: "today-perf-refunded-rebills" as any,
     name: "Refunded Rebills",
-    description: "Count and amount of refunded rebills for today and yesterday",
+    description: "Count of refunded subscriptions for today and yesterday",
     sql: `
       SELECT
-        SUM(CASE WHEN DATE(${TZ_CONVERT('i.transacted_at')}) = ${TODAY_BUCHAREST} THEN 1 ELSE 0 END) as today_count,
-        SUM(CASE WHEN DATE(${TZ_CONVERT('i.transacted_at')}) = ${YESTERDAY_BUCHAREST} THEN 1 ELSE 0 END) as yesterday_count,
-        SUM(CASE WHEN DATE(${TZ_CONVERT('i.transacted_at')}) = ${TODAY_BUCHAREST} THEN i.amount / ${CURRENCY_RATE_CASE} ELSE 0 END) as today_amount,
-        SUM(CASE WHEN DATE(${TZ_CONVERT('i.transacted_at')}) = ${YESTERDAY_BUCHAREST} THEN i.amount / ${CURRENCY_RATE_CASE} ELSE 0 END) as yesterday_amount
-      FROM avocode.invoices i
-      WHERE i.invoice_type_id = 3
-        AND i.transacted_at >= ${YESTERDAY_BUCHAREST}
-        AND i.transacted_at < ${TODAY_BUCHAREST} + INTERVAL 1 DAY
+        SUM(CASE WHEN DATE(CONVERT_TZ(s.refund_date, '+00:00', '+02:00')) = ${TODAY_BUCHAREST} THEN 1 ELSE 0 END) as today_count,
+        SUM(CASE WHEN DATE(CONVERT_TZ(s.refund_date, '+00:00', '+02:00')) = ${YESTERDAY_BUCHAREST} THEN 1 ELSE 0 END) as yesterday_count
+      FROM avocode.subscriptions s
+      WHERE s.refunded = 1
+        AND s.refund_date >= ${YESTERDAY_BUCHAREST}
+        AND s.refund_date < ${TODAY_BUCHAREST} + INTERVAL 1 DAY
     `,
     params: [],
     permissions: ["SELECT"],
